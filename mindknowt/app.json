@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "MindKnowt",
+    "slug": "mindknowt",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "mindknowt",
+    "userInterfaceStyle": "light",
+    "platforms": ["ios"],
+    "ios": {
+      "bundleIdentifier": "com.nicandmag.mindknowt",
+      "deploymentTarget": "26.0",
+      "supportsTablet": false
+    },
+    "plugins": [
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "MindKnowt reads the NFC tag you tap to identify it."
+        }
+      ]
+    ]
+  }
+}
