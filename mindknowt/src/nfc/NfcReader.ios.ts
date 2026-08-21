@@ -13,9 +13,18 @@ import {
  * On iOS `requestTechnology` always opens an `NFCTagReaderSession` — never an
  * `NFCNDEFReaderSession` — so the tag UID comes back even for tags carrying no
  * NDEF payload. `Ndef` is treated as a wildcard by the library's native tech
- * filter, and `FelicaIOS` widens polling to ISO18092.
+ * filter: it connects to any detected tag type rather than requiring NDEF
+ * formatting. Default polling is ISO14443 + ISO15693, which covers NTAG213/
+ * 215/216 stickers.
+ *
+ * Do NOT add `NfcTech.FelicaIOS` here. It switches on ISO18092 polling, and
+ * iOS rejects a session that polls FeliCa unless the app also declares
+ * `com.apple.developer.nfc.readersession.felica.systemcodes` in Info.plist.
+ * Without it the session fails instantly, with no scan sheet and an empty
+ * error message. FeliCa is a Japanese transit format we have no use for; if it
+ * is ever needed, pass `systemCodes` to the config plugin in app.json first.
  */
-const SCAN_TECHS = [NfcTech.Ndef, NfcTech.FelicaIOS];
+const SCAN_TECHS = [NfcTech.Ndef];
 
 const SHEET_PROMPT = 'Hold the top of your iPhone near the tag.';
 const SHEET_SUCCESS = 'Tag read';
