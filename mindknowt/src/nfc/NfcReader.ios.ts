@@ -13,9 +13,7 @@ import {
  * On iOS `requestTechnology` always opens an `NFCTagReaderSession` — never an
  * `NFCNDEFReaderSession` — so the tag UID comes back even for tags carrying no
  * NDEF payload. `Ndef` is treated as a wildcard by the library's native tech
- * filter (it connects to any detected tag type rather than requiring NDEF
- * formatting), and `FelicaIOS` widens polling to ISO18092 on top of the
- * default ISO14443 + ISO15693.
+ * filter, and `FelicaIOS` widens polling to ISO18092.
  */
 const SCAN_TECHS = [NfcTech.Ndef, NfcTech.FelicaIOS];
 
@@ -32,6 +30,19 @@ function reasonFor(err: unknown): NfcFailureReason {
   if (err instanceof NfcError.UnsupportedFeature) return 'unsupported';
   if (err instanceof NfcError.SystemBusy) return 'busy';
   return 'unknown';
+}
+
+/**
+ * The library constructs its typed errors with an empty message, so a plain
+ * `String(err)` collapses all of them to the useless string "Error". Keep the
+ * class name so an unmapped failure still identifies itself.
+ */
+function describe(err: unknown): string {
+  if (err instanceof Error) {
+    const name = err.constructor?.name || err.name || 'Error';
+    return err.message ? `${name}: ${err.message}` : name;
+  }
+  return String(err);
 }
 
 export const nfcReader: NfcReader = {
@@ -63,8 +74,6 @@ export const nfcReader: NfcReader = {
         );
       }
 
-      await NfcManager.setAlertMessageIOS(SHEET_SUCCESS);
-
       const scanned: ScannedTag = {
         uid: formatUid(rawUid),
         rawUid,
@@ -72,12 +81,18 @@ export const nfcReader: NfcReader = {
         tech: tag?.tech ?? 'unknown',
         scannedAt: Date.now(),
       };
+
+      // Cosmetic sheet text only. A failure here must never discard a good read.
+      try {
+        await NfcManager.setAlertMessageIOS(SHEET_SUCCESS);
+      } catch {
+        // Session already closing; the UID above is still valid.
+      }
+
       return scanned;
     } catch (err) {
       if (err instanceof NfcScanError) throw err;
-      const message =
-        err instanceof Error && err.message ? err.message : String(err);
-      throw new NfcScanError(reasonFor(err), message);
+      throw new NfcScanError(reasonFor(err), describe(err));
     } finally {
       // Closes the iOS sheet. Safe to call when no session is open.
       await this.cancel();
