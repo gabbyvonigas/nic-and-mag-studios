@@ -7,11 +7,22 @@
     "icon": "./assets/icon.png",
     "scheme": "mindknowt",
     "userInterfaceStyle": "light",
-    "platforms": ["ios"],
+    "platforms": [
+      "ios"
+    ],
     "ios": {
       "bundleIdentifier": "com.nicandmag.mindknowt",
-      "deploymentTarget": "26.0",
-      "supportsTablet": false
+      "deploymentTarget": "26.1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAlarmKitUsageDescription": "MindKnowt uses alarms so a reminder keeps ringing until you scan its tag."
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.nicandmag.mindknowt"
+        ]
+      }
     },
     "plugins": [
       [
@@ -20,6 +31,12 @@
           "nfcPermission": "MindKnowt reads the NFC tag you tap to identify it."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2d05cde8-fec3-4dae-ac11-50fff38c73e3"
+      }
+    },
+    "owner": "mindknowt-app"
   }
 }

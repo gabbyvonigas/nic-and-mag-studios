@@ -3,7 +3,7 @@
 iOS app. Expo SDK 57 (RN 0.86), TypeScript, CNG — no checked-in `ios/` directory.
 
 - Bundle ID: `com.nicandmag.mindknowt`
-- Deployment target: iOS 26.0 (`ios.deploymentTarget` in `app.json`)
+- Deployment target: iOS 26.1 (`ios.deploymentTarget` in `app.json`) — AlarmKit module requires it
 - `platforms: ["ios"]` — Android is planned but not configured yet
 
 Requires a custom dev client. NFC works in neither Expo Go nor the simulator.
@@ -15,9 +15,16 @@ npx expo start --dev-client
 
 ## Current scope
 
-One screen: open the iOS NFC sheet, show the scanned tag's UID, and keep a
-running list of every UID scanned this session. No database, no alarms, no
-navigation. `expo-sqlite` is installed but deliberately unused.
+Build-order steps 2 and 4 only — the two hardware risks, proved before any
+real screens exist. Two harnesses behind a plain tab switch:
+
+- **NFC** — open the iOS scan sheet, show the tag UID, list every UID scanned
+  this session.
+- **Alarms** — request AlarmKit permission, schedule a one-shot alarm, and
+  prove it reopens the app with its payload when Stop is pressed.
+
+No database, no Knowts, no Ringing screen, no navigation library.
+`expo-sqlite` is installed but deliberately unused.
 
 ## Layout
 
@@ -31,7 +38,16 @@ src/
     NfcReader.ts          fallback for other platforms; what TS resolves
     useNfcScanner.ts      session state, platform-agnostic
     index.ts
-  screens/ScanScreen.tsx  presentational only
+  alarms/
+    types.ts              AlarmScheduler interface, AlarmError, APP_GROUP_ID
+    AlarmScheduler.ios.ts iOS implementation (expo-alarm-kit)
+    AlarmScheduler.android.ts  stub — see TODO(android)
+    AlarmScheduler.ts     fallback for other platforms; what TS resolves
+    useAlarmTester.ts     harness state, platform-agnostic
+    index.ts
+  screens/
+    ScanScreen.tsx        presentational only
+    AlarmScreen.tsx       presentational only
 ```
 
 ### Platform boundary
@@ -81,3 +97,36 @@ npx expo config --type introspect
 
 The entitlement requires the **NFC Tag Reading** capability on the App ID in the
 Apple Developer portal, or EAS credentials sync will fail the build.
+
+## AlarmKit notes
+
+`expo-alarm-kit` is pre-1.0 and third-party. It is confined to
+`AlarmScheduler.ios.ts` behind the `AlarmScheduler` interface precisely so it
+can be replaced without touching callers.
+
+Its README documents setup through Xcode, which does not apply here — this is a
+CNG project with no `ios/` directory, so everything is expressed in `app.json`
+and generated at prebuild:
+
+| Requirement | Where it lives |
+|---|---|
+| iOS 26.1 deployment target | `ios.deploymentTarget` |
+| `NSAlarmKitUsageDescription` | `ios.infoPlist` |
+| App Group | `ios.entitlements` → `com.apple.security.application-groups` |
+
+**26.1, not 26.0** — the module's podspec declares `:ios => '26.1'`, so a 26.0
+target fails pod install.
+
+The App Group id in `app.json` must match `APP_GROUP_ID` in
+`src/alarms/types.ts` exactly. They are the shared container between the app
+and the AlarmKit dismiss intent; a mismatch makes `configure()` return false and
+every schedule fail.
+
+`launchAppOnDismiss: true` is the mechanism behind the product's core promise:
+the Lock Screen Stop button reopens MindKnowt rather than silently clearing the
+alarm. `dismissPayload` round-trips through `consumeLaunch()`, and is how a
+knowt id will survive the launch and select the Ringing screen.
+
+`consumeLaunch()` clears the payload natively on read, so it is called on mount
+*and* on every foreground transition — the alarm can fire while the app is
+already running.
