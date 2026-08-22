@@ -34,7 +34,7 @@ function toFailure(err: unknown): AlarmFailure {
 export function useAlarmTester() {
   const [availability, setAvailability] = useState<AlarmAvailability>('checking');
   const [authorization, setAuthorization] =
-    useState<AlarmAuthorization>('notDetermined');
+    useState<AlarmAuthorization>('unknown');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<AlarmFailure | null>(null);
   const [scheduled, setScheduled] = useState<ScheduledAlarm[]>([]);
@@ -60,6 +60,13 @@ export function useAlarmTester() {
         await alarmScheduler.configure();
         if (mounted.current) setAvailability('ready');
         await checkLaunch();
+
+        // React state resets on every launch, and an alarm dismissal relaunches
+        // the app — so the real status must be read, not assumed. When already
+        // authorized this returns immediately without prompting; it only
+        // prompts when the status is genuinely notDetermined.
+        const status = await alarmScheduler.requestAuthorization();
+        if (mounted.current) setAuthorization(status);
       } catch (err) {
         if (!mounted.current) return;
         setAvailability('unavailable');

@@ -13,6 +13,8 @@
 export const APP_GROUP_ID = 'group.com.nicandmag.mindknowt';
 
 export type AlarmAuthorization =
+  /** Not read yet. Never render this as a factual permission state. */
+  | 'unknown'
   | 'authorized'
   | 'denied'
   | 'notDetermined'
