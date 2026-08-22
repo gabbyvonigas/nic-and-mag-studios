@@ -20,7 +20,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "verify": "tsc --noEmit && expo export --platform ios --output-dir .expo/verify-export"
   },
   "private": true
 }
