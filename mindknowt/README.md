@@ -73,15 +73,23 @@ hardcodes a hex value or font family — rebranding is one file.
 
 ## NFC notes
 
-`NfcReader.ios.ts` requests `[NfcTech.Ndef, NfcTech.FelicaIOS]`, deliberately:
+`NfcReader.ios.ts` requests `[NfcTech.Ndef]` and nothing else, deliberately:
 
 - On iOS, `requestTechnology` always opens an `NFCTagReaderSession` (never an
   `NFCNDEFReaderSession`), so the tag UID is returned even for tags carrying no
   NDEF payload. Blank/unformatted tags still read.
 - `Ndef` is treated as a wildcard by the library's native tech filter — it
   connects to any detected tag type rather than requiring NDEF formatting.
-- `FelicaIOS` widens polling to ISO18092 alongside the default ISO14443 +
-  ISO15693.
+- Default polling is ISO14443 + ISO15693, which covers the NTAG213/215/216
+  stickers this product targets.
+
+**Do not add `NfcTech.FelicaIOS`.** It switches on ISO18092 polling, which iOS
+rejects unless the app also declares
+`com.apple.developer.nfc.readersession.felica.systemcodes` in Info.plist. While
+it was present, every scan failed instantly — no scan sheet, empty error
+message, no tag ever involved. Confirmed on device. FeliCa is a Japanese
+transit format with no use here; if it is ever genuinely needed, pass
+`systemCodes` to the config plugin in `app.json` first.
 
 UID arrives as a hex string on `tag.id` for MiFare/ISO7816/ISO15693 tags and on
 `tag.idm` for FeliCa; both are handled.
