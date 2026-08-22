@@ -1,80 +1,113 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, AppState, StyleSheet, Text, View, type AppStateStatus } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-import { AlarmScreen } from './src/screens/AlarmScreen';
-import { ScanScreen } from './src/screens/ScanScreen';
+import { alarmScheduler } from './src/alarms';
+import { publishLaunch } from './src/alarms/launchStore';
+import { getDatabase, seedIfEmpty } from './src/db';
+import { linking } from './src/navigation/linking';
+import { navigateToRinging, navigationRef } from './src/navigation/navigationRef';
+import { RootNavigator } from './src/navigation/RootNavigator';
 import { theme } from './src/theme';
 
-type Tab = 'nfc' | 'alarms';
-
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'nfc', label: 'NFC' },
-  { key: 'alarms', label: 'Alarms' },
-];
-
-/**
- * Two hardware-proving harnesses behind a plain switch. This is deliberately
- * not navigation: the real screens come with build-order step 3, and pulling in
- * a navigator now would be scaffolding we throw away.
- */
 export default function App() {
-  const [tab, setTab] = useState<Tab>('nfc');
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        // Opening the database also runs migrations and stamps app_meta.
+        await getDatabase();
+        await seedIfEmpty();
+      } catch (err) {
+        if (active) {
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      } finally {
+        if (active) setReady(true);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  /**
+   * The single consumer of the AlarmKit launch payload. Reading it clears it
+   * natively, so this must not be duplicated elsewhere — everything else reads
+   * the published copy. The payload carries the knowt id, which is how the
+   * alarm selects which Ringing screen to open.
+   */
+  useEffect(() => {
+    const consume = async () => {
+      const launch = await alarmScheduler.consumeLaunch();
+      if (!launch) return;
+      publishLaunch(launch);
+      if (launch.payload) navigateToRinging(launch.payload);
+    };
+
+    void consume();
+
+    // An alarm can fire while the app is already running, so a foreground
+    // transition is as much a launch signal as a cold start.
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') void consume();
+    });
+    return () => sub.remove();
+  }, [ready]);
+
+  if (!ready) {
+    return (
+      <View style={styles.splash}>
+        <StatusBar style="dark" />
+        <ActivityIndicator color={theme.color.textSecondary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.splash}>
+        <StatusBar style="dark" />
+        <Text style={styles.error}>The database could not be opened.</Text>
+        <Text style={styles.errorDetail}>{error}</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.root}>
+    <SafeAreaProvider>
       <StatusBar style="dark" />
-
-      <View style={styles.body}>
-        {tab === 'nfc' ? <ScanScreen /> : <AlarmScreen />}
-      </View>
-
-      <View style={styles.tabBar}>
-        {TABS.map(({ key, label }) => {
-          const active = tab === key;
-          return (
-            <Pressable
-              key={key}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              onPress={() => setTab(key)}
-              style={[styles.tab, active && styles.tabActive]}>
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
+      <NavigationContainer ref={navigationRef} linking={linking}>
+        <RootNavigator />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.color.background },
-  body: { flex: 1 },
-  tabBar: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.xxl,
-    borderTopWidth: 1,
-    borderTopColor: theme.color.border,
-  },
-  tab: {
+  splash: {
     flex: 1,
-    height: 40,
-    borderRadius: theme.radius.sm,
+    backgroundColor: theme.color.background,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xl,
   },
-  tabActive: { backgroundColor: theme.color.surfaceMuted },
-  tabText: {
+  error: {
     fontFamily: theme.font.body,
-    fontSize: theme.font.size.md,
-    fontWeight: theme.font.weight.medium,
-    color: theme.color.textMuted,
+    fontSize: theme.font.size.lg,
+    fontWeight: theme.font.weight.semibold,
+    color: theme.color.dangerText,
   },
-  tabTextActive: { color: theme.color.textPrimary },
+  errorDetail: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textBody,
+    textAlign: 'center',
+  },
 });

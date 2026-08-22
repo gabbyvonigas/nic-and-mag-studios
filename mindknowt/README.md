@@ -15,39 +15,41 @@ npx expo start --dev-client
 
 ## Current scope
 
-Build-order steps 2 and 4 only — the two hardware risks, proved before any
-real screens exist. Two harnesses behind a plain tab switch:
+Build-order steps 1 to 4. The two hardware risks are proved on device; the
+database and the Open-mode screens are built on top of them.
 
-- **NFC** — open the iOS scan sheet, show the tag UID, list every UID scanned
-  this session.
-- **Alarms** — request AlarmKit permission, schedule a one-shot alarm, and
-  prove it reopens the app with its payload when Stop is pressed.
+- **Today** — today's instances in time order, completed by tapping done.
+- **All knowts** — grouped by category.
+- **Add a knowt** — sequential, one decision per screen.
+- **Knowt detail** — notes inline-editable, schedules, history.
+- **Ringing** — the route an alarm reopens the app to. Deliberately a stub;
+  scan-to-stop, snooze, override and the re-fire loop are step 5.
+- **Dev** — app_meta, wipe/reseed, and the NFC and AlarmKit harnesses.
 
-No database, no Knowts, no Ringing screen, no navigation library.
-`expo-sqlite` is installed but deliberately unused.
+Everything is Open mode. No alarms are scheduled from knowts yet, and Strict
+and Soft modes do not exist outside the schema.
 
 ## Layout
 
 ```
 src/
   theme/index.ts          all colors, fonts, spacing, radii
-  nfc/
-    types.ts              NfcReader interface, ScannedTag, NfcScanError
-    NfcReader.ios.ts      iOS implementation
-    NfcReader.android.ts  stub — see TODO(android)
-    NfcReader.ts          fallback for other platforms; what TS resolves
-    useNfcScanner.ts      session state, platform-agnostic
-    index.ts
-  alarms/
-    types.ts              AlarmScheduler interface, AlarmError, APP_GROUP_ID
-    AlarmScheduler.ios.ts iOS implementation (expo-alarm-kit)
-    AlarmScheduler.android.ts  stub — see TODO(android)
-    AlarmScheduler.ts     fallback for other platforms; what TS resolves
-    useAlarmTester.ts     harness state, platform-agnostic
-    index.ts
-  screens/
-    ScanScreen.tsx        presentational only
-    AlarmScreen.tsx       presentational only
+  components/ui.tsx       shared primitives
+  db/
+    schema.ts             DDL, spec section 3; PRAGMA user_version migrations
+    database.ts           open, migrate, app_meta, clear/destroy
+    seed.ts               example content, seedIfEmpty, reseed
+    knowts.ts             repository queries
+    scheduling.ts         isDueOn and repeat description
+    useQuery.ts           refetch on screen focus
+  navigation/
+    types.ts              route params
+    linking.ts            URL routing
+    navigationRef.ts      imperative routing from the alarm payload
+    RootNavigator.tsx     tabs plus stack
+  nfc/                    NfcReader interface + iOS implementation
+  alarms/                 AlarmScheduler interface + iOS implementation
+  screens/                one file per screen, presentational
 ```
 
 ### Platform boundary
@@ -138,3 +140,48 @@ knowt id will survive the launch and select the Ringing screen.
 `consumeLaunch()` clears the payload natively on read, so it is called on mount
 *and* on every foreground transition — the alarm can fire while the app is
 already running.
+
+## Database
+
+Schema is spec section 3 verbatim: `knowts`, `categories`, `schedules`,
+`events`, `app_meta`. `PRAGMA user_version` records the migration level; bump
+`SCHEMA_VERSION` when the DDL changes.
+
+`install_generation` is written as `pre_ads` on first launch with
+`INSERT OR IGNORE`, so it is created if absent and can never be overwritten
+afterwards — including by a reseed. Spec section 3 calls it impossible to
+retrofit, which is why it is written before any content exists. `first_launch_at`
+is stamped the same way. Both are visible on the Dev screen.
+
+Two different wipes, deliberately:
+
+| Function | Effect |
+|---|---|
+| `reseed()` | Clears content tables, re-inserts examples. **Leaves `app_meta` alone.** |
+| `destroyDatabase()` | Deletes the file. The next open is a genuine first launch. |
+
+The seed inserts the six shipped categories and five Open-mode knowts, using
+the spec's own note examples, so the screens are populated during testing.
+`seedIfEmpty()` runs at launch and does nothing once real knowts exist.
+
+`scheduling.ts` is pure logic with no device dependency, and is covered by
+assertions for every repeat type including `supply`, which counts backward from
+running out rather than forward on a fixed interval.
+
+## Navigation and deep linking
+
+React Navigation, native stack plus bottom tabs. Every route is addressable:
+
+```sh
+npx uri-scheme open "mindknowt://ringing/<knowtId>" --ios
+```
+
+**AlarmKit does not deliver a URL.** It relaunches the process and leaves a
+payload, so routing from an alarm is imperative, via `navigationRef`. The
+linking config exists so the Ringing screen can be exercised without waiting for
+a real alarm, and is what spec section 9's queued Shortcuts action will build on.
+
+`consumeLaunch()` clears the payload natively on read, so exactly one caller may
+invoke it. `App.tsx` owns that call and publishes the result through
+`src/alarms/launchStore.ts`; the router and the dev harness both subscribe
+rather than reading the native side again.

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
-
 import { alarmScheduler } from './AlarmScheduler';
+import { clearLaunch, getLaunch, subscribeToLaunch } from './launchStore';
 import {
   AlarmError,
   type AlarmAuthorization,
@@ -42,10 +41,13 @@ export function useAlarmTester() {
 
   const mounted = useRef(true);
 
-  const checkLaunch = useCallback(async () => {
-    const next = await alarmScheduler.consumeLaunch();
-    // Reading clears it natively, so only overwrite when something arrived.
-    if (next && mounted.current) setLaunch(next);
+  // The app shell is the single consumer of the native payload; read the
+  // published copy rather than clearing it out from under the router.
+  useEffect(() => {
+    setLaunch(getLaunch());
+    return subscribeToLaunch((next) => {
+      if (mounted.current) setLaunch(next);
+    });
   }, []);
 
   useEffect(() => {
@@ -59,7 +61,6 @@ export function useAlarmTester() {
         }
         await alarmScheduler.configure();
         if (mounted.current) setAvailability('ready');
-        await checkLaunch();
 
         // React state resets on every launch, and an alarm dismissal relaunches
         // the app — so the real status must be read, not assumed. When already
@@ -74,17 +75,10 @@ export function useAlarmTester() {
       }
     })();
 
-    // The alarm can fire while the app is already running, so re-check on every
-    // return to the foreground, not just on mount.
-    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
-      if (state === 'active') void checkLaunch();
-    });
-
     return () => {
       mounted.current = false;
-      sub.remove();
     };
-  }, [checkLaunch]);
+  }, []);
 
   const authorize = useCallback(async () => {
     setError(null);
@@ -130,7 +124,7 @@ export function useAlarmTester() {
     }
   }, []);
 
-  const clearLaunch = useCallback(() => setLaunch(null), []);
+  const dismissLaunch = useCallback(() => clearLaunch(), []);
 
   return {
     availability,
@@ -142,6 +136,6 @@ export function useAlarmTester() {
     authorize,
     scheduleIn,
     cancel,
-    clearLaunch,
+    clearLaunch: dismissLaunch,
   };
 }

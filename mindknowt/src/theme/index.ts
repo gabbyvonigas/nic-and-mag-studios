@@ -93,6 +93,20 @@ export const theme = {
     md: 12,
     lg: 16,
   },
+
+  /**
+   * Category swatches. These are persisted into `categories.color`, so they are
+   * data rather than styling — but they still live here so that rebranding
+   * remains a single-file change.
+   */
+  categoryPalette: {
+    home: '#2563eb',
+    daily: '#0891b2',
+    care: '#7c3aed',
+    ritual: '#db2777',
+    go: '#ea580c',
+    admin: '#4b5563',
+  },
 } as const;
 
 export type Theme = typeof theme;
