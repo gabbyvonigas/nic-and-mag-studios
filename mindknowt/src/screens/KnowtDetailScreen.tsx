@@ -1,18 +1,33 @@
 import { useEffect, useState } from 'react';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Card, Pill, ScreenHeader } from '../components/ui';
+import { armKnowtAlarm } from '../alarms';
 import {
   archiveKnowt,
+  attachTag,
   describeRepeat,
   getKnowt,
   listEvents,
   logCompletion,
+  ModeUnavailableError,
+  setMode,
+  TagInUseError,
   updateNotes,
+  type KnowtMode,
 } from '../db';
+import { NfcScanError, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -34,6 +49,8 @@ export function KnowtDetailScreen() {
 
   const [draftNotes, setDraftNotes] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (knowt && !dirty) setDraftNotes(knowt.notes ?? '');
@@ -62,6 +79,65 @@ export function KnowtDetailScreen() {
     await updateNotes(knowt.id, draftNotes);
     setDirty(false);
     await reload();
+  };
+
+  /**
+   * Spec section 5.6: attaching a tag promotes an Open knowt in place. Name,
+   * notes, schedules and history all survive — only the UID and mode change.
+   * The same path re-scans a replacement tag onto an already-tagged knowt.
+   */
+  const scanToAttach = async () => {
+    setNotice(null);
+    setBusy(true);
+    try {
+      const tag = await nfcReader.scanTag();
+      await attachTag(knowt.id, tag.rawUid);
+      await reload();
+      setNotice(`Tag attached. ${knowt.name} is now strict.`);
+    } catch (err) {
+      if (err instanceof TagInUseError) {
+        setNotice(`That tag is already ${err.knowtName}. Scan a different one.`);
+      } else if (err instanceof NfcScanError && err.reason === 'cancelled') {
+        // Backing out is not a failure.
+      } else {
+        setNotice(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const changeMode = async (mode: KnowtMode) => {
+    setNotice(null);
+    try {
+      await setMode(knowt.id, mode);
+      await reload();
+    } catch (err) {
+      setNotice(
+        err instanceof ModeUnavailableError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err),
+      );
+    }
+  };
+
+  const testAlarm = async () => {
+    setNotice(null);
+    setBusy(true);
+    try {
+      await armKnowtAlarm({
+        knowtId: knowt.id,
+        title: knowt.name,
+        firesAt: new Date(Date.now() + 60_000),
+      });
+      setNotice('Alarm set for one minute from now. Lock the phone.');
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const checkIn = async () => {
@@ -100,6 +176,54 @@ export function KnowtDetailScreen() {
           textAlignVertical="top"
         />
         {dirty ? <Button label="Save notes" onPress={() => void saveNotes()} /> : null}
+
+        {notice ? (
+          <View style={styles.notice}>
+            <Text style={styles.noticeText}>{notice}</Text>
+          </View>
+        ) : null}
+
+        <Text style={styles.sectionTitle}>Mode</Text>
+        <View style={styles.modeRow}>
+          {(['strict', 'soft', 'open'] as KnowtMode[]).map((mode) => {
+            const selected = knowt.mode === mode;
+            return (
+              <Pressable
+                key={mode}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => void changeMode(mode)}
+                style={[styles.modeChip, selected && styles.modeChipSelected]}>
+                <Text
+                  style={[styles.modeText, selected && styles.modeTextSelected]}>
+                  {mode}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={styles.hint}>
+          Strict and soft both need a tag. Open completes by tapping done.
+        </Text>
+
+        <Button
+          label={knowt.tag_uid ? 'Replace tag' : 'Add a tag to this'}
+          variant="secondary"
+          disabled={busy}
+          onPress={() => void scanToAttach()}
+        />
+        {knowt.tag_uid ? (
+          <Text style={styles.tagUid} selectable>
+            {knowt.tag_uid}
+          </Text>
+        ) : null}
+
+        <Button
+          label="Ring this in 1 minute"
+          variant="quiet"
+          disabled={busy}
+          onPress={() => void testAlarm()}
+        />
 
         <Text style={styles.sectionTitle}>Schedules</Text>
         {knowt.schedules.length === 0 ? (
@@ -201,4 +325,48 @@ const styles = StyleSheet.create({
     borderTopColor: theme.color.surfaceMuted,
   },
   actions: { gap: theme.spacing.sm, marginTop: theme.spacing.lg },
+  notice: {
+    backgroundColor: theme.color.warningSurface,
+    borderColor: theme.color.warningBorder,
+    borderWidth: 1,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+  },
+  noticeText: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    color: theme.color.warningText,
+  },
+  modeRow: { flexDirection: 'row', gap: theme.spacing.sm },
+  modeChip: {
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.sm,
+    paddingVertical: theme.spacing.sm,
+  },
+  modeChipSelected: {
+    borderColor: theme.color.accent,
+    backgroundColor: theme.color.surfaceMuted,
+  },
+  modeText: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    color: theme.color.textMuted,
+  },
+  modeTextSelected: {
+    color: theme.color.textPrimary,
+    fontWeight: theme.font.weight.semibold,
+  },
+  hint: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textMuted,
+  },
+  tagUid: {
+    fontFamily: theme.font.mono,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
 });

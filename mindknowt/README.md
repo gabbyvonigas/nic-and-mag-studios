@@ -15,19 +15,19 @@ npx expo start --dev-client
 
 ## Current scope
 
-Build-order steps 1 to 4. The two hardware risks are proved on device; the
-database and the Open-mode screens are built on top of them.
+Build-order steps 1 to 5.
 
-- **Today** — today's instances in time order, completed by tapping done.
+- **Today** — today's instances in time order.
 - **All knowts** — grouped by category.
 - **Add a knowt** — sequential, one decision per screen.
-- **Knowt detail** — notes inline-editable, schedules, history.
-- **Ringing** — the route an alarm reopens the app to. Deliberately a stub;
-  scan-to-stop, snooze, override and the re-fire loop are step 5.
+- **Knowt detail** — notes, schedules, history, mode control, attach/replace
+  tag, and a one-minute test alarm.
+- **Ringing** — the real thing: scan to stop, snooze, override, re-fire.
 - **Dev** — app_meta, wipe/reseed, and the NFC and AlarmKit harnesses.
 
-Everything is Open mode. No alarms are scheduled from knowts yet, and Strict
-and Soft modes do not exist outside the schema.
+Not built yet: categories manager and starter sets (step 9), onboarding
+(step 10), the multi-alarm queue, and registering every schedule with AlarmKit
+— only the test alarm arms one today.
 
 ## Layout
 
@@ -185,3 +185,52 @@ a real alarm, and is what spec section 9's queued Shortcuts action will build on
 invoke it. `App.tsx` owns that call and publishes the result through
 `src/alarms/launchStore.ts`; the router and the dev harness both subscribe
 rather than reading the native side again.
+
+## Ringing and the re-fire loop
+
+`src/ringing/useRingingSession.ts` owns one ringing session. An event row is
+created the moment the alarm fires, not when it completes, so a session that is
+snoozed or walked away from still leaves a record.
+
+| Mode | Buttons |
+|---|---|
+| Strict | Scan to stop · Snooze · Override — no dismiss |
+| Soft | Scan to stop · Snooze · Dismiss |
+| Open | Done · Snooze |
+
+**The note renders here in full and is editable in place.** Standing in front of
+the thing is when the detail matters and when you learn what is worth writing
+down, so the screen does not make you go elsewhere to record it. A separate
+per-event note is written to `events.note`.
+
+**Scanning compares against `knowts.tag_uid` and accepts nothing else.** A wrong
+tag says `That's not <name>. Scan the <name> tag.` and the alarm keeps ringing.
+
+**Override** is never hidden — there must always be a way out. It requires both
+typing `override` and a ten-second press-and-hold; the hold control stays
+disabled until the typed word matches, so both conditions must genuinely be
+met. Logged as `method: override`.
+
+**Re-fire**: a session is unresolved until scanned, dismissed, snoozed or
+overridden. Backgrounding the app while unresolved schedules a fresh alarm at
+`refire_minutes` and keeps doing so, once per session.
+
+Two deliberate details in that logic:
+
+- Only `background` counts as walking away. iOS reports `inactive` while the
+  system NFC sheet is up, which is the opposite of abandoning the alarm.
+- Snoozing marks the session resolved without setting `completed_at`, so it does
+  not also queue a re-fire, and the event stays honestly incomplete.
+
+**Known gap:** force-quitting the app cannot re-fire, because nothing runs to
+observe it.
+
+### Missed
+
+Spec section 6 wants `missed` written at end of day. There is no background
+execution, so `sweepMissed()` runs at launch and back-fills any past due
+instance with no event, bounded to 14 days and marked by `last_missed_sweep`.
+The data is right; only the moment it is written differs.
+
+`setAppMeta` refuses to write `install_generation` or `first_launch_at` rather
+than trusting every caller to remember they are immutable.

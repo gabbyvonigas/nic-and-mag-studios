@@ -14,7 +14,7 @@ export type RootStackParamList = {
    * The screen AlarmKit reopens the app to. Addressable by URL so it can be
    * exercised without waiting for a real alarm — see linking.ts.
    */
-  Ringing: { knowtId: string };
+  Ringing: { knowtId: string; scheduleId?: string };
   NfcHarness: undefined;
   AlarmHarness: undefined;
 };

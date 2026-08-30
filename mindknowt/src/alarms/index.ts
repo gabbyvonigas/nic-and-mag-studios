@@ -1,4 +1,5 @@
 export { alarmScheduler } from './AlarmScheduler';
+export { armKnowtAlarm, rearmKnowtAlarm } from './knowtAlarms';
 export { useAlarmTester } from './useAlarmTester';
 export type { AlarmAvailability, AlarmFailure } from './useAlarmTester';
 export {

@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { alarmScheduler } from './src/alarms';
 import { publishLaunch } from './src/alarms/launchStore';
-import { getDatabase, seedIfEmpty } from './src/db';
+import { getDatabase, seedIfEmpty, sweepMissed } from './src/db';
 import { linking } from './src/navigation/linking';
 import { navigateToRinging, navigationRef } from './src/navigation/navigationRef';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -23,6 +23,9 @@ export default function App() {
         // Opening the database also runs migrations and stamps app_meta.
         await getDatabase();
         await seedIfEmpty();
+        // Spec section 6 wants `missed` at end of day; with no background
+        // execution the next launch is the earliest honest moment to write it.
+        await sweepMissed();
       } catch (err) {
         if (active) {
           setError(err instanceof Error ? err.message : String(err));

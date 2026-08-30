@@ -67,6 +67,27 @@ export async function getAppMeta(key: string): Promise<string | null> {
   return row?.value ?? null;
 }
 
+/**
+ * Keys stamped once at first launch. Spec section 3 requires
+ * `install_generation` to be immutable, so the generic setter refuses to touch
+ * it rather than relying on every caller to remember.
+ */
+const IMMUTABLE_META_KEYS = new Set(['install_generation', 'first_launch_at']);
+
+export async function setAppMeta(key: string, value: string): Promise<void> {
+  if (IMMUTABLE_META_KEYS.has(key)) {
+    throw new Error(
+      `app_meta.${key} is stamped at first launch and must never be rewritten.`,
+    );
+  }
+  const db = await getDatabase();
+  await db.runAsync(
+    'INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)',
+    key,
+    value,
+  );
+}
+
 export async function getAllAppMeta(): Promise<Record<string, string>> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ key: string; value: string }>(

@@ -1,36 +1,108 @@
+import { useEffect, useRef, useState } from 'react';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../components/ui';
-import { getKnowt, logCompletion } from '../db';
-import { useQuery } from '../db/useQuery';
+import { HoldToConfirm } from '../components/HoldToConfirm';
+import { describeRepeat } from '../db';
+import { useRingingSession } from '../ringing/useRingingSession';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'Ringing'>;
 
-/**
- * The screen AlarmKit reopens the app to. Deliberately minimal: build-order
- * step 5 owns scan-to-stop, snooze, override and the re-fire loop. What exists
- * here is the routing target and the note, which spec section 5.7 calls the
- * highest-value real estate in the app.
- */
+const OVERRIDE_WORD = 'override';
+const OVERRIDE_HOLD_MS = 10_000;
+
+function RingIndicator({ active }: { active: boolean }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!active) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [active, pulse]);
+
+  return (
+    <View style={styles.ringRow}>
+      <View style={styles.ringDot}>
+        <Animated.View
+          style={[
+            styles.ringHalo,
+            {
+              transform: [
+                { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 2.4] }) },
+              ],
+              opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] }),
+            },
+          ]}
+        />
+      </View>
+      <Text style={styles.ringLabel}>RINGING</Text>
+    </View>
+  );
+}
+
 export function RingingScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
-  const { data: knowt, loading } = useQuery(
-    () => getKnowt(params.knowtId),
-    [params.knowtId],
-  );
 
-  const done = async () => {
-    if (knowt) {
-      await logCompletion({ knowtId: knowt.id, scheduleId: null, method: 'tap' });
-    }
-    navigation.navigate('Tabs', { screen: 'Today' });
+  const {
+    knowt,
+    loading,
+    resolved,
+    scanning,
+    message,
+    scanToStop,
+    snooze,
+    complete,
+    saveKnowtNotes,
+    saveEventNote,
+  } = useRingingSession(params.knowtId, params.scheduleId ?? null);
+
+  const [notesDraft, setNotesDraft] = useState('');
+  const [notesDirty, setNotesDirty] = useState(false);
+  const [eventNote, setEventNote] = useState('');
+  const [showEventNote, setShowEventNote] = useState(false);
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const [overrideWord, setOverrideWord] = useState('');
+
+  useEffect(() => {
+    if (knowt && !notesDirty) setNotesDraft(knowt.notes ?? '');
+  }, [knowt, notesDirty]);
+
+  const leave = () => navigation.navigate('Tabs', { screen: 'Today' });
+
+  /**
+   * Runs an action and leaves only if it resolved the alarm. A handler that
+   * returns false — a wrong tag, a failed scan — keeps the screen up and the
+   * alarm ringing.
+   */
+  const finish = async (run: () => Promise<boolean | void>) => {
+    const outcome = await run();
+    if (outcome === false) return;
+    if (eventNote.trim()) await saveEventNote(eventNote);
+    leave();
   };
 
   if (loading) {
@@ -41,43 +113,223 @@ export function RingingScreen() {
     );
   }
 
+  if (!knowt) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.missing}>
+          <Text style={styles.body}>That knowt no longer exists.</Text>
+          <Button label="Back to today" onPress={leave} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const schedule = knowt.schedules.find((s) => s.id === params.scheduleId) ?? null;
+  const strict = knowt.mode === 'strict';
+  const soft = knowt.mode === 'soft';
+  const open = knowt.mode === 'open';
+  const overrideReady = overrideWord.trim().toLowerCase() === OVERRIDE_WORD;
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.label}>RINGING</Text>
-        <Text style={styles.name}>{knowt?.name ?? 'Unknown knowt'}</Text>
-        {knowt?.location_note ? (
-          <Text style={styles.location}>{knowt.location_note}</Text>
-        ) : null}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled">
+          <RingIndicator active={!resolved} />
 
-        {knowt?.notes ? (
-          <View style={styles.notes}>
-            <Text style={styles.notesText}>{knowt.notes}</Text>
-          </View>
-        ) : null}
+          <Text style={styles.name}>{knowt.name}</Text>
+          {schedule ? (
+            <Text style={styles.scheduleLabel}>
+              {schedule.label ? `${schedule.label} · ` : ''}
+              {schedule.time} · {describeRepeat(schedule)}
+            </Text>
+          ) : null}
+          {knowt.location_note ? (
+            <Text style={styles.location}>{knowt.location_note}</Text>
+          ) : null}
 
-        <Text style={styles.stub}>
-          Scan to stop, snooze, override and the re-fire loop arrive with build
-          order step 5. For now this screen only proves the alarm can route here.
-        </Text>
-      </ScrollView>
+          {message ? (
+            <View
+              style={[
+                styles.banner,
+                message.tone === 'warn' ? styles.bannerWarn : styles.bannerDanger,
+              ]}>
+              <Text
+                style={[
+                  styles.bannerText,
+                  message.tone === 'warn' ? styles.textWarn : styles.textDanger,
+                ]}>
+                {message.text}
+              </Text>
+            </View>
+          ) : null}
 
-      <View style={styles.footer}>
-        <Button label="Done" onPress={() => void done()} />
-      </View>
+          {/* The note is the highest-value real estate in the app: standing in
+              front of the thing is exactly when the detail matters, and when
+              you learn what is worth writing down. So it renders in full and
+              is editable right here. */}
+          <Text style={styles.sectionTitle}>Note</Text>
+          <TextInput
+            style={styles.noteInput}
+            value={notesDraft}
+            onChangeText={(text) => {
+              setNotesDraft(text);
+              setNotesDirty(true);
+            }}
+            placeholder="Filter size, product name, dosage, phone number."
+            placeholderTextColor={theme.color.textMuted}
+            multiline
+            scrollEnabled={false}
+            textAlignVertical="top"
+          />
+          {notesDirty ? (
+            <Button
+              label="Save note"
+              variant="secondary"
+              onPress={async () => {
+                await saveKnowtNotes(notesDraft);
+                setNotesDirty(false);
+              }}
+            />
+          ) : null}
+
+          {showEventNote ? (
+            <>
+              <Text style={styles.sectionTitle}>Note for this time</Text>
+              <TextInput
+                style={styles.eventNoteInput}
+                value={eventNote}
+                onChangeText={setEventNote}
+                placeholder="Used the last one."
+                placeholderTextColor={theme.color.textMuted}
+                multiline
+                scrollEnabled={false}
+                textAlignVertical="top"
+              />
+            </>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setShowEventNote(true)}>
+              <Text style={styles.link}>Add a note</Text>
+            </Pressable>
+          )}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          {(strict || soft) && (
+            <Button
+              label={scanning ? 'Scanning…' : 'Scan to stop'}
+              disabled={scanning}
+              onPress={() => void finish(scanToStop)}
+            />
+          )}
+
+          {open && (
+            <Button label="Done" onPress={() => void finish(() => complete('tap'))} />
+          )}
+
+          <Button
+            label="Snooze"
+            variant="secondary"
+            onPress={() => void finish(snooze)}
+          />
+
+          {soft && (
+            <Button
+              label="Dismiss"
+              variant="quiet"
+              onPress={() => void finish(() => complete('tap'))}
+            />
+          )}
+
+          {strict && (
+            <View style={styles.overrideArea}>
+              {overrideOpen ? (
+                <View style={styles.overridePanel}>
+                  <Text style={styles.overrideHint}>
+                    Type {OVERRIDE_WORD}, then press and hold for ten seconds.
+                  </Text>
+                  <TextInput
+                    style={styles.overrideInput}
+                    value={overrideWord}
+                    onChangeText={setOverrideWord}
+                    placeholder={OVERRIDE_WORD}
+                    placeholderTextColor={theme.color.textMuted}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <HoldToConfirm
+                    label="Hold to override"
+                    holdMs={OVERRIDE_HOLD_MS}
+                    disabled={!overrideReady}
+                    onComplete={() => void finish(() => complete('override'))}
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setOverrideOpen(false);
+                      setOverrideWord('');
+                    }}>
+                    <Text style={styles.overrideLink}>Cancel</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setOverrideOpen(true)}>
+                  {/* Never hidden entirely: there must always be a way out. */}
+                  <Text style={styles.overrideLink}>Override</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.color.background },
+  flex: { flex: 1 },
   content: {
     paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.xxl,
+    paddingTop: theme.spacing.xl,
     paddingBottom: theme.spacing.xl,
     gap: theme.spacing.sm,
   },
-  label: {
+  missing: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.xl,
+    gap: theme.spacing.lg,
+  },
+  ringRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  ringDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.color.dangerText,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringHalo: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.color.dangerText,
+  },
+  ringLabel: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.xs,
     fontWeight: theme.font.weight.semibold,
@@ -91,29 +343,104 @@ const styles = StyleSheet.create({
     color: theme.color.textPrimary,
     letterSpacing: -0.5,
   },
-  location: {
+  scheduleLabel: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.md,
     color: theme.color.textSecondary,
   },
-  notes: {
-    marginTop: theme.spacing.lg,
-    backgroundColor: theme.color.surfaceMuted,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
+  location: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    color: theme.color.textMuted,
   },
-  notesText: {
+  body: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    color: theme.color.textBody,
+  },
+  banner: {
+    marginTop: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    padding: theme.spacing.md,
+  },
+  bannerWarn: {
+    backgroundColor: theme.color.warningSurface,
+    borderColor: theme.color.warningBorder,
+  },
+  bannerDanger: {
+    backgroundColor: theme.color.dangerSurface,
+    borderColor: theme.color.dangerBorder,
+  },
+  bannerText: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    fontWeight: theme.font.weight.medium,
+  },
+  textWarn: { color: theme.color.warningText },
+  textDanger: { color: theme.color.dangerText },
+  sectionTitle: {
+    marginTop: theme.spacing.lg,
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    fontWeight: theme.font.weight.semibold,
+    color: theme.color.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  noteInput: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
     lineHeight: 26,
     color: theme.color.textPrimary,
+    backgroundColor: theme.color.surfaceMuted,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg,
+    minHeight: 120,
   },
-  stub: {
-    marginTop: theme.spacing.xl,
+  eventNoteInput: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+    minHeight: 72,
+  },
+  link: {
+    marginTop: theme.spacing.md,
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    fontWeight: theme.font.weight.medium,
+    color: theme.color.textSecondary,
+  },
+  footer: {
+    paddingHorizontal: theme.spacing.xl,
+    paddingBottom: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
+  overrideArea: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
+  overridePanel: { gap: theme.spacing.sm },
+  overrideHint: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
-    lineHeight: 19,
     color: theme.color.textMuted,
   },
-  footer: { paddingHorizontal: theme.spacing.xl, paddingBottom: theme.spacing.sm },
+  overrideInput: {
+    fontFamily: theme.font.mono,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  overrideLink: {
+    textAlign: 'center',
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textMuted,
+  },
 });

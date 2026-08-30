@@ -72,10 +72,10 @@ export function AllKnowtsScreen() {
                           <Text style={styles.rowMeta}>{knowt.location_note}</Text>
                         ) : null}
                       </View>
-                      <Pill
-                        label={knowt.mode}
-                        color={group.color ?? undefined}
-                      />
+                      {/* Mode is not a category, so it must not borrow the
+                          category colour — every "open" pill should look the
+                          same regardless of which group it sits in. */}
+                      <Pill label={knowt.mode} />
                     </Pressable>
                   ))}
                 </View>

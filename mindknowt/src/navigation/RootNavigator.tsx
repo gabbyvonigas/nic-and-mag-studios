@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { AlarmScreen } from '../screens/AlarmScreen';
 import { AddKnowtScreen } from '../screens/AddKnowtScreen';
@@ -16,12 +16,6 @@ import type { RootStackParamList, TabParamList } from './types';
 const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function tabIcon(label: string) {
-  return function TabLabel({ color }: { color: string }) {
-    return <Text style={[styles.tabLabel, { color }]}>{label}</Text>;
-  };
-}
-
 function Tabs() {
   return (
     <Tab.Navigator
@@ -30,21 +24,25 @@ function Tabs() {
         tabBarActiveTintColor: theme.color.textPrimary,
         tabBarInactiveTintColor: theme.color.textMuted,
         tabBarStyle: styles.tabBar,
+        // There are no icons, so the label is the whole control. Rendering text
+        // through tabBarIcon clips it — the icon slot is sized for a glyph.
+        tabBarIconStyle: styles.hidden,
+        tabBarLabelStyle: styles.tabLabel,
       }}>
       <Tab.Screen
         name="Today"
         component={TodayScreen}
-        options={{ tabBarIcon: tabIcon('Today'), tabBarLabel: () => null }}
+        options={{ tabBarLabel: 'Today' }}
       />
       <Tab.Screen
         name="AllKnowts"
         component={AllKnowtsScreen}
-        options={{ tabBarIcon: tabIcon('Knowts'), tabBarLabel: () => null }}
+        options={{ tabBarLabel: 'Knowts' }}
       />
       <Tab.Screen
         name="Dev"
         component={DevScreen}
-        options={{ tabBarIcon: tabIcon('Dev'), tabBarLabel: () => null }}
+        options={{ tabBarLabel: 'Dev' }}
       />
     </Tab.Navigator>
   );
@@ -76,6 +74,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.background,
     borderTopColor: theme.color.border,
   },
+  hidden: { display: 'none' },
   tabLabel: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,

@@ -128,6 +128,63 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
   return id;
 }
 
+/** Raised when a UID already belongs to a different knowt. */
+export class TagInUseError extends Error {
+  readonly knowtName: string;
+  constructor(knowtName: string) {
+    super(`That tag is already ${knowtName}.`);
+    this.name = 'TagInUseError';
+    this.knowtName = knowtName;
+  }
+}
+
+/** Raised when a mode is requested that the knowt cannot satisfy. */
+export class ModeUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ModeUnavailableError';
+  }
+}
+
+/**
+ * Spec section 5.6: promoting an Open knowt by attaching a tag is a headline
+ * path, not an edge case — the knowt keeps its name, notes, schedules and
+ * history, and only gains a UID and a stricter mode.
+ */
+export async function attachTag(
+  knowtId: string,
+  tagUid: string,
+  mode: Exclude<KnowtMode, 'open'> = 'strict',
+): Promise<void> {
+  const owner = await findKnowtByTagUid(tagUid);
+  if (owner && owner.id !== knowtId) {
+    throw new TagInUseError(owner.name);
+  }
+
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE knowts SET tag_uid = ?, mode = ? WHERE id = ?',
+    tagUid,
+    mode,
+    knowtId,
+  );
+}
+
+/** Strict and Soft both require a tag — spec section 2.1. */
+export async function setMode(knowtId: string, mode: KnowtMode): Promise<void> {
+  const knowt = await getKnowt(knowtId);
+  if (!knowt) return;
+
+  if (mode !== 'open' && !knowt.tag_uid) {
+    throw new ModeUnavailableError(
+      `${mode === 'strict' ? 'Strict' : 'Soft'} needs a tag. Add a tag to this knowt first.`,
+    );
+  }
+
+  const db = await getDatabase();
+  await db.runAsync('UPDATE knowts SET mode = ? WHERE id = ?', mode, knowtId);
+}
+
 export async function updateNotes(id: string, notes: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('UPDATE knowts SET notes = ? WHERE id = ?', notes, id);
