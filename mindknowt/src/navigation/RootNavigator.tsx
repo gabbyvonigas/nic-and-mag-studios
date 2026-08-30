@@ -6,6 +6,9 @@ import { AlarmScreen } from '../screens/AlarmScreen';
 import { AddKnowtScreen } from '../screens/AddKnowtScreen';
 import { AllKnowtsScreen } from '../screens/AllKnowtsScreen';
 import { DevScreen } from '../screens/DevScreen';
+import { LegalDocumentScreen } from '../screens/LegalDocumentScreen';
+import { LegalScreen } from '../screens/LegalScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { KnowtDetailScreen } from '../screens/KnowtDetailScreen';
 import { RingingScreen } from '../screens/RingingScreen';
 import { ScanScreen } from '../screens/ScanScreen';
@@ -40,6 +43,11 @@ function Tabs() {
         options={{ tabBarLabel: 'Knowts' }}
       />
       <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ tabBarLabel: 'Settings' }}
+      />
+      <Tab.Screen
         name="Dev"
         component={DevScreen}
         options={{ tabBarLabel: 'Dev' }}
@@ -63,6 +71,8 @@ export function RootNavigator() {
         component={RingingScreen}
         options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
       />
+      <Stack.Screen name="Legal" component={LegalScreen} />
+      <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
       <Stack.Screen name="NfcHarness" component={ScanScreen} />
       <Stack.Screen name="AlarmHarness" component={AlarmScreen} />
     </Stack.Navigator>
