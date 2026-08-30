@@ -63,7 +63,7 @@ export function useAlarmTester() {
         if (mounted.current) setAvailability('ready');
 
         // React state resets on every launch, and an alarm dismissal relaunches
-        // the app — so the real status must be read, not assumed. When already
+        // the app, so the real status must be read, not assumed. When already
         // authorized this returns immediately without prompting; it only
         // prompts when the status is genuinely notDetermined.
         const status = await alarmScheduler.requestAuthorization();
@@ -101,7 +101,7 @@ export function useAlarmTester() {
       const alarm = await alarmScheduler.scheduleAt({
         title: 'MindKnowt test alarm',
         firesAt,
-        // Stands in for a knowt id — this is what must survive the launch.
+        // Stands in for a knowt id. This is what must survive the launch.
         payload: `test-${minutes}m`,
       });
       if (mounted.current) setScheduled((prev) => [alarm, ...prev]);

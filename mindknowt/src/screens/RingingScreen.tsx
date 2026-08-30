@@ -95,7 +95,7 @@ export function RingingScreen() {
 
   /**
    * Runs an action and leaves only if it resolved the alarm. A handler that
-   * returns false — a wrong tag, a failed scan — keeps the screen up and the
+   * returns false, such as a wrong tag or a failed scan, keeps the screen up and the
    * alarm ringing.
    */
   const finish = async (run: () => Promise<boolean | void>) => {

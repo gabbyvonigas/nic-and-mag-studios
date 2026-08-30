@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, ScreenHeader } from '../components/ui';
 import { destroyDatabase, getAllAppMeta, listKnowts, reseed, seedIfEmpty } from '../db';
 import { useQuery } from '../db/useQuery';
-import { listSets, setContentErrors } from '../sets';
+import { listSets, setContentErrors, setContentNotices } from '../sets';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -97,6 +97,11 @@ export function DevScreen() {
               </Text>
             ))
           )}
+          {setContentNotices().map((notice) => (
+            <Text key={notice} style={styles.contentNotice}>
+              {notice}
+            </Text>
+          ))}
         </Card>
         <Text style={styles.hint}>
           Content is validated at load. Anything listed here is a problem in the
@@ -146,6 +151,12 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     lineHeight: 19,
     color: theme.color.textMuted,
+  },
+  contentNotice: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    lineHeight: 18,
+    color: theme.color.warningText,
   },
   contentError: {
     fontFamily: theme.font.body,

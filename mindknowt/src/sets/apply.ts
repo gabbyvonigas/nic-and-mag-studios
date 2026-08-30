@@ -21,6 +21,11 @@ export function setContentErrors(): string[] {
   return parsed.errors;
 }
 
+/** Content that parsed but is being ignored, such as times. */
+export function setContentNotices(): string[] {
+  return parsed.notices;
+}
+
 export function getSet(setId: string): StarterSet | null {
   return parsed.sets.find((s) => s.id === setId) ?? null;
 }
@@ -57,25 +62,34 @@ export async function previewSet(setId: string): Promise<SetPreview | null> {
 }
 
 /**
- * Creates real knowts from a set. Everything is created Open — Strict and Soft
- * need a tag, and these have none yet — with the set's suggestion stored for
+ * Creates real knowts from a set. Everything is created Open, because Strict and Soft
+ * need a tag, and these have none yet, with the set's suggestion stored for
  * when a tag is attached.
  */
+export type SetSelection = {
+  name: string;
+  /** One time per schedule on that knowt, in the order the set lists them. */
+  times: string[];
+};
+
 export async function applySet(
   setId: string,
-  names: string[],
+  selections: SetSelection[],
 ): Promise<{ created: number }> {
   const set = getSet(setId);
   if (!set) return { created: 0 };
 
-  const wanted = new Set(names.map((n) => n.trim().toLowerCase()));
-  const chosen = set.knowts.filter((k) => wanted.has(k.name.trim().toLowerCase()));
+  const byName = new Map(
+    selections.map((s) => [s.name.trim().toLowerCase(), s.times]),
+  );
+  const chosen = set.knowts.filter((k) => byName.has(k.name.trim().toLowerCase()));
 
   // Schedules that count from a start date anchor to the day the set is applied.
   const startDate = toISODate(new Date());
   let created = 0;
 
   for (const knowt of chosen) {
+    const times = byName.get(knowt.name.trim().toLowerCase()) ?? [];
     const category = await findCategoryByKey(knowt.category);
 
     const knowtId = await createKnowt({
@@ -88,7 +102,12 @@ export async function applySet(
       notes: knowt.notes,
     });
 
-    for (const schedule of knowt.schedules) {
+    for (const [index, schedule] of knowt.schedules.entries()) {
+      const time = times[index];
+      // A schedule with no time chosen is not created. The knowt still exists
+      // and a schedule can be added later, which is better than inventing one.
+      if (!time) continue;
+
       const anchored =
         schedule.repeat === 'interval' ||
         schedule.repeat === 'supply' ||
@@ -96,7 +115,7 @@ export async function applySet(
 
       await addSchedule(knowtId, {
         label: schedule.label,
-        time: schedule.time,
+        time,
         repeatType: schedule.repeat,
         daysOfWeek: schedule.daysOfWeek,
         intervalDays: schedule.intervalDays,

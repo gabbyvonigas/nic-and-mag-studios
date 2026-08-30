@@ -41,7 +41,7 @@ export default function App() {
 
   /**
    * The single consumer of the AlarmKit launch payload. Reading it clears it
-   * natively, so this must not be duplicated elsewhere — everything else reads
+   * natively, so this must not be duplicated elsewhere. Everything else reads
    * the published copy. The payload carries the knowt id, which is how the
    * alarm selects which Ringing screen to open.
    */

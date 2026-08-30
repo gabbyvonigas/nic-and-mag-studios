@@ -152,7 +152,7 @@ export class ModeUnavailableError extends Error {
 
 /**
  * Spec section 5.6: promoting an Open knowt by attaching a tag is a headline
- * path, not an edge case — the knowt keeps its name, notes, schedules and
+ * path, not an edge case. The knowt keeps its name, notes, schedules and
  * history, and only gains a UID and a stricter mode.
  */
 export async function attachTag(
@@ -183,7 +183,7 @@ export async function attachTag(
   );
 }
 
-/** Strict and Soft both require a tag — spec section 2.1. */
+/** Strict and Soft both require a tag. Spec section 2.1. */
 export async function setMode(knowtId: string, mode: KnowtMode): Promise<void> {
   const knowt = await getKnowt(knowtId);
   if (!knowt) return;
@@ -291,7 +291,7 @@ export async function listToday(now = new Date()): Promise<TodayInstance[]> {
 
 /**
  * Writes a history row. `scheduleId` is null for a spontaneous check-in with no
- * alarm pending — spec section 3 treats that as a valid "I just did this".
+ * alarm pending. Spec section 3 treats that as a valid "I just did this".
  */
 export async function logCompletion(args: {
   knowtId: string;

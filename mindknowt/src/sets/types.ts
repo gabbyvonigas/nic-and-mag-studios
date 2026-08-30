@@ -2,12 +2,11 @@ import type { KnowtMode, RepeatType } from '../db';
 
 /**
  * Shapes for `assets/starter-sets.json`. Content ships as bundled JSON so new
- * sets are a content edit rather than a code change — spec section 4.2.
+ * sets are a content edit rather than a code change. Spec section 4.2.
  */
 
 export type StarterSchedule = {
   label: string | null;
-  time: string;
   repeat: RepeatType;
   daysOfWeek?: number[];
   intervalDays?: number;
@@ -37,4 +36,6 @@ export type ParseResult = {
   sets: StarterSet[];
   /** Every problem found, so bad content fails loudly rather than silently. */
   errors: string[];
+  /** Content that parses but is being ignored, so it is never silently dropped. */
+  notices: string[];
 };

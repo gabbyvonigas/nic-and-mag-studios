@@ -12,7 +12,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'LegalDocument'>;
 
 /**
- * Placeholder. The body text is supplied by the owner and drops in here — one
+ * Placeholder. The body text is supplied by the owner and drops in here, in one
  * place, keyed by document. Nothing is drafted on their behalf, because these
  * are binding documents and inventing wording would be worse than an empty
  * screen.

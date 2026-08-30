@@ -5,6 +5,8 @@ import { StyleSheet } from 'react-native';
 import { AlarmScreen } from '../screens/AlarmScreen';
 import { AddKnowtScreen } from '../screens/AddKnowtScreen';
 import { AllKnowtsScreen } from '../screens/AllKnowtsScreen';
+import { ApplySetScreen } from '../screens/ApplySetScreen';
+import { BrowseSetsScreen } from '../screens/BrowseSetsScreen';
 import { DevScreen } from '../screens/DevScreen';
 import { LegalDocumentScreen } from '../screens/LegalDocumentScreen';
 import { LegalScreen } from '../screens/LegalScreen';
@@ -28,7 +30,7 @@ function Tabs() {
         tabBarInactiveTintColor: theme.color.textMuted,
         tabBarStyle: styles.tabBar,
         // There are no icons, so the label is the whole control. Rendering text
-        // through tabBarIcon clips it — the icon slot is sized for a glyph.
+        // through tabBarIcon clips it, because the icon slot is sized for a glyph.
         tabBarIconStyle: styles.hidden,
         tabBarLabelStyle: styles.tabLabel,
       }}>
@@ -71,6 +73,8 @@ export function RootNavigator() {
         component={RingingScreen}
         options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
       />
+      <Stack.Screen name="BrowseSets" component={BrowseSetsScreen} />
+      <Stack.Screen name="ApplySet" component={ApplySetScreen} />
       <Stack.Screen name="Legal" component={LegalScreen} />
       <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
       <Stack.Screen name="NfcHarness" component={ScanScreen} />

@@ -14,7 +14,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, ScreenHeader } from '../components/ui';
-import { createKnowt, listCategories, toISODate, type RepeatType } from '../db';
+import {
+  createKnowt,
+  listCategories,
+  TIME_PATTERN,
+  toISODate,
+  type RepeatType,
+} from '../db';
 import { useQuery } from '../db/useQuery';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -23,7 +29,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 /**
  * Spec section 5.5 is one decision per screen. Build-order step 3 is Open mode
- * only, so the tag question and the strictness question are both absent — they
+ * only, so the tag question and the strictness question are both absent. They
  * arrive with steps 5 and 6.
  */
 const STEPS = ['name', 'category', 'notes', 'when'] as const;
@@ -38,6 +44,7 @@ const REPEATS: { value: RepeatType; label: string }[] = [
 
 const SUGGESTED = ['Vitamins', 'Water the plants', 'Take the bins out', 'Retinol'];
 
+
 export function AddKnowtScreen() {
   const navigation = useNavigation<Nav>();
   const { data: categories } = useQuery(() => listCategories(), []);
@@ -47,12 +54,19 @@ export function AddKnowtScreen() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [locationNote, setLocationNote] = useState('');
   const [notes, setNotes] = useState('');
-  const [time, setTime] = useState('08:00');
+  // Deliberately empty. A guessed time is a time nobody chose, and it would be
+  // wrong more often than it is right.
+  const [time, setTime] = useState('');
   const [repeatType, setRepeatType] = useState<RepeatType>('daily');
   const [saving, setSaving] = useState(false);
 
   const step: Step = STEPS[stepIndex] ?? 'name';
-  const canAdvance = step === 'name' ? name.trim().length > 0 : true;
+  const canAdvance =
+    step === 'name'
+      ? name.trim().length > 0
+      : step === 'when'
+        ? TIME_PATTERN.test(time.trim())
+        : true;
 
   const save = async () => {
     setSaving(true);
@@ -64,7 +78,7 @@ export function AddKnowtScreen() {
         notes: notes.trim() || null,
         mode: 'open',
         schedule: {
-          time,
+          time: time.trim(),
           repeatType,
           startDate: repeatType === 'once' ? toISODate(new Date()) : undefined,
         },
@@ -182,10 +196,14 @@ export function AddKnowtScreen() {
                 style={styles.input}
                 value={time}
                 onChangeText={setTime}
-                placeholder="08:00"
+                placeholder="What time?"
                 placeholderTextColor={theme.color.textMuted}
                 keyboardType="numbers-and-punctuation"
+                autoFocus
               />
+              {time.trim() && !TIME_PATTERN.test(time.trim()) ? (
+                <Text style={styles.hint}>Use a 24 hour time, such as 08:00.</Text>
+              ) : null}
               <View style={styles.chips}>
                 {REPEATS.map((repeat) => {
                   const selected = repeatType === repeat.value;

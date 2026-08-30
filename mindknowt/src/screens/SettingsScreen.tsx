@@ -10,7 +10,7 @@ import type { RootStackParamList } from '../navigation/types';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 /**
- * Spec section 5.9 lists more than this — permission status, default snooze
+ * Spec section 5.9 lists more than this: permission status, default snooze
  * and re-fire, categories manager, browse sets, export history. Those arrive
  * with their own build-order steps; only Legal exists today.
  */

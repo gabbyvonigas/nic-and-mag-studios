@@ -3,7 +3,7 @@ import type { ScheduledAlarm } from './types';
 
 /**
  * Schedules an alarm for a knowt. The knowt id travels as the dismiss payload,
- * which is what lets the Ringing screen know which knowt reopened the app —
+ * which is what lets the Ringing screen know which knowt reopened the app.
  * AlarmKit hands back a payload, never a URL.
  */
 export async function armKnowtAlarm(args: {

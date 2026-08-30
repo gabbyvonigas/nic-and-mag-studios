@@ -3,7 +3,7 @@
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const SCHEMA_SQL = `
 PRAGMA journal_mode = WAL;
@@ -36,6 +36,12 @@ CREATE TABLE IF NOT EXISTS knowts (
   -- require a tag, and applying a starter set creates untagged knowts, so the
   -- set's suggestion is stored rather than applied immediately.
   suggested_mode TEXT CHECK (suggested_mode IN ('strict', 'soft', 'open')),
+  -- Countable habits. A knowt with a daily_target is completed N times a day
+  -- rather than once, which is what a water tracker needs. NULL means the
+  -- knowt is an ordinary one-per-instance task, so no separate kind column is
+  -- required to tell them apart.
+  daily_target   INTEGER,
+  target_unit    TEXT,
   refire_minutes INTEGER NOT NULL DEFAULT 5,
   snooze_minutes INTEGER NOT NULL DEFAULT 10,
   archived       INTEGER NOT NULL DEFAULT 0,
@@ -100,6 +106,13 @@ export const MIGRATIONS: { to: number; sql: string }[] = [
 
       CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_key
         ON categories(key) WHERE key IS NOT NULL;
+    `,
+  },
+  {
+    to: 3,
+    sql: `
+      ALTER TABLE knowts ADD COLUMN daily_target INTEGER;
+      ALTER TABLE knowts ADD COLUMN target_unit TEXT;
     `,
   },
 ];

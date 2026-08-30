@@ -42,7 +42,7 @@ function today(): string {
 
 /**
  * Example content so the screens are not empty during testing. Every seed is
- * Open mode — build-order step 3 is Open only, and Open mode is what makes the
+ * Open mode. Build-order step 3 is Open only, and Open mode is what makes the
  * app usable before any tags arrive. The notes are drawn from the spec's own
  * examples, because the whole point of the notes field is that this is the
  * detail worth having when the alarm goes off months later.
@@ -186,7 +186,7 @@ export async function seedIfEmpty(): Promise<boolean> {
   return true;
 }
 
-/** Wipe and reseed. Leaves app_meta alone — see `clearContent`. */
+/** Wipe and reseed. Leaves app_meta alone. See `clearContent`. */
 export async function reseed(): Promise<void> {
   await clearContent();
   await seed();

@@ -5,7 +5,7 @@ import type { RootStackParamList } from './types';
 
 /**
  * URL routing for the app. AlarmKit itself relaunches with a payload rather
- * than a link, so the alarm path does not depend on this — but making every
+ * than a link, so the alarm path does not depend on this, but making every
  * route addressable means the Ringing screen can be exercised on demand:
  *
  *   npx uri-scheme open "mindknowt://ringing/<knowtId>" --ios
@@ -27,6 +27,8 @@ export const linking: LinkingOptions<RootStackParamList> = {
       AddKnowt: 'add',
       KnowtDetail: 'knowt/:knowtId',
       Ringing: 'ringing/:knowtId',
+      BrowseSets: 'sets',
+      ApplySet: 'sets/:setId',
       Legal: 'legal',
       LegalDocument: 'legal/:document',
       NfcHarness: 'dev/nfc',

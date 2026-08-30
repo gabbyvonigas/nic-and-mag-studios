@@ -1,5 +1,8 @@
 import type { ScheduleRow } from './types';
 
+/** 24-hour HH:MM, the only time format schedules accept. */
+export const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 /** Sunday = 1, matching the spec's `days_of_week` encoding. */
 export function weekdayOf(date: Date): number {
   return date.getDay() + 1;

@@ -1,11 +1,11 @@
-# MindKnowt — working rules
+# MindKnowt working rules
 
 Product spec: `mindknowt-v1-spec.md` in `gabbyvonigas/mindknowt`. Build order is
 section 7. Steps 2 (NFC) and 4 (AlarmKit) are proven on hardware.
 
 ## Before claiming anything works
 
-Run `npm run verify` — typecheck plus a real iOS bundle. A change is not done
+Run `npm run verify`, which is a typecheck plus a real iOS bundle. A change is not done
 until it passes.
 
 Config changes need `npx expo config --type introspect` as well. That is the
@@ -14,7 +14,7 @@ generate; reading `app.json` is not the same thing.
 
 Then say plainly what was verified and what was not. **Passing is not the same
 as working on device.** NFC and AlarmKit cannot be exercised anywhere but a
-physical iPhone — never describe them as working because they compiled.
+physical iPhone. Never describe them as working because they compiled.
 
 ## Read the source; do not infer behavior
 
@@ -61,7 +61,7 @@ either one silently breaks their build.
 
 ## Platform config lives in app.json
 
-This is a CNG project — there is no `ios/` directory. Third-party READMEs give
+This is a CNG project, so there is no `ios/` directory. Third-party READMEs give
 Xcode instructions, which do not apply; translate them into `app.json`
 (`ios.infoPlist`, `ios.entitlements`, `ios.deploymentTarget`) so prebuild
 generates them.
@@ -75,6 +75,26 @@ it. The App Group in `ios.entitlements` must match `APP_GROUP_ID` in
 A JS-only change hot-reloads over Metro in seconds. Anything that adds or
 changes a native module needs a fresh `eas build`, which costs the user ~20
 minutes. Always state which kind a change is.
+
+## Copy rules
+
+**No em dashes. Anywhere, ever.** Not in user-facing copy, not in comments, not
+in JSON content. Use a comma, a colon, a full stop or brackets. Verify with
+`grep -rn "\u2014" src/ App.tsx`, which must return nothing.
+
+The rest of the voice rules are spec section 8: sentence case, no exclamation
+marks, no emoji, no praise. Errors state what happened and what to do. Empty
+screens invite action rather than explain absence.
+
+## Never invent a default the user should choose
+
+Times are entered by the person, never guessed. `Add a knowt` starts with an
+empty time field, and applying a starter set prompts for a time per schedule.
+Starter-set content may not supply times; a `time` in the JSON is ignored and
+reported on the Dev screen rather than silently used.
+
+The same reasoning applies to anything a wrong guess would quietly corrupt: a
+default that is wrong more often than right is worse than an empty field.
 
 ## Platform boundaries
 

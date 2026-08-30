@@ -1,6 +1,6 @@
 /**
  * Platform-agnostic NFC contract. Everything above this layer (hooks, screens)
- * depends only on these types — never on `react-native-nfc-manager` or on any
+ * depends only on these types, never on `react-native-nfc-manager` or on any
  * other platform SDK. Adding Android means adding an implementation file, not
  * restructuring callers.
  */

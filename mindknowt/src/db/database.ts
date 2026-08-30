@@ -8,7 +8,7 @@ const DATABASE_NAME = 'mindknowt.db';
  * Spec section 3: stamped on first run and never changed. If advertising or
  * additional monetization is ever introduced, this identifies buyers from the
  * original paid-only era so they can be excluded. Cheap now, impossible to
- * retrofit — which is exactly why it is written before anything else.
+ * retrofit, which is exactly why it is written before anything else.
  */
 export const INSTALL_GENERATION = 'pre_ads';
 

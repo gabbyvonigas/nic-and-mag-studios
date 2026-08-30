@@ -73,7 +73,7 @@ export function AllKnowtsScreen() {
                         ) : null}
                       </View>
                       {/* Mode is not a category, so it must not borrow the
-                          category colour — every "open" pill should look the
+                          category colour. Every "open" pill should look the
                           same regardless of which group it sits in. */}
                       <Pill label={knowt.mode} />
                     </Pressable>
@@ -85,6 +85,11 @@ export function AllKnowtsScreen() {
         )}
 
         <Button label="Add a knowt" onPress={() => navigation.navigate('AddKnowt')} />
+        <Button
+          label="Browse sets"
+          variant="secondary"
+          onPress={() => navigation.navigate('BrowseSets')}
+        />
       </View>
     </SafeAreaView>
   );

@@ -30,16 +30,17 @@ function parseSchedule(
   raw: unknown,
   where: string,
   errors: string[],
+  notices: string[],
 ): StarterSchedule | null {
   if (!isRecord(raw)) {
     errors.push(`${where}: schedule must be an object.`);
     return null;
   }
 
-  const time = raw.time;
-  if (typeof time !== 'string' || !TIME.test(time)) {
-    errors.push(`${where}: time must be "HH:MM" in 24-hour form, got ${JSON.stringify(time)}.`);
-    return null;
+  // Times are collected from the person applying the set, never taken from
+  // content, so a time here is reported rather than silently dropped.
+  if (raw.time !== undefined) {
+    notices.push(`${where}: "time" is ignored. Times are chosen when the set is applied.`);
   }
 
   const repeat = raw.repeat;
@@ -52,7 +53,6 @@ function parseSchedule(
 
   const schedule: StarterSchedule = {
     label: optionalString(raw.label),
-    time,
     repeat: repeat as RepeatType,
   };
 
@@ -101,7 +101,12 @@ function parseSchedule(
   return schedule;
 }
 
-function parseKnowt(raw: unknown, where: string, errors: string[]): StarterKnowt | null {
+function parseKnowt(
+  raw: unknown,
+  where: string,
+  errors: string[],
+  notices: string[],
+): StarterKnowt | null {
   if (!isRecord(raw)) {
     errors.push(`${where}: knowt must be an object.`);
     return null;
@@ -137,7 +142,12 @@ function parseKnowt(raw: unknown, where: string, errors: string[]): StarterKnowt
 
   const schedules: StarterSchedule[] = [];
   rawSchedules.forEach((entry, index) => {
-    const parsed = parseSchedule(entry, `${where} (${name}) schedule ${index + 1}`, errors);
+    const parsed = parseSchedule(
+      entry,
+      `${where} (${name}) schedule ${index + 1}`,
+      errors,
+      notices,
+    );
     if (parsed) schedules.push(parsed);
   });
 
@@ -159,9 +169,14 @@ function parseKnowt(raw: unknown, where: string, errors: string[]): StarterKnowt
  */
 export function parseStarterSets(raw: unknown): ParseResult {
   const errors: string[] = [];
+  const notices: string[] = [];
 
   if (!isRecord(raw) || !Array.isArray(raw.sets)) {
-    return { sets: [], errors: ['starter-sets.json must be an object with a "sets" array.'] };
+    return {
+      sets: [],
+      errors: ['starter-sets.json must be an object with a "sets" array.'],
+      notices,
+    };
   }
 
   const sets: StarterSet[] = [];
@@ -203,12 +218,17 @@ export function parseStarterSets(raw: unknown): ParseResult {
 
     const knowts: StarterKnowt[] = [];
     entry.knowts.forEach((knowtRaw, knowtIndex) => {
-      const parsed = parseKnowt(knowtRaw, `set "${id}" knowt ${knowtIndex + 1}`, errors);
+      const parsed = parseKnowt(
+        knowtRaw,
+        `set "${id}" knowt ${knowtIndex + 1}`,
+        errors,
+        notices,
+      );
       if (parsed) knowts.push(parsed);
     });
 
     sets.push({ id, name, description, knowts });
   });
 
-  return { sets, errors };
+  return { sets, errors, notices };
 }

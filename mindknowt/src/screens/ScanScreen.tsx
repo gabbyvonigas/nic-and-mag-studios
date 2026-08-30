@@ -119,7 +119,7 @@ export function ScanScreen() {
             </Text>
             <Text style={styles.cardDetail}>
               This device has no usable NFC reader. A physical iPhone 7 or newer
-              is required — the simulator cannot scan tags.
+              is required. The simulator cannot scan tags.
             </Text>
           </View>
         )}

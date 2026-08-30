@@ -10,8 +10,8 @@ import {
 } from './types';
 
 /**
- * On iOS `requestTechnology` always opens an `NFCTagReaderSession` — never an
- * `NFCNDEFReaderSession` — so the tag UID comes back even for tags carrying no
+ * On iOS `requestTechnology` always opens an `NFCTagReaderSession`, never an
+ * `NFCNDEFReaderSession`, so the tag UID comes back even for tags carrying no
  * NDEF payload. `Ndef` is treated as a wildcard by the library's native tech
  * filter: it connects to any detected tag type rather than requiring NDEF
  * formatting. Default polling is ISO14443 + ISO15693, which covers NTAG213/

@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 /**
  * Single source of truth for branding. Colors and fonts are still being
  * finalized, so nothing outside this file should hardcode a hex value or a
- * font family — screens consume semantic tokens only.
+ * font family; screens consume semantic tokens only.
  */
 
 /** Raw values. Swap these when the brand palette lands. */
@@ -96,7 +96,7 @@ export const theme = {
 
   /**
    * Category swatches. These are persisted into `categories.color`, so they are
-   * data rather than styling — but they still live here so that rebranding
+   * data rather than styling, but they still live here so that rebranding
    * remains a single-file change.
    */
   categoryPalette: {

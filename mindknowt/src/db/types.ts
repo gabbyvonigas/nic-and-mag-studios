@@ -39,6 +39,10 @@ export type KnowtRow = {
   link_url: string | null;
   /** What this knowt becomes when a tag is attached. Null means strict. */
   suggested_mode: KnowtMode | null;
+  /** Completions expected per day. Null for ordinary one-per-instance knowts. */
+  daily_target: number | null;
+  /** Label for the thing being counted, for example "glasses". */
+  target_unit: string | null;
   refire_minutes: number;
   snooze_minutes: number;
   archived: number;

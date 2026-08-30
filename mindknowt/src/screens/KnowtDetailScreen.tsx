@@ -83,7 +83,7 @@ export function KnowtDetailScreen() {
 
   /**
    * Spec section 5.6: attaching a tag promotes an Open knowt in place. Name,
-   * notes, schedules and history all survive — only the UID and mode change.
+   * notes, schedules and history all survive. Only the UID and mode change.
    * The same path re-scans a replacement tag onto an already-tagged knowt.
    */
   const scanToAttach = async () => {

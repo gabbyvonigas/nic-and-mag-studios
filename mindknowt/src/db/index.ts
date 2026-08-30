@@ -18,7 +18,14 @@ export {
 export { newId } from './ids';
 export { CATEGORY_KEYS, type CategoryKey } from './categoryKeys';
 export { isEmpty, reseed, seed, seedIfEmpty } from './seed';
-export { describeRepeat, isDueOn, minutesOf, toISODate, weekdayOf } from './scheduling';
+export {
+  describeRepeat,
+  isDueOn,
+  minutesOf,
+  TIME_PATTERN,
+  toISODate,
+  weekdayOf,
+} from './scheduling';
 export {
   addSchedule,
   archiveKnowt,
