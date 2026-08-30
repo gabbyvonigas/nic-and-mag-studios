@@ -6,6 +6,7 @@ import {
   findCategoryByKey,
   listKnowts,
   toISODate,
+  type RepeatType,
 } from '../db';
 import { parseStarterSets } from './parse';
 import type { StarterKnowt, StarterSet } from './types';
@@ -70,6 +71,11 @@ export type SetSelection = {
   name: string;
   /** One time per schedule on that knowt, in the order the set lists them. */
   times: string[];
+  /**
+   * A schedule the person added while applying, for knowts the set declares
+   * without one. Optional: a knowt with no schedule is still worth creating.
+   */
+  extraSchedule?: { time: string; repeat: RepeatType } | null;
 };
 
 export async function applySet(
@@ -80,7 +86,7 @@ export async function applySet(
   if (!set) return { created: 0 };
 
   const byName = new Map(
-    selections.map((s) => [s.name.trim().toLowerCase(), s.times]),
+    selections.map((s) => [s.name.trim().toLowerCase(), s]),
   );
   const chosen = set.knowts.filter((k) => byName.has(k.name.trim().toLowerCase()));
 
@@ -89,7 +95,8 @@ export async function applySet(
   let created = 0;
 
   for (const knowt of chosen) {
-    const times = byName.get(knowt.name.trim().toLowerCase()) ?? [];
+    const selection = byName.get(knowt.name.trim().toLowerCase());
+    const times = selection?.times ?? [];
     const category = await findCategoryByKey(knowt.category);
 
     const knowtId = await createKnowt({
@@ -122,6 +129,16 @@ export async function applySet(
         supplyDays: schedule.supplyDays,
         leadDays: schedule.leadDays,
         startDate: anchored ? startDate : undefined,
+      });
+    }
+
+    const extra = selection?.extraSchedule;
+    if (extra?.time) {
+      await addSchedule(knowtId, {
+        label: null,
+        time: extra.time,
+        repeatType: extra.repeat,
+        startDate: extra.repeat === 'once' ? startDate : undefined,
       });
     }
 

@@ -23,6 +23,16 @@ import type { RootStackParamList } from '../navigation/types';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'ApplySet'>;
 
+/** Offered when a set declares no schedule of its own for a knowt. */
+const REPEAT_CHOICES: { value: RepeatType; label: string }[] = [
+  { value: 'daily', label: 'Every day' },
+  { value: 'weekdays', label: 'Weekdays' },
+  { value: 'weekends', label: 'Weekends' },
+  { value: 'once', label: 'Once' },
+];
+
+type ExtraSchedule = { time: string; repeat: RepeatType | null };
+
 /** `describeRepeat` reads a schedule row; set content only has the repeat type. */
 function describeShape(repeat: RepeatType): string {
   return describeRepeat({
@@ -49,6 +59,7 @@ export function ApplySetScreen() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [times, setTimes] = useState<Record<string, string[]>>({});
+  const [extras, setExtras] = useState<Record<string, ExtraSchedule>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -70,6 +81,11 @@ export function ApplySetScreen() {
             result.entries.map((e) => [e.knowt.name, e.knowt.schedules.map(() => '')]),
           ),
         );
+        setExtras(
+          Object.fromEntries(
+            result.entries.map((e) => [e.knowt.name, { time: '', repeat: null }]),
+          ),
+        );
       }
     })();
     return () => {
@@ -81,13 +97,21 @@ export function ApplySetScreen() {
     if (!preview) return false;
     const chosen = preview.entries.filter((e) => selected[e.knowt.name]);
     if (chosen.length === 0) return false;
-    // Every schedule on a chosen knowt needs a time, because none is assumed.
-    return chosen.every((entry) =>
-      entry.knowt.schedules.every(
+    return chosen.every((entry) => {
+      // A schedule the set declares needs a time, because none is assumed.
+      const declared = entry.knowt.schedules.every(
         (_, index) => parseTimeInput(times[entry.knowt.name]?.[index] ?? '') !== null,
-      ),
-    );
-  }, [preview, selected, times]);
+      );
+
+      // A schedule added here is optional, but half of one is not usable.
+      const extra = extras[entry.knowt.name];
+      const added =
+        !extra?.time.trim() ||
+        (parseTimeInput(extra.time) !== null && extra.repeat !== null);
+
+      return declared && added;
+    });
+  }, [preview, selected, times, extras]);
 
   if (loading) {
     return (
@@ -113,11 +137,19 @@ export function ApplySetScreen() {
     try {
       const selections: SetSelection[] = preview.entries
         .filter((e) => selected[e.knowt.name])
-        .map((e) => ({
-          name: e.knowt.name,
-          // Stored as 24 hour regardless of how it was typed.
-          times: (times[e.knowt.name] ?? []).map((t) => parseTimeInput(t) ?? ''),
-        }));
+        .map((e) => {
+          const extra = extras[e.knowt.name];
+          const extraTime = extra?.time ? parseTimeInput(extra.time) : null;
+          return {
+            name: e.knowt.name,
+            // Stored as 24 hour regardless of how it was typed.
+            times: (times[e.knowt.name] ?? []).map((t) => parseTimeInput(t) ?? ''),
+            extraSchedule:
+              extraTime && extra?.repeat
+                ? { time: extraTime, repeat: extra.repeat }
+                : null,
+          };
+        });
       await applySet(params.setId, selections);
       navigation.navigate('Tabs', { screen: 'AllKnowts' });
     } finally {
@@ -138,8 +170,8 @@ export function ApplySetScreen() {
           <ScreenHeader title={preview.set.name} subtitle={preview.set.description} />
 
           <Text style={styles.hint}>
-            Pick what you want and set a time for each. Nothing is scheduled
-            until you choose the time.
+            Pick what you want. Adding a time is optional, and nothing is
+            scheduled until you set one.
           </Text>
 
           {preview.entries.map((entry) => {
@@ -171,6 +203,68 @@ export function ApplySetScreen() {
                     ) : null}
                   </View>
                 </Pressable>
+
+                {isSelected && entry.knowt.schedules.length === 0 ? (
+                  <View style={styles.scheduleRow}>
+                    <Text style={styles.scheduleLabel}>
+                      Schedule, optional
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.timeInput,
+                        extras[entry.knowt.name]?.time.trim() !== '' &&
+                          parseTimeInput(extras[entry.knowt.name]?.time ?? '') === null &&
+                          styles.timeInputInvalid,
+                      ]}
+                      value={extras[entry.knowt.name]?.time ?? ''}
+                      onChangeText={(text) =>
+                        setExtras((prev) => ({
+                          ...prev,
+                          [entry.knowt.name]: {
+                            time: text,
+                            repeat: prev[entry.knowt.name]?.repeat ?? null,
+                          },
+                        }))
+                      }
+                      placeholder="8:00 am"
+                      placeholderTextColor={theme.color.textMuted}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    {extras[entry.knowt.name]?.time.trim() ? (
+                      <View style={styles.repeatRow}>
+                        {REPEAT_CHOICES.map((choice) => {
+                          const active =
+                            extras[entry.knowt.name]?.repeat === choice.value;
+                          return (
+                            <Pressable
+                              key={choice.value}
+                              accessibilityRole="button"
+                              accessibilityState={{ selected: active }}
+                              onPress={() =>
+                                setExtras((prev) => ({
+                                  ...prev,
+                                  [entry.knowt.name]: {
+                                    time: prev[entry.knowt.name]?.time ?? '',
+                                    repeat: choice.value,
+                                  },
+                                }))
+                              }
+                              style={[styles.repeatChip, active && styles.repeatChipOn]}>
+                              <Text
+                                style={[
+                                  styles.repeatText,
+                                  active && styles.repeatTextOn,
+                                ]}>
+                                {choice.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
 
                 {isSelected &&
                   entry.knowt.schedules.map((schedule, index) => {
@@ -293,6 +387,29 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
   },
   timeInputInvalid: { borderColor: theme.color.dangerBorder },
+  repeatRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  repeatChip: {
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+  },
+  repeatChipOn: {
+    borderColor: theme.color.accent,
+    backgroundColor: theme.color.surfaceMuted,
+  },
+  repeatText: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textMuted,
+  },
+  repeatTextOn: { color: theme.color.textPrimary },
   footer: {
     paddingHorizontal: theme.spacing.xl,
     paddingBottom: theme.spacing.sm,

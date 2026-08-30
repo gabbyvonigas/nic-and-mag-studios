@@ -1,4 +1,357 @@
 {
   "version": 1,
-  "sets": []
+  "sets": [
+    {
+      "id": "household-maintenance",
+      "name": "Household maintenance",
+      "description": "Filters, batteries, and the systems that quietly need attention.",
+      "knowts": [
+        { "name": "Air filter", "icon": "filter", "category": "home", "suggestedMode": "strict" },
+        { "name": "HVAC filter", "icon": "filter", "category": "home", "suggestedMode": "strict" },
+        { "name": "Fridge water filter", "icon": "filter", "category": "home", "suggestedMode": "strict" },
+        { "name": "Humidifier or purifier filter", "icon": "filter", "category": "home", "suggestedMode": "strict" },
+        { "name": "Smoke detector battery", "icon": "battery", "category": "home", "suggestedMode": "strict" },
+        { "name": "Dryer vent lint", "icon": "wind", "category": "home", "suggestedMode": "strict" },
+        { "name": "Furnace service", "icon": "flame", "category": "home", "suggestedMode": "open" },
+        { "name": "Gutter cleaning", "icon": "home", "category": "home", "suggestedMode": "soft" },
+        { "name": "Light bulb", "icon": "bulb", "category": "home", "suggestedMode": "soft" },
+        { "name": "Water softener salt", "icon": "water", "category": "home", "suggestedMode": "strict" },
+        { "name": "Exterminator", "icon": "bug", "category": "home", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "kitchen-food",
+      "name": "Kitchen and food",
+      "description": "What expires, what needs cleaning, and what needs restocking.",
+      "knowts": [
+        { "name": "Fridge clean-out", "icon": "fridge", "category": "home", "suggestedMode": "strict" },
+        { "name": "Pantry expiry sweep", "icon": "pantry", "category": "home", "suggestedMode": "strict" },
+        { "name": "Spice restock", "icon": "spice", "category": "home", "suggestedMode": "soft" },
+        { "name": "Defrost freezer", "icon": "snowflake", "category": "home", "suggestedMode": "strict" },
+        { "name": "Dishwasher cleaner", "icon": "dishwasher", "category": "home", "suggestedMode": "soft" },
+        { "name": "Garbage disposal cleaner", "icon": "sink", "category": "home", "suggestedMode": "soft" },
+        { "name": "Coffee machine descale", "icon": "coffee", "category": "home", "suggestedMode": "strict" },
+        { "name": "Meal prep", "icon": "meal", "category": "home", "suggestedMode": "open" },
+        { "name": "Groceries", "icon": "cart", "category": "home", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "trash-recycling",
+      "name": "Trash and recycling",
+      "description": "The bins, on the days they actually need to go out.",
+      "knowts": [
+        { "name": "Trash out", "icon": "trash", "category": "home", "suggestedMode": "strict" },
+        { "name": "Recycling out", "icon": "recycle", "category": "home", "suggestedMode": "strict" },
+        { "name": "Compost", "icon": "leaf", "category": "home", "suggestedMode": "strict" },
+        { "name": "Yard waste", "icon": "leaf", "category": "home", "suggestedMode": "soft" },
+        { "name": "Shredding pile", "icon": "paper", "category": "home", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "cleaning-chores",
+      "name": "Cleaning and house chores",
+      "description": "The rotations that keep a home from sliding backward.",
+      "knowts": [
+        { "name": "Sheets change", "icon": "bed", "category": "home", "suggestedMode": "soft" },
+        { "name": "Towel change", "icon": "towel", "category": "home", "suggestedMode": "soft" },
+        { "name": "Bathroom deep clean", "icon": "bath", "category": "home", "suggestedMode": "strict" },
+        { "name": "Vacuum filter or bag", "icon": "vacuum", "category": "home", "suggestedMode": "soft" },
+        { "name": "Mop", "icon": "mop", "category": "home", "suggestedMode": "soft" },
+        { "name": "Dust", "icon": "dust", "category": "home", "suggestedMode": "open" },
+        { "name": "Declutter sweep", "icon": "box", "category": "home", "suggestedMode": "open" },
+        { "name": "Mattress rotate", "icon": "bed", "category": "home", "suggestedMode": "soft" },
+        { "name": "Room-by-room deep clean", "icon": "home", "category": "home", "suggestedMode": "strict" },
+        { "name": "Room-by-room maintenance clean", "icon": "home", "category": "home", "suggestedMode": "soft" }
+      ]
+    },
+    {
+      "id": "vitamins-supplements",
+      "name": "Vitamins and supplements",
+      "description": "Morning stack, night stack, and the ones with rules.",
+      "knowts": [
+        { "name": "Morning supplements", "icon": "pill", "category": "daily", "suggestedMode": "strict" },
+        { "name": "Afternoon supplements", "icon": "pill", "category": "daily", "suggestedMode": "strict" },
+        { "name": "Evening supplements", "icon": "pill", "category": "daily", "suggestedMode": "strict" },
+        { "name": "Sleep or nighttime supplements", "icon": "moon", "category": "daily", "suggestedMode": "strict" },
+        { "name": "Daily smoothie", "icon": "smoothie", "category": "daily", "suggestedMode": "strict" },
+        { "name": "Protein shake", "icon": "shake", "category": "daily", "suggestedMode": "open" },
+        { "name": "Protein powder restock", "icon": "shake", "category": "daily", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "prescriptions-medical",
+      "name": "Prescriptions and medical",
+      "description": "Doses, refills, and appointments, kept generic on purpose.",
+      "knowts": [
+        { "name": "Take medication", "icon": "pill", "category": "daily", "suggestedMode": "strict" },
+        { "name": "Refill countdown", "icon": "pill", "category": "daily", "suggestedMode": "open" },
+        { "name": "Prescription pickup", "icon": "pill", "category": "daily", "suggestedMode": "open" },
+        { "name": "Doctor appointment", "icon": "stethoscope", "category": "admin", "suggestedMode": "open" },
+        { "name": "Dentist", "icon": "tooth", "category": "admin", "suggestedMode": "open" },
+        { "name": "Eye exam", "icon": "eye", "category": "admin", "suggestedMode": "open" },
+        { "name": "Bloodwork or labs", "icon": "drop", "category": "admin", "suggestedMode": "open" },
+        { "name": "Insurance renewal", "icon": "shield", "category": "admin", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "post-surgery-recovery",
+      "name": "Post surgery recovery",
+      "description": "Meds, checks, and follow-ups while healing.",
+      "knowts": [
+        { "name": "Wound check", "icon": "bandage", "category": "care", "suggestedMode": "strict" },
+        { "name": "Medication schedule", "icon": "pill", "category": "care", "suggestedMode": "strict" },
+        { "name": "Follow-up appointment", "icon": "stethoscope", "category": "care", "suggestedMode": "open" },
+        { "name": "Physical therapy", "icon": "stretch", "category": "care", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "fitness-movement",
+      "name": "Fitness and movement",
+      "description": "Workouts, gear, and the things that support them.",
+      "knowts": [
+        { "name": "Workout reminder", "icon": "dumbbell", "category": "ritual", "suggestedMode": "soft" },
+        { "name": "Stretch or mobility", "icon": "stretch", "category": "ritual", "suggestedMode": "soft" },
+        { "name": "Steps or walk", "icon": "walk", "category": "ritual", "suggestedMode": "open" },
+        { "name": "Gym bag pack", "icon": "bag", "category": "ritual", "suggestedMode": "soft" },
+        { "name": "Water bottle refill", "icon": "water", "category": "ritual", "suggestedMode": "strict" },
+        { "name": "Gear wash", "icon": "shirt", "category": "ritual", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "skincare-beauty",
+      "name": "Skincare and beauty",
+      "description": "Routines, actives, and the appointments in between.",
+      "knowts": [
+        { "name": "AM routine", "icon": "sun", "category": "ritual", "suggestedMode": "strict" },
+        { "name": "PM routine", "icon": "moon", "category": "ritual", "suggestedMode": "strict" },
+        { "name": "Exfoliate", "icon": "sparkle", "category": "ritual", "suggestedMode": "soft" },
+        { "name": "Face mask", "icon": "mask", "category": "ritual", "suggestedMode": "open" },
+        { "name": "Sunscreen reapply", "icon": "sun", "category": "ritual", "suggestedMode": "open" },
+        { "name": "Retinol night", "icon": "moon", "category": "ritual", "suggestedMode": "soft" },
+        { "name": "Haircut", "icon": "scissors", "category": "ritual", "suggestedMode": "open" },
+        { "name": "Nail appointment", "icon": "nail", "category": "ritual", "suggestedMode": "open" },
+        { "name": "Wax or threading", "icon": "sparkle", "category": "ritual", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "self-care-wellness",
+      "name": "Self care and wellness",
+      "description": "The quiet things that are easy to skip.",
+      "knowts": [
+        { "name": "Affirmation or journaling", "icon": "journal", "category": "ritual", "suggestedMode": "open" },
+        { "name": "Meditation", "icon": "lotus", "category": "ritual", "suggestedMode": "soft" },
+        { "name": "Therapy session", "icon": "heart", "category": "ritual", "suggestedMode": "open" },
+        { "name": "Screen time break", "icon": "phone", "category": "ritual", "suggestedMode": "open" },
+        { "name": "Sunlight or outdoor time", "icon": "sun", "category": "ritual", "suggestedMode": "open" },
+        { "name": "Gratitude check-in", "icon": "heart", "category": "ritual", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "mental-health",
+      "name": "Mental health",
+      "description": "Medication, appointments, and simple check-ins.",
+      "knowts": [
+        { "name": "Medication", "icon": "pill", "category": "ritual", "suggestedMode": "strict" },
+        { "name": "Therapy appointment", "icon": "heart", "category": "ritual", "suggestedMode": "open" },
+        { "name": "Mood check-in", "icon": "heart", "category": "ritual", "suggestedMode": "open" },
+        { "name": "Breathing exercise", "icon": "lungs", "category": "ritual", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "pets",
+      "name": "Pets",
+      "description": "Feeding, care, and the appointments that keep them well.",
+      "knowts": [
+        { "name": "Feed", "icon": "bowl", "category": "care", "suggestedMode": "strict" },
+        { "name": "Water", "icon": "water", "category": "care", "suggestedMode": "strict" },
+        { "name": "Walk", "icon": "leash", "category": "care", "suggestedMode": "strict" },
+        { "name": "Litter box", "icon": "litter", "category": "care", "suggestedMode": "strict" },
+        { "name": "Medication or flea treatment", "icon": "pill", "category": "care", "suggestedMode": "strict" },
+        { "name": "Vet appointment", "icon": "paw", "category": "care", "suggestedMode": "open" },
+        { "name": "Grooming", "icon": "scissors", "category": "care", "suggestedMode": "open" },
+        { "name": "Nail trim", "icon": "paw", "category": "care", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "plants",
+      "name": "Plants",
+      "description": "Watering, feeding, and the occasional repot.",
+      "knowts": [
+        { "name": "Watering", "icon": "droplet", "category": "home", "suggestedMode": "strict" },
+        { "name": "Fertilizing", "icon": "leaf", "category": "home", "suggestedMode": "soft" },
+        { "name": "Repotting", "icon": "pot", "category": "home", "suggestedMode": "open" },
+        { "name": "Pruning", "icon": "scissors", "category": "home", "suggestedMode": "soft" }
+      ]
+    },
+    {
+      "id": "finances",
+      "name": "Finances",
+      "description": "Bills, budgets, and the deadlines attached to money.",
+      "knowts": [
+        { "name": "Bill due", "icon": "dollar", "category": "admin", "suggestedMode": "open" },
+        { "name": "Credit card payment", "icon": "card", "category": "admin", "suggestedMode": "open" },
+        { "name": "Budget check-in", "icon": "chart", "category": "admin", "suggestedMode": "open" },
+        { "name": "Subscription renewal", "icon": "repeat", "category": "admin", "suggestedMode": "open" },
+        { "name": "Invoice sent or follow-up", "icon": "invoice", "category": "admin", "suggestedMode": "open" },
+        { "name": "Tax deadline", "icon": "document", "category": "admin", "suggestedMode": "open" },
+        { "name": "Savings transfer", "icon": "piggybank", "category": "admin", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "business-work",
+      "name": "Business and work",
+      "description": "The follow-ups and admin that keep work moving.",
+      "knowts": [
+        { "name": "Follow-up email", "icon": "mail", "category": "admin", "suggestedMode": "open" },
+        { "name": "Invoice client", "icon": "invoice", "category": "admin", "suggestedMode": "open" },
+        { "name": "Post content", "icon": "post", "category": "admin", "suggestedMode": "open" },
+        { "name": "Backup files", "icon": "backup", "category": "admin", "suggestedMode": "open" },
+        { "name": "Inventory check", "icon": "box", "category": "admin", "suggestedMode": "soft" },
+        { "name": "Supplier reorder", "icon": "box", "category": "admin", "suggestedMode": "open" },
+        { "name": "License or permit renewal", "icon": "document", "category": "admin", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "errands",
+      "name": "Errands",
+      "description": "The pickups and visits that live outside the house.",
+      "knowts": [
+        { "name": "Dry cleaning pickup", "icon": "shirt", "category": "admin", "suggestedMode": "open" },
+        { "name": "Package pickup", "icon": "box", "category": "admin", "suggestedMode": "open" },
+        { "name": "Bank visit", "icon": "bank", "category": "admin", "suggestedMode": "open" },
+        { "name": "DMV", "icon": "document", "category": "admin", "suggestedMode": "open" },
+        { "name": "Library return", "icon": "book", "category": "admin", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "returns-exchanges",
+      "name": "Returns and exchanges",
+      "description": "Windows that close whether you use them or not.",
+      "knowts": [
+        { "name": "Return window deadline", "icon": "box", "category": "admin", "suggestedMode": "open" },
+        { "name": "Exchange item", "icon": "box", "category": "admin", "suggestedMode": "open" },
+        { "name": "Warranty claim", "icon": "document", "category": "admin", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "restocking",
+      "name": "Restocking",
+      "description": "The household staples that run out quietly.",
+      "knowts": [
+        { "name": "Toiletries", "icon": "bottle", "category": "home", "suggestedMode": "soft" },
+        { "name": "Cleaning supplies", "icon": "spray", "category": "home", "suggestedMode": "soft" },
+        { "name": "Pet food", "icon": "bowl", "category": "home", "suggestedMode": "strict" },
+        { "name": "Printer ink", "icon": "printer", "category": "home", "suggestedMode": "open" },
+        { "name": "Batteries", "icon": "battery", "category": "home", "suggestedMode": "soft" },
+        { "name": "First aid kit", "icon": "firstaid", "category": "home", "suggestedMode": "soft" }
+      ]
+    },
+    {
+      "id": "car-maintenance",
+      "name": "Car maintenance",
+      "description": "The service intervals that are easy to lose track of.",
+      "knowts": [
+        { "name": "Oil change", "icon": "car", "category": "go", "suggestedMode": "open" },
+        { "name": "Tire rotation", "icon": "tire", "category": "go", "suggestedMode": "open" },
+        { "name": "Registration renewal", "icon": "document", "category": "go", "suggestedMode": "open" },
+        { "name": "Car wash", "icon": "car", "category": "go", "suggestedMode": "open" },
+        { "name": "Wiper fluid", "icon": "car", "category": "go", "suggestedMode": "soft" },
+        { "name": "Inspection", "icon": "car", "category": "go", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "travel-prep",
+      "name": "Travel prep",
+      "description": "Everything to check before the door closes behind you.",
+      "knowts": [
+        { "name": "Passport check", "icon": "passport", "category": "go", "suggestedMode": "open" },
+        { "name": "Packing list", "icon": "suitcase", "category": "go", "suggestedMode": "open" },
+        { "name": "Mail hold", "icon": "mail", "category": "go", "suggestedMode": "open" },
+        { "name": "Plant sitter arranged", "icon": "leaf", "category": "go", "suggestedMode": "open" },
+        { "name": "Chargers packed", "icon": "plug", "category": "go", "suggestedMode": "soft" },
+        { "name": "Travel documents", "icon": "document", "category": "go", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "home-safety",
+      "name": "Home safety",
+      "description": "The checks that matter most and get done least.",
+      "knowts": [
+        { "name": "Smoke or CO detector test", "icon": "alarm", "category": "home", "suggestedMode": "strict" },
+        { "name": "Fire extinguisher check", "icon": "fire", "category": "home", "suggestedMode": "strict" },
+        { "name": "First aid kit check", "icon": "firstaid", "category": "home", "suggestedMode": "soft" },
+        { "name": "Water shutoff valve check", "icon": "water", "category": "home", "suggestedMode": "soft" }
+      ]
+    },
+    {
+      "id": "tech-digital",
+      "name": "Tech and digital",
+      "description": "The maintenance that lives on screens instead of shelves.",
+      "knowts": [
+        { "name": "Password update", "icon": "lock", "category": "admin", "suggestedMode": "open" },
+        { "name": "Data backup", "icon": "backup", "category": "admin", "suggestedMode": "open" },
+        { "name": "Software update", "icon": "refresh", "category": "admin", "suggestedMode": "open" },
+        { "name": "Device charge check", "icon": "battery", "category": "admin", "suggestedMode": "soft" }
+      ]
+    },
+    {
+      "id": "subscriptions-renewals",
+      "name": "Subscriptions and renewals",
+      "description": "The recurring charges worth glancing at on purpose.",
+      "knowts": [
+        { "name": "Streaming", "icon": "play", "category": "admin", "suggestedMode": "open" },
+        { "name": "Memberships", "icon": "card", "category": "admin", "suggestedMode": "open" },
+        { "name": "Domain renewal", "icon": "globe", "category": "admin", "suggestedMode": "open" },
+        { "name": "Insurance policy", "icon": "shield", "category": "admin", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "personal-admin",
+      "name": "Personal admin",
+      "description": "Mail, documents, and the backlog of scheduling.",
+      "knowts": [
+        { "name": "Mail check", "icon": "mail", "category": "admin", "suggestedMode": "strict" },
+        { "name": "Document renewal", "icon": "document", "category": "admin", "suggestedMode": "open" },
+        { "name": "Appointment scheduling backlog", "icon": "calendar", "category": "admin", "suggestedMode": "open" }
+      ]
+    },
+    {
+      "id": "seasonal",
+      "name": "Seasonal",
+      "description": "The switches that only happen a few times a year.",
+      "knowts": [
+        { "name": "Closet switch", "icon": "hanger", "category": "home", "suggestedMode": "open" },
+        { "name": "Change AC or heat filters", "icon": "filter", "category": "home", "suggestedMode": "strict" },
+        { "name": "Holiday decor up or down", "icon": "star", "category": "home", "suggestedMode": "open" },
+        { "name": "Garden prep", "icon": "leaf", "category": "home", "suggestedMode": "soft" }
+      ]
+    },
+    {
+      "id": "seasonal-home-prep",
+      "name": "Seasonal home prep",
+      "description": "The once-a-year jobs that protect the house.",
+      "knowts": [
+        { "name": "Winterize outdoor faucets", "icon": "water", "category": "home", "suggestedMode": "strict" },
+        { "name": "Pool open or close", "icon": "pool", "category": "home", "suggestedMode": "strict" },
+        { "name": "Sprinkler shutoff", "icon": "water", "category": "home", "suggestedMode": "strict" },
+        { "name": "Generator check", "icon": "bolt", "category": "home", "suggestedMode": "soft" },
+        { "name": "Snow gear ready", "icon": "snowflake", "category": "home", "suggestedMode": "open" },
+        { "name": "Patio furniture cover or store", "icon": "home", "category": "home", "suggestedMode": "soft" }
+      ]
+    },
+    {
+      "id": "sports-kids",
+      "name": "Sports and kids",
+      "description": "Practice bags, game days, and the deadlines around them.",
+      "knowts": [
+        { "name": "Pack practice bag", "icon": "bag", "category": "go", "suggestedMode": "strict" },
+        { "name": "Uniform laundry day", "icon": "shirt", "category": "go", "suggestedMode": "soft" },
+        { "name": "Water bottle or snacks packed", "icon": "water", "category": "go", "suggestedMode": "strict" },
+        { "name": "Carpool reminder", "icon": "car", "category": "go", "suggestedMode": "open" },
+        { "name": "Equipment check", "icon": "box", "category": "go", "suggestedMode": "soft" },
+        { "name": "Game day prep", "icon": "ball", "category": "go", "suggestedMode": "open" },
+        { "name": "Registration deadlines", "icon": "document", "category": "go", "suggestedMode": "open" }
+      ]
+    }
+  ]
 }
