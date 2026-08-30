@@ -3,7 +3,7 @@
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const SCHEMA_SQL = `
 PRAGMA journal_mode = WAL;
@@ -12,6 +12,10 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS categories (
   id        TEXT PRIMARY KEY NOT NULL,
   name      TEXT NOT NULL,
+  -- Stable identifier for shipped categories. Starter-set JSON references this
+  -- rather than the generated id or the display name, so renaming a category
+  -- in the UI cannot break bundled content. NULL for user-made categories.
+  key       TEXT,
   color     TEXT NOT NULL,
   icon      TEXT NOT NULL,
   is_custom INTEGER NOT NULL DEFAULT 0,
@@ -28,6 +32,10 @@ CREATE TABLE IF NOT EXISTS knowts (
   location_note  TEXT,
   notes          TEXT,
   link_url       TEXT,
+  -- What this knowt should become once a tag is attached. Strict and Soft both
+  -- require a tag, and applying a starter set creates untagged knowts, so the
+  -- set's suggestion is stored rather than applied immediately.
+  suggested_mode TEXT CHECK (suggested_mode IN ('strict', 'soft', 'open')),
   refire_minutes INTEGER NOT NULL DEFAULT 5,
   snooze_minutes INTEGER NOT NULL DEFAULT 10,
   archived       INTEGER NOT NULL DEFAULT 0,
@@ -70,7 +78,31 @@ CREATE INDEX IF NOT EXISTS idx_schedules_knowt ON schedules(knowt_id);
 CREATE INDEX IF NOT EXISTS idx_events_knowt    ON events(knowt_id);
 CREATE INDEX IF NOT EXISTS idx_events_schedule ON events(schedule_id);
 CREATE INDEX IF NOT EXISTS idx_knowts_archived ON knowts(archived);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_key
+  ON categories(key) WHERE key IS NOT NULL;
 `;
+
+/**
+ * Applied in order to an existing database. A fresh database is created
+ * directly from SCHEMA_SQL above and skips these, so every step here must be
+ * written only for the upgrade path.
+ */
+export const MIGRATIONS: { to: number; sql: string }[] = [
+  {
+    to: 2,
+    sql: `
+      ALTER TABLE categories ADD COLUMN key TEXT;
+      ALTER TABLE knowts ADD COLUMN suggested_mode TEXT;
+
+      -- Shipped categories were seeded before keys existed; their display names
+      -- are still the originals, so they can be matched safely here.
+      UPDATE categories SET key = lower(name) WHERE key IS NULL AND is_custom = 0;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_key
+        ON categories(key) WHERE key IS NOT NULL;
+    `,
+  },
+];
 
 /** Content tables, in dependency order for a reseed. Excludes app_meta. */
 export const CONTENT_TABLES = ['events', 'schedules', 'knowts', 'categories'] as const;

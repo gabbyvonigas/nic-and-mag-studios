@@ -16,6 +16,8 @@ export type EventMethod = 'scan' | 'tap' | 'override' | 'missed';
 export type CategoryRow = {
   id: string;
   name: string;
+  /** Stable key for shipped categories; null for user-made ones. */
+  key: string | null;
   color: string;
   icon: string;
   is_custom: number;
@@ -35,6 +37,8 @@ export type KnowtRow = {
   notes: string | null;
   /** Stored in v1, surfaced in v2. */
   link_url: string | null;
+  /** What this knowt becomes when a tag is attached. Null means strict. */
+  suggested_mode: KnowtMode | null;
   refire_minutes: number;
   snooze_minutes: number;
   archived: number;

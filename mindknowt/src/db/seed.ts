@@ -1,5 +1,7 @@
 import { theme } from '../theme';
 
+import { CATEGORY_KEYS, type CategoryKey } from './categoryKeys';
+
 import { clearContent, getDatabase } from './database';
 import { newId } from './ids';
 import type { KnowtMode, RepeatType } from './types';
@@ -13,6 +15,10 @@ const CATEGORIES = [
   { key: 'go', name: 'Go', color: theme.categoryPalette.go, icon: 'car' },
   { key: 'admin', name: 'Admin', color: theme.categoryPalette.admin, icon: 'tray' },
 ] as const;
+
+// Fails to compile if the seeded categories ever drift from the canonical keys.
+const _keysMatch: readonly CategoryKey[] = CATEGORIES.map((c) => c.key);
+void _keysMatch;
 
 type SeedKnowt = {
   name: string;
@@ -126,10 +132,11 @@ export async function seed(): Promise<void> {
       const id = newId();
       categoryIds.set(category.key, id);
       await db.runAsync(
-        `INSERT INTO categories (id, name, color, icon, is_custom, sort)
-         VALUES (?, ?, ?, ?, 0, ?)`,
+        `INSERT INTO categories (id, name, key, color, icon, is_custom, sort)
+         VALUES (?, ?, ?, ?, ?, 0, ?)`,
         id,
         category.name,
+        category.key,
         category.color,
         category.icon,
         index,

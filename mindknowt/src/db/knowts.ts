@@ -75,6 +75,8 @@ export type NewKnowt = {
   categoryId?: string | null;
   locationNote?: string | null;
   notes?: string | null;
+  /** What the knowt becomes once a tag is attached. */
+  suggestedMode?: KnowtMode | null;
   schedule?: {
     label?: string | null;
     time: string;
@@ -93,8 +95,9 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
     await db.runAsync(
       `INSERT INTO knowts
          (id, tag_uid, mode, name, icon, category_id, location_note, notes,
-          link_url, refire_minutes, snooze_minutes, archived, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 5, 10, 0, ?)`,
+          link_url, suggested_mode, refire_minutes, snooze_minutes, archived,
+          created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 5, 10, 0, ?)`,
       id,
       input.tagUid ?? null,
       input.mode ?? 'open',
@@ -103,6 +106,7 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
       input.categoryId ?? null,
       input.locationNote ?? null,
       input.notes ?? null,
+      input.suggestedMode ?? null,
       Date.now(),
     );
 
@@ -154,18 +158,27 @@ export class ModeUnavailableError extends Error {
 export async function attachTag(
   knowtId: string,
   tagUid: string,
-  mode: Exclude<KnowtMode, 'open'> = 'strict',
+  mode?: Exclude<KnowtMode, 'open'>,
 ): Promise<void> {
   const owner = await findKnowtByTagUid(tagUid);
   if (owner && owner.id !== knowtId) {
     throw new TagInUseError(owner.name);
   }
 
+  // A knowt created from a starter set carries the set's suggestion, which
+  // only becomes applicable now that it has a tag. 'open' is ignored here: a
+  // knowt being given a tag is being promoted, so strict is the floor.
+  const knowt = await getKnowt(knowtId);
+  const suggested = knowt?.suggested_mode;
+  const target =
+    mode ??
+    (suggested === 'strict' || suggested === 'soft' ? suggested : 'strict');
+
   const db = await getDatabase();
   await db.runAsync(
     'UPDATE knowts SET tag_uid = ?, mode = ? WHERE id = ?',
     tagUid,
-    mode,
+    target,
     knowtId,
   );
 }
@@ -183,6 +196,49 @@ export async function setMode(knowtId: string, mode: KnowtMode): Promise<void> {
 
   const db = await getDatabase();
   await db.runAsync('UPDATE knowts SET mode = ? WHERE id = ?', mode, knowtId);
+}
+
+export async function findCategoryByKey(
+  key: string,
+): Promise<CategoryRow | null> {
+  const db = await getDatabase();
+  return db.getFirstAsync<CategoryRow>(
+    'SELECT * FROM categories WHERE key = ?',
+    key,
+  );
+}
+
+/** Knowts can carry several labelled schedules; `createKnowt` seeds only one. */
+export async function addSchedule(
+  knowtId: string,
+  schedule: {
+    label?: string | null;
+    time: string;
+    repeatType: RepeatType;
+    daysOfWeek?: number[];
+    intervalDays?: number;
+    supplyDays?: number;
+    leadDays?: number;
+    startDate?: string;
+  },
+): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT INTO schedules
+       (id, knowt_id, label, time, repeat_type, days_of_week, interval_days,
+        supply_days, lead_days, start_date, enabled, alarmkit_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)`,
+    newId(),
+    knowtId,
+    schedule.label ?? null,
+    schedule.time,
+    schedule.repeatType,
+    schedule.daysOfWeek ? JSON.stringify(schedule.daysOfWeek) : null,
+    schedule.intervalDays ?? null,
+    schedule.supplyDays ?? null,
+    schedule.leadDays ?? null,
+    schedule.startDate ?? null,
+  );
 }
 
 export async function updateNotes(id: string, notes: string): Promise<void> {

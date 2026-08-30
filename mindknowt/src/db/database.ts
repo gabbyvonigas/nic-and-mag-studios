@@ -1,6 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 
-import { CONTENT_TABLES, SCHEMA_SQL, SCHEMA_VERSION } from './schema';
+import { CONTENT_TABLES, MIGRATIONS, SCHEMA_SQL, SCHEMA_VERSION } from './schema';
 
 const DATABASE_NAME = 'mindknowt.db';
 
@@ -20,8 +20,22 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
   );
   const current = row?.user_version ?? 0;
 
-  // Every statement is CREATE ... IF NOT EXISTS, so this is safe to re-run.
+  // Every statement is CREATE ... IF NOT EXISTS, so this is safe to re-run. On
+  // a fresh database it creates the current shape outright.
   await db.execAsync(SCHEMA_SQL);
+
+  if (current === 0) {
+    // Nothing existed before this call, so the tables are already current and
+    // the ALTER steps below would fail on columns that are present.
+    await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+    return;
+  }
+
+  for (const step of MIGRATIONS) {
+    if (current < step.to) {
+      await db.execAsync(step.sql);
+    }
+  }
 
   if (current < SCHEMA_VERSION) {
     await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);

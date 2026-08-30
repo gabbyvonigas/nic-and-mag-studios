@@ -234,3 +234,43 @@ The data is right; only the moment it is written differs.
 
 `setAppMeta` refuses to write `install_generation` or `first_launch_at` rather
 than trusting every caller to remember they are immutable.
+
+## Starter sets
+
+Content lives in `assets/starter-sets.json` and is loaded at runtime, so adding
+a set is a content edit with no code change — spec section 4.2.
+
+`src/sets/parse.ts` validates every set at load and reports named errors:
+category not one of the six keys, a malformed time, an unknown repeat type,
+`days_of_week` without days, `leadDays` not less than `supplyDays`, duplicate
+set ids. The Dev screen lists whatever it finds, so a typo in content shows up
+as a content problem rather than a set that silently creates nothing.
+
+It imports `CATEGORY_KEYS` from `src/db/categoryKeys.ts` rather than the `db`
+barrel specifically so validation never pulls in the native SQLite stack and
+stays testable off-device. It is covered by assertions for each failure mode.
+
+Applying a set creates every chosen knowt in **Open** mode. Strict and Soft both
+require a tag and set knowts have none yet, so `suggestedMode` is stored in
+`knowts.suggested_mode` and applied by `attachTag` when a tag arrives. That is
+what makes "suggested" honest rather than a mode the app claims but cannot
+enforce.
+
+Schedules that count from a start date (`interval`, `supply`, `once`) anchor to
+the day the set is applied. Duplicate names are flagged against existing knowts
+before anything is created, per spec section 6.
+
+### Schema v2
+
+`SCHEMA_VERSION` is 2. `MIGRATIONS` in `src/db/schema.ts` upgrades existing
+installs; a fresh database is built from `SCHEMA_SQL` directly and skips them,
+which is why `migrate()` returns early when `user_version` is 0 — the ALTER
+steps would otherwise fail on columns that already exist.
+
+| Column | Why |
+|---|---|
+| `categories.key` | Stable identifier for shipped categories. Set JSON references this, so renaming a category in the UI cannot break bundled content. |
+| `knowts.suggested_mode` | The mode a knowt takes when a tag is attached. |
+
+The migration back-fills `categories.key` from the display names, which are
+still the originals on any install that predates this change.

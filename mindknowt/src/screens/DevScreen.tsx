@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, ScreenHeader } from '../components/ui';
 import { destroyDatabase, getAllAppMeta, listKnowts, reseed, seedIfEmpty } from '../db';
 import { useQuery } from '../db/useQuery';
+import { listSets, setContentErrors } from '../sets';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -81,6 +82,27 @@ export function DevScreen() {
           stamped again.
         </Text>
 
+        <Text style={styles.sectionTitle}>Starter sets</Text>
+        <Card>
+          <Text style={styles.body}>
+            {listSets().length} set{listSets().length === 1 ? '' : 's'} loaded from
+            assets/starter-sets.json
+          </Text>
+          {setContentErrors().length === 0 ? (
+            <Text style={styles.hint}>No content problems.</Text>
+          ) : (
+            setContentErrors().map((error) => (
+              <Text key={error} style={styles.contentError}>
+                {error}
+              </Text>
+            ))
+          )}
+        </Card>
+        <Text style={styles.hint}>
+          Content is validated at load. Anything listed here is a problem in the
+          JSON, not in the app.
+        </Text>
+
         <Text style={styles.sectionTitle}>Hardware harnesses</Text>
         <Button
           label="NFC"
@@ -124,6 +146,12 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     lineHeight: 19,
     color: theme.color.textMuted,
+  },
+  contentError: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    lineHeight: 18,
+    color: theme.color.dangerText,
   },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing.md },
   metaKey: {
