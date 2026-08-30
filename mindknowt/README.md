@@ -262,6 +262,14 @@ Schedules that count from a start date (`interval`, `supply`, `once`) anchor to
 the day the set is applied. Duplicate names are flagged against existing knowts
 and start unchecked, per spec section 6.
 
+### Times
+
+Stored as 24 hour `HH:MM`, which is unambiguous and sorts correctly. Displayed
+as am and pm by `formatTime`. Entry accepts either, through `parseTimeInput`,
+which reads "8:00 am", "7pm", "8" and "19:30" and returns the canonical form.
+Both are pure functions in `scheduling.ts` and are covered by assertions,
+including midnight and noon, which are the two that catch naive conversions.
+
 ### Times are never guessed
 
 Set content carries a schedule's *shape* (label and repeat type) but no time.

@@ -17,7 +17,7 @@ import { Button, ScreenHeader } from '../components/ui';
 import {
   createKnowt,
   listCategories,
-  TIME_PATTERN,
+  parseTimeInput,
   toISODate,
   type RepeatType,
 } from '../db';
@@ -65,7 +65,7 @@ export function AddKnowtScreen() {
     step === 'name'
       ? name.trim().length > 0
       : step === 'when'
-        ? TIME_PATTERN.test(time.trim())
+        ? parseTimeInput(time) !== null
         : true;
 
   const save = async () => {
@@ -78,7 +78,8 @@ export function AddKnowtScreen() {
         notes: notes.trim() || null,
         mode: 'open',
         schedule: {
-          time: time.trim(),
+          // Stored as 24 hour regardless of how it was typed.
+          time: parseTimeInput(time) ?? '',
           repeatType,
           startDate: repeatType === 'once' ? toISODate(new Date()) : undefined,
         },
@@ -196,13 +197,16 @@ export function AddKnowtScreen() {
                 style={styles.input}
                 value={time}
                 onChangeText={setTime}
-                placeholder="What time?"
+                placeholder="8:00 am"
                 placeholderTextColor={theme.color.textMuted}
-                keyboardType="numbers-and-punctuation"
+                autoCapitalize="none"
+                autoCorrect={false}
                 autoFocus
               />
-              {time.trim() && !TIME_PATTERN.test(time.trim()) ? (
-                <Text style={styles.hint}>Use a 24 hour time, such as 08:00.</Text>
+              {time.trim() && parseTimeInput(time) === null ? (
+                <Text style={styles.hint}>
+                  Try something like 8:00 am, 7pm, or 19:30.
+                </Text>
               ) : null}
               <View style={styles.chips}>
                 {REPEATS.map((repeat) => {

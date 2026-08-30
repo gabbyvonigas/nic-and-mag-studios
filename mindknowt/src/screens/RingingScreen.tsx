@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../components/ui';
 import { HoldToConfirm } from '../components/HoldToConfirm';
-import { describeRepeat } from '../db';
+import { describeRepeat, formatTime } from '../db';
 import { useRingingSession } from '../ringing/useRingingSession';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -144,7 +144,7 @@ export function RingingScreen() {
           {schedule ? (
             <Text style={styles.scheduleLabel}>
               {schedule.label ? `${schedule.label} · ` : ''}
-              {schedule.time} · {describeRepeat(schedule)}
+              {formatTime(schedule.time)} · {describeRepeat(schedule)}
             </Text>
           ) : null}
           {knowt.location_note ? (

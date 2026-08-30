@@ -18,6 +18,7 @@ import {
   archiveKnowt,
   attachTag,
   describeRepeat,
+  formatTime,
   getKnowt,
   listEvents,
   logCompletion,
@@ -232,7 +233,7 @@ export function KnowtDetailScreen() {
           knowt.schedules.map((schedule) => (
             <Card key={schedule.id}>
               <Text style={styles.cardTitle}>
-                {schedule.time}
+                {formatTime(schedule.time)}
                 {schedule.label ? ` · ${schedule.label}` : ''}
               </Text>
               <Text style={styles.body}>{describeRepeat(schedule)}</Text>

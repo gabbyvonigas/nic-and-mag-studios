@@ -20,8 +20,10 @@ export { CATEGORY_KEYS, type CategoryKey } from './categoryKeys';
 export { isEmpty, reseed, seed, seedIfEmpty } from './seed';
 export {
   describeRepeat,
+  formatTime,
   isDueOn,
   minutesOf,
+  parseTimeInput,
   TIME_PATTERN,
   toISODate,
   weekdayOf,

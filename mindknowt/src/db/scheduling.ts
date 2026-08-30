@@ -72,6 +72,48 @@ export function isDueOn(schedule: ScheduleRow, date: Date): boolean {
   }
 }
 
+/**
+ * "08:00" -> "8:00 am". Storage stays 24 hour because it is unambiguous and
+ * sorts correctly; only the display changes.
+ */
+export function formatTime(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  if (h === undefined || m === undefined || Number.isNaN(h) || Number.isNaN(m)) {
+    return hhmm;
+  }
+  const suffix = h < 12 ? 'am' : 'pm';
+  // 0 and 12 both display as 12: midnight and noon.
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return `${hour}:${`${m}`.padStart(2, '0')} ${suffix}`;
+}
+
+/**
+ * Accepts what a person actually types: "8:00 am", "8pm", "8", "20:00".
+ * Returns canonical "HH:MM", or null when it cannot be read confidently.
+ * A time with no suffix is read as 24 hour, so "20:00" and "8:00" both work.
+ */
+export function parseTimeInput(raw: string): string | null {
+  const text = raw.trim().toLowerCase().replace(/\s+/g, '');
+  const match = /^(\d{1,2})(?::(\d{2}))?(am|pm)?$/.exec(text);
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = match[2] === undefined ? 0 : Number(match[2]);
+  const suffix = match[3];
+
+  if (minute > 59) return null;
+
+  if (suffix) {
+    if (hour < 1 || hour > 12) return null;
+    if (suffix === 'am') hour = hour === 12 ? 0 : hour;
+    else hour = hour === 12 ? 12 : hour + 12;
+  } else if (hour > 23) {
+    return null;
+  }
+
+  return `${`${hour}`.padStart(2, '0')}:${`${minute}`.padStart(2, '0')}`;
+}
+
 /** "08:00" -> minutes past midnight, for ordering Today. */
 export function minutesOf(time: string): number {
   const [h, m] = time.split(':').map(Number);

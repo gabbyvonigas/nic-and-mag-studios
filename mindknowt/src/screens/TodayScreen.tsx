@@ -4,7 +4,13 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, EmptyState, Pill, ScreenHeader } from '../components/ui';
-import { describeRepeat, listToday, logCompletion, type TodayInstance } from '../db';
+import {
+  describeRepeat,
+  formatTime,
+  listToday,
+  logCompletion,
+  type TodayInstance,
+} from '../db';
 import { useQuery } from '../db/useQuery';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -30,7 +36,7 @@ function Row({
           {knowt.name}
         </Text>
         <Text style={styles.rowMeta}>
-          {schedule.time}
+          {formatTime(schedule.time)}
           {schedule.label ? ` · ${schedule.label}` : ''} ·{' '}
           {describeRepeat(schedule)}
         </Text>

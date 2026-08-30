@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Pill, ScreenHeader } from '../components/ui';
-import { describeRepeat, TIME_PATTERN, type RepeatType } from '../db';
+import { describeRepeat, parseTimeInput, type RepeatType } from '../db';
 import { applySet, previewSet, type SetPreview, type SetSelection } from '../sets';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -83,8 +83,8 @@ export function ApplySetScreen() {
     if (chosen.length === 0) return false;
     // Every schedule on a chosen knowt needs a time, because none is assumed.
     return chosen.every((entry) =>
-      entry.knowt.schedules.every((_, index) =>
-        TIME_PATTERN.test((times[entry.knowt.name]?.[index] ?? '').trim()),
+      entry.knowt.schedules.every(
+        (_, index) => parseTimeInput(times[entry.knowt.name]?.[index] ?? '') !== null,
       ),
     );
   }, [preview, selected, times]);
@@ -115,7 +115,8 @@ export function ApplySetScreen() {
         .filter((e) => selected[e.knowt.name])
         .map((e) => ({
           name: e.knowt.name,
-          times: (times[e.knowt.name] ?? []).map((t) => t.trim()),
+          // Stored as 24 hour regardless of how it was typed.
+          times: (times[e.knowt.name] ?? []).map((t) => parseTimeInput(t) ?? ''),
         }));
       await applySet(params.setId, selections);
       navigation.navigate('Tabs', { screen: 'AllKnowts' });
@@ -174,7 +175,8 @@ export function ApplySetScreen() {
                 {isSelected &&
                   entry.knowt.schedules.map((schedule, index) => {
                     const value = times[entry.knowt.name]?.[index] ?? '';
-                    const invalid = value.trim() !== '' && !TIME_PATTERN.test(value.trim());
+                    const invalid =
+                      value.trim() !== '' && parseTimeInput(value) === null;
                     return (
                       <View key={index} style={styles.scheduleRow}>
                         <Text style={styles.scheduleLabel}>
@@ -191,9 +193,10 @@ export function ApplySetScreen() {
                               return { ...prev, [entry.knowt.name]: next };
                             })
                           }
-                          placeholder="What time?"
+                          placeholder="8:00 am"
                           placeholderTextColor={theme.color.textMuted}
-                          keyboardType="numbers-and-punctuation"
+                          autoCapitalize="none"
+                          autoCorrect={false}
                         />
                       </View>
                     );
