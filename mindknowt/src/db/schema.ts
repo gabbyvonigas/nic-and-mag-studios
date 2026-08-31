@@ -5,7 +5,7 @@
  */
 export const SCHEMA_VERSION = 3;
 
-export const SCHEMA_SQL = `
+export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
@@ -80,6 +80,14 @@ CREATE TABLE IF NOT EXISTS app_meta (
   value TEXT NOT NULL
 );
 
+`;
+
+/**
+ * Created after any migration has run. `idx_categories_key` references a column
+ * that migration 2 adds, so creating it alongside the tables would fail on an
+ * older database, where the column does not exist yet.
+ */
+export const INDEXES_SQL = `
 CREATE INDEX IF NOT EXISTS idx_schedules_knowt ON schedules(knowt_id);
 CREATE INDEX IF NOT EXISTS idx_events_knowt    ON events(knowt_id);
 CREATE INDEX IF NOT EXISTS idx_events_schedule ON events(schedule_id);
@@ -88,32 +96,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_key
   ON categories(key) WHERE key IS NOT NULL;
 `;
 
-/**
- * Applied in order to an existing database. A fresh database is created
- * directly from SCHEMA_SQL above and skips these, so every step here must be
- * written only for the upgrade path.
- */
-export const MIGRATIONS: { to: number; sql: string }[] = [
+/** Columns each version adds, applied only when missing. */
+export const ADDED_COLUMNS: { to: number; table: string; column: string; type: string }[] = [
+  { to: 2, table: 'categories', column: 'key', type: 'TEXT' },
+  { to: 2, table: 'knowts', column: 'suggested_mode', type: 'TEXT' },
+  { to: 3, table: 'knowts', column: 'daily_target', type: 'INTEGER' },
+  { to: 3, table: 'knowts', column: 'target_unit', type: 'TEXT' },
+];
+
+/** Data fixes that run once, after the columns for that version exist. */
+export const BACKFILLS: { to: number; sql: string }[] = [
   {
     to: 2,
-    sql: `
-      ALTER TABLE categories ADD COLUMN key TEXT;
-      ALTER TABLE knowts ADD COLUMN suggested_mode TEXT;
-
-      -- Shipped categories were seeded before keys existed; their display names
-      -- are still the originals, so they can be matched safely here.
-      UPDATE categories SET key = lower(name) WHERE key IS NULL AND is_custom = 0;
-
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_key
-        ON categories(key) WHERE key IS NOT NULL;
-    `,
-  },
-  {
-    to: 3,
-    sql: `
-      ALTER TABLE knowts ADD COLUMN daily_target INTEGER;
-      ALTER TABLE knowts ADD COLUMN target_unit TEXT;
-    `,
+    // Shipped categories were seeded before keys existed, and their display
+    // names are still the originals, so they can be matched safely.
+    sql: `UPDATE categories SET key = lower(name) WHERE key IS NULL AND is_custom = 0;`,
   },
 ];
 

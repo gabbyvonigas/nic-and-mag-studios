@@ -293,6 +293,16 @@ one-per-instance knowt, so no separate kind column is needed to tell them apart.
 Each migration is a new numbered step. Editing an existing step in place would
 do nothing on any device that has already run it.
 
+`migrate()` runs in a fixed order: tables, added columns, back-fills, indexes,
+version stamp. Indexes are last because `idx_categories_key` references a column
+migration 2 adds, and creating it earlier threw `no such column: key` on every
+device that predated it. A fresh database never hit this, which is why local
+checks passed while real upgrades failed. Column additions consult
+`PRAGMA table_info` first, so a half-applied upgrade can be run again.
+
+The upgrade paths are covered by assertions using `node:sqlite`, against
+databases built in the v1 and v2 shapes as well as a fresh one.
+
 ### Schema v2
 
 `SCHEMA_VERSION` is 2. `MIGRATIONS` in `src/db/schema.ts` upgrades existing

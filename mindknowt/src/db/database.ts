@@ -1,6 +1,13 @@
 import * as SQLite from 'expo-sqlite';
 
-import { CONTENT_TABLES, MIGRATIONS, SCHEMA_SQL, SCHEMA_VERSION } from './schema';
+import {
+  ADDED_COLUMNS,
+  BACKFILLS,
+  CONTENT_TABLES,
+  INDEXES_SQL,
+  SCHEMA_VERSION,
+  TABLES_SQL,
+} from './schema';
 
 const DATABASE_NAME = 'mindknowt.db';
 
@@ -14,28 +21,45 @@ export const INSTALL_GENERATION = 'pre_ads';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
+async function columnExists(
+  db: SQLite.SQLiteDatabase,
+  table: string,
+  column: string,
+): Promise<boolean> {
+  const rows = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(${table})`,
+  );
+  return rows.some((r) => r.name === column);
+}
+
 async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
     'PRAGMA user_version',
   );
   const current = row?.user_version ?? 0;
 
-  // Every statement is CREATE ... IF NOT EXISTS, so this is safe to re-run. On
-  // a fresh database it creates the current shape outright.
-  await db.execAsync(SCHEMA_SQL);
+  // Tables first. Every statement is CREATE ... IF NOT EXISTS, so this creates
+  // the current shape on a fresh database and does nothing on an existing one.
+  await db.execAsync(TABLES_SQL);
 
-  if (current === 0) {
-    // Nothing existed before this call, so the tables are already current and
-    // the ALTER steps below would fail on columns that are present.
-    await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
-    return;
+  // Columns next, and only when actually missing. A fresh database already has
+  // them from TABLES_SQL, and an upgrade that half-applied before must be able
+  // to run again rather than failing forever on a duplicate column.
+  for (const step of ADDED_COLUMNS) {
+    if (current >= step.to) continue;
+    if (await columnExists(db, step.table, step.column)) continue;
+    await db.execAsync(
+      `ALTER TABLE ${step.table} ADD COLUMN ${step.column} ${step.type}`,
+    );
   }
 
-  for (const step of MIGRATIONS) {
-    if (current < step.to) {
-      await db.execAsync(step.sql);
-    }
+  for (const backfill of BACKFILLS) {
+    if (current < backfill.to) await db.execAsync(backfill.sql);
   }
+
+  // Indexes last: some reference columns the steps above add, so creating them
+  // any earlier fails on a database that predates those columns.
+  await db.execAsync(INDEXES_SQL);
 
   if (current < SCHEMA_VERSION) {
     await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, Text, View, type AppStateStatus } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -6,38 +6,77 @@ import { StatusBar } from 'expo-status-bar';
 
 import { alarmScheduler } from './src/alarms';
 import { publishLaunch } from './src/alarms/launchStore';
-import { getDatabase, seedIfEmpty, sweepMissed } from './src/db';
+import { destroyDatabase, getDatabase, seedIfEmpty, sweepMissed } from './src/db';
 import { linking } from './src/navigation/linking';
 import { navigateToRinging, navigationRef } from './src/navigation/navigationRef';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { Button } from './src/components/ui';
 import { theme } from './src/theme';
+
+type StartupError = { stage: string; message: string };
+
+function describe(err: unknown): string {
+  if (err instanceof Error) {
+    const name = err.constructor?.name || err.name || 'Error';
+    return err.message ? `${name}: ${err.message}` : name;
+  }
+  return String(err);
+}
 
 export default function App() {
   const [ready, setReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<StartupError | null>(null);
+  const [resetting, setResetting] = useState(false);
+
+  const bootstrap = useCallback(async () => {
+    setError(null);
+    setReady(false);
+
+    try {
+      // Opening the database also runs migrations and stamps app_meta.
+      await getDatabase();
+    } catch (err) {
+      setError({ stage: 'Opening the database', message: describe(err) });
+      setReady(true);
+      return;
+    }
+
+    try {
+      await seedIfEmpty();
+    } catch (err) {
+      setError({ stage: 'Adding the example knowts', message: describe(err) });
+      setReady(true);
+      return;
+    }
+
+    try {
+      // Spec section 6 wants `missed` at end of day; with no background
+      // execution the next launch is the earliest honest moment to write it.
+      // Housekeeping, so a failure here must not keep the app from starting.
+      await sweepMissed();
+    } catch {
+      // Ignored on purpose.
+    }
+
+    setReady(true);
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        // Opening the database also runs migrations and stamps app_meta.
-        await getDatabase();
-        await seedIfEmpty();
-        // Spec section 6 wants `missed` at end of day; with no background
-        // execution the next launch is the earliest honest moment to write it.
-        await sweepMissed();
-      } catch (err) {
-        if (active) {
-          setError(err instanceof Error ? err.message : String(err));
-        }
-      } finally {
-        if (active) setReady(true);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+    void bootstrap();
+  }, [bootstrap]);
+
+  /** Last resort when a database cannot be opened or migrated. */
+  const resetDatabase = useCallback(async () => {
+    setResetting(true);
+    try {
+      await destroyDatabase();
+      await bootstrap();
+    } catch (err) {
+      setError({ stage: 'Resetting the database', message: describe(err) });
+    } finally {
+      setResetting(false);
+    }
+  }, [bootstrap]);
 
   /**
    * The single consumer of the AlarmKit launch payload. Reading it clears it
@@ -76,8 +115,26 @@ export default function App() {
     return (
       <View style={styles.splash}>
         <StatusBar style="dark" />
-        <Text style={styles.error}>The database could not be opened.</Text>
-        <Text style={styles.errorDetail}>{error}</Text>
+        <Text style={styles.error}>{error.stage} failed.</Text>
+        <Text style={styles.errorDetail}>{error.message}</Text>
+        <View style={styles.errorActions}>
+          <Button
+            label={resetting ? 'Resetting' : 'Try again'}
+            variant="secondary"
+            disabled={resetting}
+            onPress={() => void bootstrap()}
+          />
+          <Button
+            label="Erase data and start over"
+            variant="quiet"
+            disabled={resetting}
+            onPress={() => void resetDatabase()}
+          />
+        </View>
+        <Text style={styles.errorDetail}>
+          Erasing removes every knowt on this device. It is the way out when the
+          database itself cannot be repaired.
+        </Text>
       </View>
     );
   }
@@ -112,5 +169,10 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     color: theme.color.textBody,
     textAlign: 'center',
+  },
+  errorActions: {
+    alignSelf: 'stretch',
+    gap: theme.spacing.sm,
+    marginVertical: theme.spacing.lg,
   },
 });

@@ -96,6 +96,26 @@ reported on the Dev screen rather than silently used.
 The same reasoning applies to anything a wrong guess would quietly corrupt: a
 default that is wrong more often than right is worse than an empty field.
 
+## Migrations must be tested against an older database
+
+A fresh database is not a test. It is built from the current schema, so it
+passes trivially while an upgrade path is broken.
+
+This already happened once: index creation sat alongside the table definitions
+and ran before the ALTER steps, so `CREATE UNIQUE INDEX ... ON categories(key)`
+threw `no such column: key` on every device that predated that column. Every
+local check passed, because every local check started from nothing.
+
+Order in `migrate()` is therefore: tables, then added columns, then back-fills,
+then indexes, then the version stamp. Indexes go last because they can
+reference columns the steps above add.
+
+Column additions check `PRAGMA table_info` first, so a half-applied upgrade can
+run again instead of failing forever on a duplicate column.
+
+`node:sqlite` runs off-device, so migrations can and should be exercised
+against a database built in the old shape before shipping.
+
 ## Platform boundaries
 
 `react-native-nfc-manager` is imported in exactly one file, and
