@@ -41,6 +41,17 @@ const OVERRIDE_HOLD_MS = 3_000;
  */
 const AUTO_SCAN_DELAY_MS = 400;
 
+/**
+ * Deliberate deferrals, offered in every mode. Snooze is the quick one; these
+ * are for "not now, but later today". Choosing one is recorded as a snooze, so
+ * the knowt still reads as not done.
+ */
+const REMIND_OPTIONS = [
+  { minutes: 30, label: '30 min' },
+  { minutes: 60, label: '1 hour' },
+  { minutes: 120, label: '2 hours' },
+] as const;
+
 function RingIndicator({ active }: { active: boolean }) {
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -87,6 +98,7 @@ export function RingingScreen() {
     scanning,
     message,
     scanToStop,
+    remindIn,
     snooze,
     complete,
     saveKnowtNotes,
@@ -301,6 +313,19 @@ export function RingingScreen() {
             />
           )}
 
+          <View style={styles.remindRow}>
+            <Text style={styles.remindLabel}>Remind me in</Text>
+            {REMIND_OPTIONS.map((option) => (
+              <Pressable
+                key={option.minutes}
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => void finish(() => remindIn(option.minutes))}>
+                <Text style={styles.remindOption}>{option.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
           {strict && (
             <View style={styles.overrideArea}>
               {overrideOpen ? (
@@ -462,6 +487,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xl,
     paddingBottom: theme.spacing.sm,
     gap: theme.spacing.sm,
+  },
+  remindRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.md,
+  },
+  remindLabel: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textMuted,
+  },
+  remindOption: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    fontWeight: theme.font.weight.medium,
+    color: theme.color.textSecondary,
   },
   overrideArea: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
   overridePanel: { gap: theme.spacing.sm },

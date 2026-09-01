@@ -180,21 +180,32 @@ export function useRingingSession(
     }
   }, [resolve]);
 
-  const snooze = useCallback(async () => {
+  /**
+   * Puts the alarm off for a stated number of minutes. Deferring is not
+   * completing: `completed_at` stays null, so the knowt still reads as not
+   * done, but the session is resolved so the abandon path does not queue a
+   * re-fire on top of the alarm this just armed.
+   */
+  const remindIn = useCallback(async (minutes: number) => {
     const current = knowtRef.current;
     if (!current) return;
     if (eventIdRef.current) await addSnooze(eventIdRef.current);
-    // Snoozing is not completing: completed_at stays null, but the session is
-    // resolved so the abandon path does not also queue a re-fire.
     resolvedRef.current = true;
     if (mounted.current) setResolved(true);
     await rearmKnowtAlarm({
       knowtId: current.id,
       title: current.name,
-      minutes: current.snooze_minutes,
+      minutes,
       kind: 'snooze',
     });
   }, []);
+
+  /** The quick one. Same mechanism, using the knowt's own snooze length. */
+  const snooze = useCallback(async () => {
+    const current = knowtRef.current;
+    if (!current) return;
+    await remindIn(current.snooze_minutes);
+  }, [remindIn]);
 
   const complete = useCallback(
     (method: Extract<EventMethod, 'tap' | 'override'>) => resolve(method),
@@ -223,6 +234,7 @@ export function useRingingSession(
     message,
     clearMessage: useCallback(() => setMessage(null), []),
     scanToStop,
+    remindIn,
     snooze,
     complete,
     saveKnowtNotes,
