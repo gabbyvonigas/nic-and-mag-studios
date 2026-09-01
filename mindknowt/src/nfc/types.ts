@@ -25,6 +25,8 @@ export type ScannedTag = {
  */
 export type NfcFailureReason =
   | 'cancelled'
+  /** A tag was read, but it was not the one the caller was waiting for. */
+  | 'wrong-tag'
   | 'timeout'
   | 'radio-disabled'
   | 'unsupported'
@@ -42,6 +44,24 @@ export class NfcScanError extends Error {
   }
 }
 
+/**
+ * Options for one scan.
+ *
+ * `expectRawUid` is the important one. Passing it lets the platform reject a
+ * mismatched tag inside its own scan sheet, while the phone is still against
+ * the tag, rather than reporting success and leaving the caller to complain
+ * afterwards. Rejecting after the sheet has closed reads as "it scanned, then
+ * something went wrong", which is exactly backwards.
+ */
+export type ScanOptions = {
+  /** Copy shown in the platform sheet while waiting for a tag. */
+  prompt?: string;
+  /** Raw lowercase hex UID the scan is waiting for. Case-insensitive. */
+  expectRawUid?: string | null;
+  /** Name of the expected thing, used in the rejection message. */
+  expectLabel?: string;
+};
+
 export interface NfcReader {
   /** Whether this device can scan at all. Must not throw. */
   isAvailable(): Promise<boolean>;
@@ -51,9 +71,10 @@ export interface NfcReader {
 
   /**
    * Open the platform's scan affordance and resolve with the first tag read.
-   * Rejects with `NfcScanError` for every failure, cancellation included.
+   * Rejects with `NfcScanError` for every failure, cancellation included, and
+   * with reason `wrong-tag` when `expectRawUid` is set and does not match.
    */
-  scanTag(): Promise<ScannedTag>;
+  scanTag(options?: ScanOptions): Promise<ScannedTag>;
 
   /** Tear down any in-flight session. Safe to call when none is open. */
   cancel(): Promise<void>;

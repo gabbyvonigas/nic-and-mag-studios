@@ -4,7 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-import { alarmScheduler } from './src/alarms';
+import { alarmScheduler, pruneFiredAlarms } from './src/alarms';
 import { publishLaunch } from './src/alarms/launchStore';
 import { destroyDatabase, getDatabase, seedIfEmpty, sweepMissed } from './src/db';
 import { linking } from './src/navigation/linking';
@@ -54,6 +54,10 @@ export default function App() {
       // execution the next launch is the earliest honest moment to write it.
       // Housekeeping, so a failure here must not keep the app from starting.
       await sweepMissed();
+      // An alarm whose time has passed already rang, so it is no longer
+      // pending. Without this the dashboard would claim things are armed that
+      // are not.
+      await pruneFiredAlarms();
     } catch {
       // Ignored on purpose.
     }

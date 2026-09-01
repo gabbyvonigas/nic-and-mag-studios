@@ -1,9 +1,11 @@
+import { CATEGORY_COLORS } from '../theme/categoryColors';
+
 /**
  * Schema per spec section 3. Bump SCHEMA_VERSION and add a migration step when
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -43,7 +45,7 @@ CREATE TABLE IF NOT EXISTS knowts (
   daily_target   INTEGER,
   target_unit    TEXT,
   refire_minutes INTEGER NOT NULL DEFAULT 5,
-  snooze_minutes INTEGER NOT NULL DEFAULT 10,
+  snooze_minutes INTEGER NOT NULL DEFAULT 5,
   archived       INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL
 );
@@ -75,6 +77,19 @@ CREATE TABLE IF NOT EXISTS events (
   snooze_count INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS pending_alarms (
+  id          TEXT PRIMARY KEY NOT NULL,
+  knowt_id    TEXT NOT NULL REFERENCES knowts(id) ON DELETE CASCADE,
+  -- NULL for a re-fire, a snooze, or a test ring, none of which belong to a
+  -- particular schedule.
+  schedule_id TEXT REFERENCES schedules(id) ON DELETE SET NULL,
+  -- The id AlarmKit handed back, which is what cancelling needs.
+  alarmkit_id TEXT NOT NULL,
+  fires_at    INTEGER NOT NULL,
+  kind        TEXT NOT NULL CHECK (kind IN ('scheduled', 'refire', 'snooze', 'test')),
+  created_at  INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS app_meta (
   key   TEXT PRIMARY KEY NOT NULL,
   value TEXT NOT NULL
@@ -94,6 +109,8 @@ CREATE INDEX IF NOT EXISTS idx_events_schedule ON events(schedule_id);
 CREATE INDEX IF NOT EXISTS idx_knowts_archived ON knowts(archived);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_key
   ON categories(key) WHERE key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_pending_knowt ON pending_alarms(knowt_id);
+CREATE INDEX IF NOT EXISTS idx_pending_fires ON pending_alarms(fires_at);
 `;
 
 /** Columns each version adds, applied only when missing. */
@@ -104,6 +121,19 @@ export const ADDED_COLUMNS: { to: number; table: string; column: string; type: s
   { to: 3, table: 'knowts', column: 'target_unit', type: 'TEXT' },
 ];
 
+/**
+ * Repaints the shipped categories. `categories.color` is written once at seed
+ * time, so changing the palette constant alone leaves every existing install on
+ * the old colors. Custom categories are matched by `is_custom = 0` and never
+ * touched, because their color is the user's choice.
+ */
+const RECOLOR_SQL = Object.entries(CATEGORY_COLORS)
+  .map(
+    ([key, color]) =>
+      `UPDATE categories SET color = '${color}' WHERE key = '${key}' AND is_custom = 0;`,
+  )
+  .join('\n');
+
 /** Data fixes that run once, after the columns for that version exist. */
 export const BACKFILLS: { to: number; sql: string }[] = [
   {
@@ -111,6 +141,14 @@ export const BACKFILLS: { to: number; sql: string }[] = [
     // Shipped categories were seeded before keys existed, and their display
     // names are still the originals, so they can be matched safely.
     sql: `UPDATE categories SET key = lower(name) WHERE key IS NULL AND is_custom = 0;`,
+  },
+  { to: 4, sql: RECOLOR_SQL },
+  {
+    to: 4,
+    // Ten minutes was too long in testing. Nothing edits this value yet, so
+    // every row still holds the old default and none of this is a user choice
+    // being overwritten.
+    sql: `UPDATE knowts SET snooze_minutes = 5 WHERE snooze_minutes = 10;`,
   },
 ];
 

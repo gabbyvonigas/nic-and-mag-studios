@@ -4,8 +4,16 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { cancelAllAlarms } from '../alarms';
 import { Button, Card, ScreenHeader } from '../components/ui';
-import { destroyDatabase, getAllAppMeta, listKnowts, reseed, seedIfEmpty } from '../db';
+import {
+  destroyDatabase,
+  getAllAppMeta,
+  listKnowts,
+  listPendingAlarms,
+  reseed,
+  seedIfEmpty,
+} from '../db';
 import { useQuery } from '../db/useQuery';
 import { listSets, setContentErrors, setContentNotices } from '../sets';
 import { theme } from '../theme';
@@ -17,7 +25,12 @@ export function DevScreen() {
   const navigation = useNavigation<Nav>();
   const { data: meta, reload: reloadMeta } = useQuery(() => getAllAppMeta(), []);
   const { data: knowts, reload: reloadKnowts } = useQuery(() => listKnowts(), []);
+  const { data: pending, reload: reloadPending } = useQuery(
+    () => listPendingAlarms(),
+    [],
+  );
   const [busy, setBusy] = useState(false);
+  const [alarmNotice, setAlarmNotice] = useState<string | null>(null);
 
   const run = async (task: () => Promise<void>) => {
     setBusy(true);
@@ -25,6 +38,7 @@ export function DevScreen() {
       await task();
       await reloadMeta();
       await reloadKnowts();
+      await reloadPending();
     } finally {
       setBusy(false);
     }
@@ -55,6 +69,44 @@ export function DevScreen() {
         <Text style={styles.hint}>
           install_generation is written once with INSERT OR IGNORE and is never
           overwritten. Reseeding leaves it alone; only a full reset clears it.
+        </Text>
+
+        <Text style={styles.sectionTitle}>Pending alarms</Text>
+        <Card>
+          {(pending ?? []).length === 0 ? (
+            <Text style={styles.body}>Nothing armed.</Text>
+          ) : (
+            (pending ?? []).map((alarm) => (
+              <View key={alarm.id} style={styles.metaRow}>
+                <Text style={styles.metaKey}>{alarm.kind}</Text>
+                <Text style={styles.metaValue}>
+                  {new Date(alarm.fires_at).toLocaleTimeString()}
+                </Text>
+              </View>
+            ))
+          )}
+        </Card>
+        <Button
+          label="Cancel every alarm"
+          variant="secondary"
+          disabled={busy}
+          onPress={() =>
+            void run(async () => {
+              const count = await cancelAllAlarms();
+              setAlarmNotice(
+                count === 0
+                  ? 'AlarmKit had nothing scheduled.'
+                  : `Cancelled ${count} alarm${count === 1 ? '' : 's'}.`,
+              );
+            })
+          }
+        />
+        {alarmNotice ? <Text style={styles.hint}>{alarmNotice}</Text> : null}
+        <Text style={styles.hint}>
+          This list is the app's own record, so it only holds alarms armed since
+          the record existed. Cancel every alarm goes to AlarmKit for the real
+          list, which is the only way to reach an older one that is still
+          ringing.
         </Text>
 
         <Text style={styles.sectionTitle}>Database</Text>

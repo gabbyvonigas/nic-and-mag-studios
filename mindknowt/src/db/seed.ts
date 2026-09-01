@@ -149,7 +149,7 @@ export async function seed(): Promise<void> {
         `INSERT INTO knowts
            (id, tag_uid, mode, name, icon, category_id, location_note, notes,
             link_url, refire_minutes, snooze_minutes, archived, created_at)
-         VALUES (?, NULL, ?, ?, ?, ?, ?, ?, NULL, 5, 10, 0, ?)`,
+         VALUES (?, NULL, ?, ?, ?, ?, ?, ?, NULL, 5, 5, 0, ?)`,
         knowtId,
         OPEN_MODE,
         knowt.name,

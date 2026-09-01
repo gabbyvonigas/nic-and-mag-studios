@@ -6,6 +6,7 @@ import {
   NfcScanError,
   type NfcFailureReason,
   type NfcReader,
+  type ScanOptions,
   type ScannedTag,
 } from './types';
 
@@ -67,10 +68,10 @@ export const nfcReader: NfcReader = {
     await NfcManager.start();
   },
 
-  async scanTag() {
+  async scanTag(options: ScanOptions = {}) {
     try {
       await NfcManager.requestTechnology(SCAN_TECHS, {
-        alertMessage: SHEET_PROMPT,
+        alertMessage: options.prompt ?? SHEET_PROMPT,
       });
 
       const tag = (await NfcManager.getTag()) as IosTag | null;
@@ -81,6 +82,23 @@ export const nfcReader: NfcReader = {
           'no-uid',
           'The tag was detected but reported no UID.',
         );
+      }
+
+      const expected = options.expectRawUid?.toLowerCase();
+      if (expected && rawUid.toLowerCase() !== expected) {
+        // Fail the session rather than closing it cleanly. iOS renders the
+        // message inside its own sheet with an error mark, so the rejection
+        // lands while the phone is still held against the wrong tag. Closing
+        // the sheet successfully first and complaining afterwards is what made
+        // this read as "it scanned, then it did not like it".
+        const label = options.expectLabel ?? 'the right tag';
+        const message = `Not ${label}`;
+        try {
+          await NfcManager.invalidateSessionWithErrorIOS(message);
+        } catch {
+          // The sheet is closing regardless; the throw below still reports it.
+        }
+        throw new NfcScanError('wrong-tag', message);
       }
 
       const scanned: ScannedTag = {

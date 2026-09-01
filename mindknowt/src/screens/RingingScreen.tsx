@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
   Animated,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -25,8 +26,20 @@ import type { RootStackParamList } from '../navigation/types';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'Ringing'>;
 
-const OVERRIDE_WORD = 'override';
-const OVERRIDE_HOLD_MS = 10_000;
+/**
+ * Long enough that it cannot happen by accident, short enough that it is not a
+ * punishment. Typing a word on top of this was too much: the point is to make
+ * skipping deliberate, not tedious.
+ */
+const OVERRIDE_HOLD_MS = 3_000;
+
+/**
+ * The scan sheet is opened for you when the screen appears, so stopping an
+ * alarm is one motion: slide to stop, then hold the phone to the tag. This
+ * delay lets the screen present first, so the system sheet slides over
+ * something rather than over a blank frame.
+ */
+const AUTO_SCAN_DELAY_MS = 400;
 
 function RingIndicator({ active }: { active: boolean }) {
   const pulse = useRef(new Animated.Value(0)).current;
@@ -85,7 +98,7 @@ export function RingingScreen() {
   const [eventNote, setEventNote] = useState('');
   const [showEventNote, setShowEventNote] = useState(false);
   const [overrideOpen, setOverrideOpen] = useState(false);
-  const [overrideWord, setOverrideWord] = useState('');
+  const autoScanned = useRef(false);
 
   useEffect(() => {
     if (knowt && !notesDirty) setNotesDraft(knowt.notes ?? '');
@@ -98,12 +111,55 @@ export function RingingScreen() {
    * returns false, such as a wrong tag or a failed scan, keeps the screen up and the
    * alarm ringing.
    */
-  const finish = async (run: () => Promise<boolean | void>) => {
-    const outcome = await run();
-    if (outcome === false) return;
-    if (eventNote.trim()) await saveEventNote(eventNote);
-    leave();
-  };
+  const finish = useCallback(
+    async (run: () => Promise<boolean | void>) => {
+      const outcome = await run();
+      if (outcome === false) return;
+      if (eventNote.trim()) await saveEventNote(eventNote);
+      leave();
+    },
+    // `leave` and `eventNote` are read fresh on each call, so re-creating this
+    // when they change is what keeps the auto-scan effect honest.
+    [eventNote, saveEventNote, navigation],
+  );
+
+  /**
+   * Opens the scan sheet as soon as the screen is up. Once per mount: if the
+   * sheet is dismissed, the alarm keeps ringing and the button is there, but
+   * reopening it automatically would trap the phone in a loop of sheets.
+   *
+   * Waits for `active` because an alarm dismissal relaunches the app, and a
+   * scan session requested before the app is frontmost is rejected by iOS.
+   */
+  useEffect(() => {
+    if (loading || !knowt || resolved) return;
+    if (autoScanned.current) return;
+    if (knowt.mode === 'open' || !knowt.tag_uid) return;
+
+    autoScanned.current = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const start = () => {
+      timer = setTimeout(() => void finish(scanToStop), AUTO_SCAN_DELAY_MS);
+    };
+
+    if (AppState.currentState === 'active') {
+      start();
+      return () => {
+        if (timer) clearTimeout(timer);
+      };
+    }
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        sub.remove();
+        start();
+      }
+    });
+    return () => {
+      sub.remove();
+      if (timer) clearTimeout(timer);
+    };
+  }, [loading, knowt, resolved, finish, scanToStop]);
 
   if (loading) {
     return (
@@ -128,7 +184,6 @@ export function RingingScreen() {
   const strict = knowt.mode === 'strict';
   const soft = knowt.mode === 'soft';
   const open = knowt.mode === 'open';
-  const overrideReady = overrideWord.trim().toLowerCase() === OVERRIDE_WORD;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -251,29 +306,17 @@ export function RingingScreen() {
               {overrideOpen ? (
                 <View style={styles.overridePanel}>
                   <Text style={styles.overrideHint}>
-                    Type {OVERRIDE_WORD}, then press and hold for ten seconds.
+                    Stops the alarm without scanning, and is recorded as an
+                    override.
                   </Text>
-                  <TextInput
-                    style={styles.overrideInput}
-                    value={overrideWord}
-                    onChangeText={setOverrideWord}
-                    placeholder={OVERRIDE_WORD}
-                    placeholderTextColor={theme.color.textMuted}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
                   <HoldToConfirm
                     label="Hold to override"
                     holdMs={OVERRIDE_HOLD_MS}
-                    disabled={!overrideReady}
                     onComplete={() => void finish(() => complete('override'))}
                   />
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => {
-                      setOverrideOpen(false);
-                      setOverrideWord('');
-                    }}>
+                    onPress={() => setOverrideOpen(false)}>
                     <Text style={styles.overrideLink}>Cancel</Text>
                   </Pressable>
                 </View>
@@ -426,16 +469,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
     color: theme.color.textMuted,
-  },
-  overrideInput: {
-    fontFamily: theme.font.mono,
-    fontSize: theme.font.size.md,
-    color: theme.color.textPrimary,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
   },
   overrideLink: {
     textAlign: 'center',

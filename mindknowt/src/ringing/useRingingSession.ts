@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
-import { rearmKnowtAlarm } from '../alarms/knowtAlarms';
+import { cancelKnowtAlarms, rearmKnowtAlarm } from '../alarms/knowtAlarms';
 import {
   addSnooze,
   completeRinging,
@@ -30,6 +30,10 @@ function scanFailureText(err: unknown): RingingMessage | null {
     case 'cancelled':
       // Backing out of the sheet is not a failure; the alarm simply continues.
       return null;
+    case 'wrong-tag':
+      // Already shown inside the scan sheet. Repeated here because the sheet
+      // is gone by the time the screen renders again.
+      return { tone: 'danger', text: err.message };
     case 'timeout':
       return { tone: 'warn', text: 'No tag was detected. Hold it to the top of the phone.' };
     case 'radio-disabled':
@@ -95,6 +99,7 @@ export function useRingingSession(
         knowtId: current.id,
         title: current.name,
         minutes: current.refire_minutes,
+        kind: 'refire',
       });
     } catch {
       // Losing the re-fire must not crash the screen; the alarm already rang.
@@ -121,6 +126,16 @@ export function useRingingSession(
       if (eventIdRef.current) {
         await completeRinging(eventIdRef.current, method);
       }
+      // The task is done, so nothing armed for it should still ring. This is
+      // what stops a stale re-fire or a leftover test alarm going off later.
+      const current = knowtRef.current;
+      if (current) {
+        try {
+          await cancelKnowtAlarms(current.id);
+        } catch {
+          // Completion is already recorded; a failed cancel must not undo it.
+        }
+      }
     },
     [],
   );
@@ -133,26 +148,25 @@ export function useRingingSession(
     scanningRef.current = true;
     setScanning(true);
 
+    const expected = current.tag_uid?.toLowerCase() ?? null;
+    if (!expected) {
+      scanningRef.current = false;
+      setScanning(false);
+      setMessage({
+        tone: 'danger',
+        text: 'This knowt has no tag attached, so it cannot be scanned.',
+      });
+      return false;
+    }
+
     try {
-      const tag = await nfcReader.scanTag();
-      const expected = current.tag_uid?.toLowerCase() ?? null;
-
-      if (!expected) {
-        setMessage({
-          tone: 'danger',
-          text: 'This knowt has no tag attached, so it cannot be scanned.',
-        });
-        return false;
-      }
-
-      if (tag.rawUid.toLowerCase() !== expected) {
-        // Never accept any-tag-will-do. The alarm keeps going.
-        setMessage({
-          tone: 'warn',
-          text: `That's not ${current.name}. Scan the ${current.name} tag.`,
-        });
-        return false;
-      }
+      // The expected UID goes down into the reader so a mismatch is rejected
+      // inside the platform's own scan sheet. Never accept any-tag-will-do.
+      await nfcReader.scanTag({
+        prompt: `Hold your iPhone to the ${current.name} tag.`,
+        expectRawUid: expected,
+        expectLabel: current.name,
+      });
 
       await resolve('scan');
       return true;
@@ -178,6 +192,7 @@ export function useRingingSession(
       knowtId: current.id,
       title: current.name,
       minutes: current.snooze_minutes,
+      kind: 'snooze',
     });
   }, []);
 

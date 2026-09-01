@@ -1,5 +1,12 @@
 import { Platform } from 'react-native';
 
+import {
+  CATEGORY_COLORS,
+  CATEGORY_FALLBACK,
+  CATEGORY_FILL,
+  CATEGORY_INK,
+} from './categoryColors';
+
 /**
  * Single source of truth for branding. Colors and fonts are still being
  * finalized, so nothing outside this file should hardcode a hex value or a
@@ -15,6 +22,8 @@ const palette = {
   ink200: '#e5e7eb',
   ink100: '#f3f4f6',
   white: '#ffffff',
+  /** Cool off-white. The page sits on this so white cards read as cards. */
+  page: '#f6f7f9',
 
   green50: '#f0fdf4',
   green200: '#bbf7d0',
@@ -31,7 +40,7 @@ const palette = {
 
 export const theme = {
   color: {
-    background: palette.white,
+    background: palette.page,
     surface: palette.white,
     surfaceMuted: palette.ink100,
     border: palette.ink200,
@@ -59,8 +68,20 @@ export const theme = {
   },
 
   font: {
-    /** `undefined` resolves to the platform system face. */
-    body: Platform.select({ ios: undefined, default: undefined }),
+    /**
+     * Helvetica Neue ships with iOS, so this needs no bundled asset and no
+     * native build. React Native maps `fontWeight` onto a face within the
+     * family, which is reliable for Regular, Medium and Bold but not for Light,
+     * so `face` below names the PostScript faces directly for anywhere the
+     * weight has to be exact.
+     */
+    body: Platform.select({ ios: 'Helvetica Neue', default: undefined }),
+    face: {
+      light: Platform.select({ ios: 'HelveticaNeue-Light', default: undefined }),
+      regular: Platform.select({ ios: 'HelveticaNeue', default: undefined }),
+      medium: Platform.select({ ios: 'HelveticaNeue-Medium', default: undefined }),
+      bold: Platform.select({ ios: 'HelveticaNeue-Bold', default: undefined }),
+    },
     mono: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
     size: {
       xs: 12,
@@ -95,18 +116,33 @@ export const theme = {
   },
 
   /**
-   * Category swatches. These are persisted into `categories.color`, so they are
-   * data rather than styling, but they still live here so that rebranding
-   * remains a single-file change.
+   * Category swatches. Persisted into `categories.color`, so they are data
+   * rather than styling. Defined in `categoryColors.ts`, which has no imports,
+   * so the migration that back-fills them stays testable off device.
    */
-  categoryPalette: {
-    home: '#2563eb',
-    daily: '#0891b2',
-    care: '#7c3aed',
-    ritual: '#db2777',
-    go: '#ea580c',
-    admin: '#4b5563',
-  },
+  categoryPalette: CATEGORY_COLORS,
 } as const;
 
 export type Theme = typeof theme;
+
+export type CategoryShades = {
+  /** The swatch itself, for accent bars and dots. */
+  color: string;
+  /** Darkened, for label text and icons on white. */
+  ink: string;
+  /** Barely-there fill, for chips and completed cards. */
+  fill: string;
+};
+
+/**
+ * Shades for one category. Takes the key rather than the stored color because
+ * ink and fill are not derivable from a hex at render time without a color
+ * library. A custom category has no key, so it gets the neutral fallback.
+ */
+export function categoryShades(key: string | null | undefined): CategoryShades {
+  if (key && key in CATEGORY_COLORS) {
+    const k = key as keyof typeof CATEGORY_COLORS;
+    return { color: CATEGORY_COLORS[k], ink: CATEGORY_INK[k], fill: CATEGORY_FILL[k] };
+  }
+  return { ...CATEGORY_FALLBACK };
+}

@@ -83,3 +83,22 @@ export type KnowtWithDetail = KnowtRow & {
   category: CategoryRow | null;
   schedules: ScheduleRow[];
 };
+
+/** Why an alarm is pending. Determines the copy shown on a dashboard card. */
+export type PendingAlarmKind = 'scheduled' | 'refire' | 'snooze' | 'test';
+
+/**
+ * An alarm handed to AlarmKit that has not fired yet. AlarmKit itself is not
+ * queryable per knowt, so this table is the app's own record of what is armed.
+ * Without it there is no way to show what is snoozed, and no way to cancel a
+ * stale alarm, which is how test rings ended up stacking on top of each other.
+ */
+export type PendingAlarmRow = {
+  id: string;
+  knowt_id: string;
+  schedule_id: string | null;
+  alarmkit_id: string;
+  fires_at: number;
+  kind: PendingAlarmKind;
+  created_at: number;
+};

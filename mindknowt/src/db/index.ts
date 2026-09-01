@@ -49,6 +49,14 @@ export {
   type NewKnowt,
   type TodayInstance,
 } from './knowts';
+export {
+  clearAllPendingAlarms,
+  listPendingAlarms,
+  listPendingForKnowt,
+  prunePastAlarms,
+  recordPendingAlarm,
+  takePendingForKnowt,
+} from './pendingAlarms';
 export { SCHEMA_VERSION } from './schema';
 export type {
   CategoryRow,
@@ -57,6 +65,8 @@ export type {
   KnowtMode,
   KnowtRow,
   KnowtWithDetail,
+  PendingAlarmKind,
+  PendingAlarmRow,
   RepeatType,
   ScheduleRow,
 } from './types';

@@ -97,7 +97,7 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
          (id, tag_uid, mode, name, icon, category_id, location_note, notes,
           link_url, suggested_mode, refire_minutes, snooze_minutes, archived,
           created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 5, 10, 0, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 5, 5, 0, ?)`,
       id,
       input.tagUid ?? null,
       input.mode ?? 'open',

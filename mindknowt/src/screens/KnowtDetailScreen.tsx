@@ -132,6 +132,7 @@ export function KnowtDetailScreen() {
         knowtId: knowt.id,
         title: knowt.name,
         firesAt: new Date(Date.now() + 60_000),
+        kind: 'test',
       });
       setNotice('Alarm set for one minute from now. Lock the phone.');
     } catch (err) {
