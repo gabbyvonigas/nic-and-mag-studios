@@ -143,3 +143,89 @@ export function describeRepeat(schedule: ScheduleRow): string {
       return '';
   }
 }
+
+/**
+ * How far ahead `nextOccurrence` will look before giving up. An interval of a
+ * year still resolves; a schedule that can never fire again returns null
+ * rather than spinning.
+ */
+const HORIZON_DAYS = 400;
+
+function hoursMinutes(time: string): { hour: number; minute: number } | null {
+  if (!TIME_PATTERN.test(time)) return null;
+  const [h, m] = time.split(':').map(Number);
+  if (h === undefined || m === undefined) return null;
+  return { hour: h, minute: m };
+}
+
+/**
+ * The next moment this schedule rings, or null if it never will again.
+ *
+ * Walks forward a day at a time rather than doing calendar arithmetic per
+ * repeat type, so `isDueOn` stays the single definition of when a schedule is
+ * due and the two cannot drift apart. Today counts only if its time has not
+ * already passed.
+ *
+ * Built from local calendar days on purpose. Spec section 6: a schedule is a
+ * wall-clock time, so an 8:00 am alarm stays at 8:00 am across a DST change
+ * rather than sliding by an hour.
+ */
+export function nextOccurrence(
+  schedule: ScheduleRow,
+  now = new Date(),
+): Date | null {
+  if (!schedule.enabled) return null;
+  const hm = hoursMinutes(schedule.time);
+  if (!hm) return null;
+
+  for (let offset = 0; offset <= HORIZON_DAYS; offset += 1) {
+    const day = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + offset,
+    );
+    if (!isDueOn(schedule, day)) continue;
+
+    const at = new Date(
+      day.getFullYear(),
+      day.getMonth(),
+      day.getDate(),
+      hm.hour,
+      hm.minute,
+      0,
+      0,
+    );
+    if (at.getTime() > now.getTime()) return at;
+  }
+
+  return null;
+}
+
+/**
+ * The weekdays a schedule repeats on, Sunday = 1, or null when it does not
+ * repeat weekly.
+ *
+ * Weekly repeats can be handed to the system as one durable recurring alarm.
+ * Everything else (an interval, a supply countdown, a one-off) has to be armed
+ * one occurrence at a time, so returning null is how the caller tells them
+ * apart.
+ */
+export function weeklyDaysFor(schedule: ScheduleRow): number[] | null {
+  switch (schedule.repeat_type) {
+    case 'daily':
+      return [1, 2, 3, 4, 5, 6, 7];
+    case 'weekdays':
+      return [2, 3, 4, 5, 6];
+    case 'weekends':
+      return [1, 7];
+    case 'days_of_week': {
+      const days = parseDays(schedule.days_of_week)
+        .filter((d) => d >= 1 && d <= 7)
+        .sort((a, b) => a - b);
+      // An empty set is not a weekly repeat, it is a schedule that never fires.
+      return days.length > 0 ? Array.from(new Set(days)) : null;
+    }
+    default:
+      return null;
+  }
+}

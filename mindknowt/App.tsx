@@ -4,7 +4,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-import { alarmScheduler, pruneFiredAlarms } from './src/alarms';
+import {
+  alarmScheduler,
+  pruneFiredAlarms,
+  syncScheduledAlarms,
+} from './src/alarms';
 import { publishLaunch } from './src/alarms/launchStore';
 import { destroyDatabase, getDatabase, seedIfEmpty, sweepMissed } from './src/db';
 import { linking } from './src/navigation/linking';
@@ -58,6 +62,10 @@ export default function App() {
       // pending. Without this the dashboard would claim things are armed that
       // are not.
       await pruneFiredAlarms();
+      // The only moment the app can put its schedules back in front of the
+      // system. There is no background execution, so a schedule that is not
+      // armed here is a knowt that does not ring.
+      await syncScheduledAlarms();
     } catch {
       // Ignored on purpose.
     }

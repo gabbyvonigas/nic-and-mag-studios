@@ -116,6 +116,25 @@ run again instead of failing forever on a duplicate column.
 `node:sqlite` runs off-device, so migrations can and should be exercised
 against a database built in the old shape before shipping.
 
+## Alarms are reconciled, not fired and forgotten
+
+`src/alarms/scheduleSync.ts` is the sole owner of `pending_alarms` rows of kind
+`scheduled`. It runs at launch and after anything that changes a schedule.
+
+A weekly repeat (daily, weekdays, weekends, named days) goes to the system as
+one recurring alarm, so it keeps ringing with the app closed. Everything else
+is armed one occurrence at a time and re-armed by the next sync, which means an
+interval alarm that is ignored outright will not re-arm until the app is opened.
+There is no background execution, so that limitation is real, not an oversight.
+
+Sync compares a signature before touching anything. Do not "simplify" it into
+cancelling and re-arming everything each run: with a pre-1.0 alarm module, a
+cancel that succeeds followed by a schedule that fails loses the alarm.
+
+Completing a knowt clears its one-shots only (`cancelKnowtOneShots`). Cancelling
+everything would kill the recurring alarm, so doing today's 8:00 am would stop
+tomorrow's.
+
 ## Platform boundaries
 
 `react-native-nfc-manager` is imported in exactly one file, and

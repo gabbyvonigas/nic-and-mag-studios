@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -87,6 +87,10 @@ CREATE TABLE IF NOT EXISTS pending_alarms (
   alarmkit_id TEXT NOT NULL,
   fires_at    INTEGER NOT NULL,
   kind        TEXT NOT NULL CHECK (kind IN ('scheduled', 'refire', 'snooze', 'test')),
+  -- Fingerprint of the schedule this alarm was armed from. Sync compares it
+  -- to decide whether an alarm still matches, so an unchanged schedule is
+  -- left alone instead of being torn down and rebuilt at every launch.
+  signature   TEXT,
   created_at  INTEGER NOT NULL
 );
 
@@ -119,6 +123,7 @@ export const ADDED_COLUMNS: { to: number; table: string; column: string; type: s
   { to: 2, table: 'knowts', column: 'suggested_mode', type: 'TEXT' },
   { to: 3, table: 'knowts', column: 'daily_target', type: 'INTEGER' },
   { to: 3, table: 'knowts', column: 'target_unit', type: 'TEXT' },
+  { to: 5, table: 'pending_alarms', column: 'signature', type: 'TEXT' },
 ];
 
 /**

@@ -18,6 +18,9 @@ export function createUnsupportedScheduler(note: string): AlarmScheduler {
     async scheduleAt(): Promise<never> {
       throw new AlarmError('unsupported', note);
     },
+    async scheduleWeekly(): Promise<never> {
+      throw new AlarmError('unsupported', note);
+    },
     async cancel() {
       // No alarm can exist.
     },

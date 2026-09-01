@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, ScreenHeader } from '../components/ui';
+import { resyncAlarmsQuietly } from '../alarms';
 import {
   createKnowt,
   listCategories,
@@ -84,6 +85,8 @@ export function AddKnowtScreen() {
           startDate: repeatType === 'once' ? toISODate(new Date()) : undefined,
         },
       });
+      // The knowt may carry a schedule, which nothing has armed yet.
+      await resyncAlarmsQuietly();
       navigation.replace('KnowtDetail', { knowtId: id });
     } finally {
       setSaving(false);

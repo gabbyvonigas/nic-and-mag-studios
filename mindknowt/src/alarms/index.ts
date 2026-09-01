@@ -3,10 +3,16 @@ export {
   armKnowtAlarm,
   cancelAllAlarms,
   cancelKnowtAlarms,
+  cancelKnowtOneShots,
   pendingForKnowt,
   pruneFiredAlarms,
   rearmKnowtAlarm,
 } from './knowtAlarms';
+export {
+  resyncAlarmsQuietly,
+  syncScheduledAlarms,
+  type SyncResult,
+} from './scheduleSync';
 export { useAlarmTester } from './useAlarmTester';
 export type { AlarmAvailability, AlarmFailure } from './useAlarmTester';
 export {

@@ -23,10 +23,12 @@ export {
   formatTime,
   isDueOn,
   minutesOf,
+  nextOccurrence,
   parseTimeInput,
   TIME_PATTERN,
   toISODate,
   weekdayOf,
+  weeklyDaysFor,
 } from './scheduling';
 export {
   addSchedule,
@@ -51,8 +53,10 @@ export {
 } from './knowts';
 export {
   clearAllPendingAlarms,
+  deletePendingAlarm,
   listPendingAlarms,
   listPendingForKnowt,
+  listScheduledAlarmRecords,
   prunePastAlarms,
   recordPendingAlarm,
   takePendingForKnowt,

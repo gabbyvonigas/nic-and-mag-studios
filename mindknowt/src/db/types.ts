@@ -100,5 +100,7 @@ export type PendingAlarmRow = {
   alarmkit_id: string;
   fires_at: number;
   kind: PendingAlarmKind;
+  /** Fingerprint of the schedule this was armed from. Null for one-shots. */
+  signature: string | null;
   created_at: number;
 };

@@ -55,6 +55,24 @@ export type AlarmLaunch = {
   payload: string | null;
 };
 
+/**
+ * A weekly recurring alarm. Handing the recurrence to the system means a daily
+ * knowt keeps ringing whether or not the app is ever opened again, instead of
+ * depending on the app to re-arm the next one each time.
+ */
+export type WeeklyScheduleRequest = {
+  title: string;
+  /** 0 to 23, local wall clock. */
+  hour: number;
+  /** 0 to 59. */
+  minute: number;
+  /** Sunday = 1, matching the schema's days_of_week encoding. */
+  weekdays: number[];
+  /** Next time this will ring. Used only for the app's own record. */
+  nextFiresAt: Date;
+  payload?: string | null;
+};
+
 export type ScheduleRequest = {
   title: string;
   firesAt: Date;
@@ -74,6 +92,12 @@ export interface AlarmScheduler {
 
   /** Rejects with `AlarmError` on any failure. */
   scheduleAt(request: ScheduleRequest): Promise<ScheduledAlarm>;
+
+  /**
+   * Schedules a weekly recurring alarm. `firesAt` on the result is the next
+   * firing, not the only one.
+   */
+  scheduleWeekly(request: WeeklyScheduleRequest): Promise<ScheduledAlarm>;
 
   cancel(id: string): Promise<void>;
 

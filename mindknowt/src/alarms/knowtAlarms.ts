@@ -25,7 +25,7 @@ export async function armKnowtAlarm(args: {
   firesAt: Date;
   kind: PendingAlarmKind;
 }): Promise<ScheduledAlarm> {
-  await cancelKnowtAlarms(args.knowtId, args.scheduleId ?? null);
+  await cancelKnowtAlarms(args.knowtId, { scheduleId: args.scheduleId ?? null });
 
   const alarm = await alarmScheduler.scheduleAt({
     title: args.title,
@@ -68,14 +68,16 @@ export async function rearmKnowtAlarm(args: {
 
 /**
  * Cancels pending alarms for a knowt with AlarmKit and forgets them.
- * `scheduleId` is matched exactly; omit it to cancel every alarm for the knowt,
- * which is what completing a ringing session should do.
+ *
+ * Both parts of the filter matter. Omitting everything cancels every alarm the
+ * knowt has, including its recurring one, so a caller that only wants to clear
+ * a fired one-shot must say so.
  */
 export async function cancelKnowtAlarms(
   knowtId: string,
-  scheduleId?: string | null,
+  filter: { scheduleId?: string | null; kinds?: PendingAlarmKind[] } = {},
 ): Promise<number> {
-  const rows = await takePendingForKnowt(knowtId, scheduleId);
+  const rows = await takePendingForKnowt(knowtId, filter);
   let cancelled = 0;
   for (const row of rows) {
     try {
@@ -129,4 +131,16 @@ export async function cancelAllAlarms(): Promise<number> {
     // The alarms are cancelled, which is the part that matters.
   }
   return cancelled;
+}
+
+/**
+ * The kinds that fire once and are then finished. A completion clears these
+ * and leaves a recurring alarm in place, because tomorrow's 8:00 am is not
+ * cancelled by doing today's.
+ */
+export const ONE_SHOT_KINDS: PendingAlarmKind[] = ['refire', 'snooze', 'test'];
+
+/** Clears anything armed for a knowt that only had this one firing to do. */
+export async function cancelKnowtOneShots(knowtId: string): Promise<number> {
+  return cancelKnowtAlarms(knowtId, { kinds: ONE_SHOT_KINDS });
 }

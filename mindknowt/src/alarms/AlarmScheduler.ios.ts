@@ -6,6 +6,7 @@ import {
   getLaunchPayload,
   requestAuthorization as requestAlarmAuthorization,
   scheduleAlarm,
+  scheduleRepeatingAlarm,
 } from 'expo-alarm-kit';
 
 import {
@@ -16,6 +17,7 @@ import {
   type AlarmScheduler,
   type ScheduleRequest,
   type ScheduledAlarm,
+  type WeeklyScheduleRequest,
 } from './types';
 
 /**
@@ -92,6 +94,47 @@ export const alarmScheduler: AlarmScheduler = {
     }
 
     return { id, title, firesAt: firesAt.getTime() } satisfies ScheduledAlarm;
+  },
+
+  async scheduleWeekly({
+    title,
+    hour,
+    minute,
+    weekdays,
+    nextFiresAt,
+    payload,
+  }: WeeklyScheduleRequest) {
+    const id = generateUUID();
+    let accepted = false;
+
+    try {
+      accepted = await scheduleRepeatingAlarm({
+        id,
+        hour,
+        minute,
+        // AlarmKit uses Sunday = 1, the same encoding as the schema, so the
+        // days pass through unchanged. Verified against the module's types.
+        weekdays,
+        title,
+        launchAppOnDismiss: LAUNCH_APP_ON_DISMISS,
+        dismissPayload: payload ?? undefined,
+      });
+    } catch (err) {
+      throw new AlarmError('schedule-rejected', describe(err));
+    }
+
+    if (!accepted) {
+      throw new AlarmError(
+        'schedule-rejected',
+        'AlarmKit refused the repeating alarm. Permission is the usual cause.',
+      );
+    }
+
+    return {
+      id,
+      title,
+      firesAt: nextFiresAt.getTime(),
+    } satisfies ScheduledAlarm;
   },
 
   async cancel(id: string) {

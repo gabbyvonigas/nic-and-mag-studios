@@ -4,7 +4,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { cancelAllAlarms } from '../alarms';
+import {
+  cancelAllAlarms,
+  resyncAlarmsQuietly,
+  syncScheduledAlarms,
+} from '../alarms';
 import { Button, Card, ScreenHeader } from '../components/ui';
 import {
   destroyDatabase,
@@ -36,6 +40,9 @@ export function DevScreen() {
     setBusy(true);
     try {
       await task();
+      // Every task here can replace the schedules wholesale, so the armed
+      // alarms have to be rebuilt from what the database now says.
+      await resyncAlarmsQuietly();
       await reloadMeta();
       await reloadKnowts();
       await reloadPending();
@@ -76,16 +83,35 @@ export function DevScreen() {
           {(pending ?? []).length === 0 ? (
             <Text style={styles.body}>Nothing armed.</Text>
           ) : (
-            (pending ?? []).map((alarm) => (
-              <View key={alarm.id} style={styles.metaRow}>
-                <Text style={styles.metaKey}>{alarm.kind}</Text>
-                <Text style={styles.metaValue}>
-                  {new Date(alarm.fires_at).toLocaleTimeString()}
-                </Text>
-              </View>
-            ))
+            (pending ?? []).map((alarm) => {
+              const owner = (knowts ?? []).find((k) => k.id === alarm.knowt_id);
+              return (
+                <View key={alarm.id} style={styles.metaRow}>
+                  <Text style={styles.metaKey}>
+                    {owner?.name ?? alarm.knowt_id} ({alarm.kind})
+                  </Text>
+                  <Text style={styles.metaValue}>
+                    {new Date(alarm.fires_at).toLocaleString()}
+                  </Text>
+                </View>
+              );
+            })
           )}
         </Card>
+        <Button
+          label="Re-arm all schedules"
+          variant="secondary"
+          disabled={busy}
+          onPress={() =>
+            void run(async () => {
+              const r = await syncScheduledAlarms();
+              setAlarmNotice(
+                `Armed ${r.armed}, replaced ${r.replaced}, cleared ${r.cleared}` +
+                  (r.failed > 0 ? `, failed ${r.failed}.` : '.'),
+              );
+            })
+          }
+        />
         <Button
           label="Cancel every alarm"
           variant="secondary"
@@ -103,10 +129,11 @@ export function DevScreen() {
         />
         {alarmNotice ? <Text style={styles.hint}>{alarmNotice}</Text> : null}
         <Text style={styles.hint}>
-          This list is the app's own record, so it only holds alarms armed since
-          the record existed. Cancel every alarm goes to AlarmKit for the real
-          list, which is the only way to reach an older one that is still
-          ringing.
+          Schedules are armed at launch and whenever one changes. A weekly
+          repeat is one recurring alarm, so its time here is the next firing,
+          not the only one. Cancel every alarm goes to AlarmKit for the real
+          list, which is the only way to reach one armed before this record
+          existed.
         </Text>
 
         <Text style={styles.sectionTitle}>Database</Text>

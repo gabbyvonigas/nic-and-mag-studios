@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Pill, ScreenHeader } from '../components/ui';
 import { describeRepeat, parseTimeInput, type RepeatType } from '../db';
+import { resyncAlarmsQuietly } from '../alarms';
 import { applySet, previewSet, type SetPreview, type SetSelection } from '../sets';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -151,6 +152,8 @@ export function ApplySetScreen() {
           };
         });
       await applySet(params.setId, selections);
+      // A set can add a dozen schedules at once, none of them armed yet.
+      await resyncAlarmsQuietly();
       navigation.navigate('Tabs', { screen: 'AllKnowts' });
     } finally {
       setSaving(false);

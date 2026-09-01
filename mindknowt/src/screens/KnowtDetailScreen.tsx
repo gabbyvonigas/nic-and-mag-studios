@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Card, Pill, ScreenHeader } from '../components/ui';
-import { armKnowtAlarm } from '../alarms';
+import { armKnowtAlarm, resyncAlarmsQuietly } from '../alarms';
 import {
   archiveKnowt,
   attachTag,
@@ -265,6 +265,8 @@ export function KnowtDetailScreen() {
             variant="quiet"
             onPress={async () => {
               await archiveKnowt(knowt.id);
+              // An archived knowt must stop ringing.
+              await resyncAlarmsQuietly();
               navigation.goBack();
             }}
           />

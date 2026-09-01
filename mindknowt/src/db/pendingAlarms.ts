@@ -21,32 +21,57 @@ export async function recordPendingAlarm(args: {
   alarmkitId: string;
   firesAt: number;
   kind: PendingAlarmKind;
+  signature?: string | null;
 }): Promise<string> {
   const db = await getDatabase();
   const id = newId();
   await db.runAsync(
     `INSERT INTO pending_alarms
-       (id, knowt_id, schedule_id, alarmkit_id, fires_at, kind, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (id, knowt_id, schedule_id, alarmkit_id, fires_at, kind, signature, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     args.knowtId,
     args.scheduleId ?? null,
     args.alarmkitId,
     args.firesAt,
     args.kind,
+    args.signature ?? null,
     Date.now(),
   );
   return id;
 }
 
-/** Drops rows whose time has passed. They rang, so they are no longer pending. */
+/**
+ * Drops one-shot rows whose time has passed. They rang, so they are no longer
+ * pending.
+ *
+ * Scheduled alarms are deliberately excluded. A weekly repeat keeps ringing
+ * long after its recorded next time is in the past, so deleting it here would
+ * throw away a live alarm's only record. Sync owns those rows instead, and
+ * moves their `fires_at` forward.
+ */
 export async function prunePastAlarms(now = Date.now()): Promise<number> {
   const db = await getDatabase();
   const result = await db.runAsync(
-    'DELETE FROM pending_alarms WHERE fires_at <= ?',
+    `DELETE FROM pending_alarms
+      WHERE fires_at <= ? AND kind IN ('refire', 'snooze', 'test')`,
     now,
   );
   return result.changes;
+}
+
+/** Every scheduled alarm on record, past time or not. Sync reconciles these. */
+export async function listScheduledAlarmRecords(): Promise<PendingAlarmRow[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<PendingAlarmRow>(
+    "SELECT * FROM pending_alarms WHERE kind = 'scheduled'",
+  );
+}
+
+/** Removes a single record. Cancelling with the platform is the caller's job. */
+export async function deletePendingAlarm(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM pending_alarms WHERE id = ?', id);
 }
 
 /** Every alarm still in the future, soonest first. */
@@ -77,27 +102,33 @@ export async function listPendingForKnowt(
  * each one with AlarmKit. Deleting and returning in one step keeps the table
  * from listing an alarm the caller is about to tear down.
  *
- * `scheduleId` is matched exactly, `undefined` meaning every schedule. Passing
+ * `scheduleId` is matched exactly, omitted meaning every schedule. Passing
  * `null` matches only the alarms that belong to no schedule, which is what a
- * test ring, a re-fire and a snooze all are.
+ * test ring, a re-fire and a snooze all are. `kinds` narrows further, so a
+ * completion can clear the one-shots without touching a recurring alarm.
  */
 export async function takePendingForKnowt(
   knowtId: string,
-  scheduleId?: string | null,
+  filter: { scheduleId?: string | null; kinds?: PendingAlarmKind[] } = {},
 ): Promise<PendingAlarmRow[]> {
   const db = await getDatabase();
 
-  const where =
-    scheduleId === undefined
-      ? 'knowt_id = ?'
-      : scheduleId === null
-        ? 'knowt_id = ? AND schedule_id IS NULL'
-        : 'knowt_id = ? AND schedule_id = ?';
-  const args =
-    scheduleId === undefined || scheduleId === null
-      ? [knowtId]
-      : [knowtId, scheduleId];
+  const clauses = ['knowt_id = ?'];
+  const args: (string | number)[] = [knowtId];
 
+  if (filter.scheduleId === null) {
+    clauses.push('schedule_id IS NULL');
+  } else if (filter.scheduleId !== undefined) {
+    clauses.push('schedule_id = ?');
+    args.push(filter.scheduleId);
+  }
+
+  if (filter.kinds && filter.kinds.length > 0) {
+    clauses.push(`kind IN (${filter.kinds.map(() => '?').join(', ')})`);
+    args.push(...filter.kinds);
+  }
+
+  const where = clauses.join(' AND ');
   const rows = await db.getAllAsync<PendingAlarmRow>(
     `SELECT * FROM pending_alarms WHERE ${where}`,
     ...args,

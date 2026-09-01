@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
-import { cancelKnowtAlarms, rearmKnowtAlarm } from '../alarms/knowtAlarms';
+import { cancelKnowtOneShots, rearmKnowtAlarm } from '../alarms/knowtAlarms';
+import { resyncAlarmsQuietly } from '../alarms/scheduleSync';
 import {
   addSnooze,
   completeRinging,
@@ -126,15 +127,20 @@ export function useRingingSession(
       if (eventIdRef.current) {
         await completeRinging(eventIdRef.current, method);
       }
-      // The task is done, so nothing armed for it should still ring. This is
-      // what stops a stale re-fire or a leftover test alarm going off later.
+      // This firing is done, so nothing armed for it should still ring. Only
+      // the one-shots go: a stale re-fire, a snooze, a leftover test alarm. The
+      // knowt's recurring alarm stays, because doing today's 8:00 am does not
+      // cancel tomorrow's.
       const current = knowtRef.current;
       if (current) {
         try {
-          await cancelKnowtAlarms(current.id);
+          await cancelKnowtOneShots(current.id);
         } catch {
           // Completion is already recorded; a failed cancel must not undo it.
         }
+        // An interval or one-off schedule arms a single occurrence, and that
+        // occurrence has now been used. This arms the next one.
+        await resyncAlarmsQuietly();
       }
     },
     [],
