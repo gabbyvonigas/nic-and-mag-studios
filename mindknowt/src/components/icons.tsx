@@ -39,15 +39,19 @@ export function ChevronLeft({
 }
 
 /**
- * Gear. Four bars crossed at 45 degree steps make eight teeth, with a solid
- * body over the middle and a hole punched through it.
+ * Gear. Four bars crossed at 45 degree steps make eight teeth, with a ring laid
+ * over the middle to cut them back to the rim and leave the hole.
+ *
+ * The ring is drawn rather than filled on purpose. A solid centre reads as a
+ * grey blob at small sizes, not as a gear, which is exactly how the first
+ * version of this looked.
  *
  * `holeColor` has to match whatever sits behind the icon, because the hole is
  * painted rather than cut.
  */
 export function GearIcon({
-  size = 20,
-  color = theme.color.textSecondary,
+  size = 16,
+  color = theme.color.textPrimary,
   holeColor = theme.color.background,
 }: {
   size?: number;
@@ -55,6 +59,7 @@ export function GearIcon({
   holeColor?: string;
 }) {
   const teeth = ['0deg', '45deg', '90deg', '135deg'];
+  const rim = size * 0.68;
 
   return (
     <View style={[styles.iconBox, { width: size, height: size }]}>
@@ -62,11 +67,11 @@ export function GearIcon({
         <View
           key={rotate}
           style={[
-            styles.tooth,
+            styles.absolute,
             {
               width: size,
-              height: size * 0.34,
-              borderRadius: size * 0.07,
+              height: size * 0.3,
+              borderRadius: size * 0.06,
               backgroundColor: color,
               transform: [{ rotate }],
             },
@@ -74,20 +79,14 @@ export function GearIcon({
         />
       ))}
       <View
-        style={{
-          width: size * 0.74,
-          height: size * 0.74,
-          borderRadius: size * 0.37,
-          backgroundColor: color,
-        }}
-      />
-      <View
         style={[
-          styles.hole,
+          styles.absolute,
           {
-            width: size * 0.3,
-            height: size * 0.3,
-            borderRadius: size * 0.15,
+            width: rim,
+            height: rim,
+            borderRadius: rim / 2,
+            borderWidth: size * 0.15,
+            borderColor: color,
             backgroundColor: holeColor,
           },
         ]}
@@ -98,6 +97,5 @@ export function GearIcon({
 
 const styles = StyleSheet.create({
   iconBox: { alignItems: 'center', justifyContent: 'center' },
-  tooth: { position: 'absolute' },
-  hole: { position: 'absolute' },
+  absolute: { position: 'absolute' },
 });

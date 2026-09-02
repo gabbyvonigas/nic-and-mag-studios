@@ -275,7 +275,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerText: { flex: 1, gap: 2 },
-  gear: { paddingTop: theme.spacing.sm, paddingLeft: theme.spacing.sm },
+  gear: {
+    paddingTop: theme.spacing.md,
+    paddingLeft: theme.spacing.lg,
+    paddingBottom: theme.spacing.sm,
+  },
   title: {
     fontFamily: theme.font.face.bold,
     fontSize: theme.font.size.display,

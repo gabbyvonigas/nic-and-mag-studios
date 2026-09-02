@@ -97,7 +97,9 @@ export function SubScreenHeader({
           <ChevronLeft />
           <Text style={styles.backLabel}>{backLabel}</Text>
         </Pressable>
-        {action ?? null}
+        {/* Its own slot, so neither control can grow across the other however
+            long the back label or the action gets. */}
+        {action ? <View style={styles.headerAction}>{action}</View> : null}
       </View>
       {title ? <Text style={styles.title}>{title}</Text> : null}
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -146,11 +148,17 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xs,
   },
   backButton: {
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.xs,
     paddingVertical: theme.spacing.xs,
     paddingRight: theme.spacing.sm,
+  },
+  headerAction: {
+    flexShrink: 0,
+    marginLeft: theme.spacing.md,
+    alignItems: 'flex-end',
   },
   backLabel: {
     fontFamily: theme.font.face.medium,
