@@ -16,7 +16,8 @@
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSAlarmKitUsageDescription": "MindKnowt uses alarms so a reminder keeps ringing until you scan its tag."
+        "NSAlarmKitUsageDescription": "MindKnowt uses alarms so a reminder keeps ringing until you scan its tag.",
+        "EXDevMenuShowFloatingActionButton": false
       },
       "entitlements": {
         "com.apple.security.application-groups": [

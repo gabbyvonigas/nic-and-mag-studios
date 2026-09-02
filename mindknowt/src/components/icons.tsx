@@ -44,13 +44,14 @@ export function ChevronLeft({
  *
  * The ring is drawn rather than filled on purpose. A solid centre reads as a
  * grey blob at small sizes, not as a gear, which is exactly how the first
- * version of this looked.
+ * version of this looked. There is no circle behind it and no shadow: this is
+ * a quiet corner control, not a floating button.
  *
  * `holeColor` has to match whatever sits behind the icon, because the hole is
  * painted rather than cut.
  */
 export function GearIcon({
-  size = 16,
+  size = 22,
   color = theme.color.textPrimary,
   holeColor = theme.color.background,
 }: {

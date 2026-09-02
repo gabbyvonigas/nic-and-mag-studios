@@ -135,6 +135,24 @@ Completing a knowt clears its one-shots only (`cancelKnowtOneShots`). Cancelling
 everything would kill the recurring alarm, so doing today's 8:00 am would stop
 tomorrow's.
 
+## The dev build draws things this project does not
+
+`expo-dev-client` puts a floating "Tools button" in its own window above every
+screen: a translucent grey circle with a `gearshape.fill` glyph and a shadow,
+at half opacity, in the top right. It is not app code, it appears on every
+screen including ones with no such control, and it is absent from release
+builds.
+
+It was reported twice as a bug in the app's own settings gear, and answering
+from the app's source alone said the gear did not exist there, which was
+useless. When a control appears at the same screen position across screens
+whose layouts differ, it is an overlay, so look outside the navigator first.
+
+`ios.infoPlist.EXDevMenuShowFloatingActionButton` is `false` so new builds ship
+without it. It only sets the registered default, so a device that already has
+the preference stored keeps it: turn it off there under Tools button in the dev
+menu.
+
 ## Platform boundaries
 
 `react-native-nfc-manager` is imported in exactly one file, and
