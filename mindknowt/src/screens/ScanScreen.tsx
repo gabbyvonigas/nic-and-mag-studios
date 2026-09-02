@@ -1,3 +1,4 @@
+import { useNavigation } from '@react-navigation/native';
 import {
   ActivityIndicator,
   FlatList,
@@ -7,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { SubScreenHeader } from '../components/ui';
 import { theme } from '../theme';
 import { useNfcScanner, type ScanEntry, type ScanFailure } from '../nfc';
 
@@ -97,15 +99,17 @@ export function ScanScreen() {
     clearHistory,
   } = useNfcScanner();
 
+  const navigation = useNavigation();
   const disabled = isScanning || availability !== 'ready';
   const copy = error ? failureCopy(error) : null;
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>MindKnowt</Text>
-        <Text style={styles.subtitle}>NFC read path</Text>
-      </View>
+      <SubScreenHeader
+        onBack={() => navigation.goBack()}
+        title="MindKnowt"
+        subtitle="NFC read path"
+      />
 
       <View style={styles.stage}>
         {availability === 'checking' && (

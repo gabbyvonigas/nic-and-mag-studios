@@ -41,6 +41,7 @@ export {
   archiveKnowt,
   attachTag,
   createKnowt,
+  deleteSchedule,
   findCategoryByKey,
   findKnowtByTagUid,
   getKnowt,
@@ -52,7 +53,9 @@ export {
   setMode,
   TagInUseError,
   todayCompletionCount,
+  updateKnowt,
   updateNotes,
+  updateSchedule,
   type NewKnowt,
 } from './knowts';
 export {

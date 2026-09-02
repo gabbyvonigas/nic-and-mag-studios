@@ -1,3 +1,4 @@
+import { useNavigation } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Pressable,
@@ -7,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { SubScreenHeader } from '../components/ui';
 import { theme } from '../theme';
 import { useAlarmTester, type AlarmFailure } from '../alarms';
 
@@ -46,6 +48,7 @@ export function AlarmScreen() {
     clearLaunch,
   } = useAlarmTester();
 
+  const navigation = useNavigation();
   const ready = availability === 'ready';
   const copy = error ? failureCopy(error) : null;
 
@@ -54,10 +57,11 @@ export function AlarmScreen() {
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Alarms</Text>
-        <Text style={styles.subtitle}>AlarmKit path</Text>
-      </View>
+      <SubScreenHeader
+        onBack={() => navigation.goBack()}
+        title="Alarms"
+        subtitle="AlarmKit path"
+      />
 
       {launch && (
         <View style={[styles.card, styles.cardSuccess]}>

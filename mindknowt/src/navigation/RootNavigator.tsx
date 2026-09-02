@@ -10,6 +10,7 @@ import { DevScreen } from '../screens/DevScreen';
 import { LegalDocumentScreen } from '../screens/LegalDocumentScreen';
 import { LegalScreen } from '../screens/LegalScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { EditKnowtScreen } from '../screens/EditKnowtScreen';
 import { KnowtDetailScreen } from '../screens/KnowtDetailScreen';
 import { RingingScreen } from '../screens/RingingScreen';
 import { ScanScreen } from '../screens/ScanScreen';
@@ -37,16 +38,6 @@ function Tabs() {
         component={AllKnowtsScreen}
         options={{ tabBarLabel: 'Knowts' }}
       />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ tabBarLabel: 'Settings' }}
-      />
-      <Tab.Screen
-        name="Dev"
-        component={DevScreen}
-        options={{ tabBarLabel: 'Dev' }}
-      />
     </Tab.Navigator>
   );
 }
@@ -62,12 +53,19 @@ export function RootNavigator() {
       />
       <Stack.Screen name="KnowtDetail" component={KnowtDetailScreen} />
       <Stack.Screen
+        name="EditKnowt"
+        component={EditKnowtScreen}
+        options={{ presentation: 'modal' }}
+      />
+      <Stack.Screen
         name="Ringing"
         component={RingingScreen}
         options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
       />
       <Stack.Screen name="BrowseSets" component={BrowseSetsScreen} />
       <Stack.Screen name="ApplySet" component={ApplySetScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Dev" component={DevScreen} />
       <Stack.Screen name="Legal" component={LegalScreen} />
       <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
       <Stack.Screen name="NfcHarness" component={ScanScreen} />

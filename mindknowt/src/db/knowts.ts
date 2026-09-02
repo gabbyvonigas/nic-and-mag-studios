@@ -1,6 +1,6 @@
 import { getDatabase } from './database';
 import { newId } from './ids';
-import { isDueOn, minutesOf, toISODate } from './scheduling';
+import { isDueOn, minutesOf, TIME_PATTERN, toISODate } from './scheduling';
 import type {
   CategoryRow,
   EventMethod,
@@ -239,6 +239,123 @@ export async function addSchedule(
     schedule.leadDays ?? null,
     schedule.startDate ?? null,
   );
+}
+
+/**
+ * Edits the fields a person can change after the fact. Only the keys present
+ * are written, so a screen that edits one thing cannot blank the rest by
+ * omission.
+ *
+ * The name is part of what an armed alarm says, so a caller that renames a
+ * knowt has to re-sync afterwards or the alarm keeps the old title.
+ */
+export async function updateKnowt(
+  id: string,
+  fields: {
+    name?: string;
+    categoryId?: string | null;
+    locationNote?: string | null;
+    notes?: string | null;
+  },
+): Promise<void> {
+  const sets: string[] = [];
+  const args: (string | null)[] = [];
+
+  if (fields.name !== undefined) {
+    const name = fields.name.trim();
+    if (!name) throw new Error('A knowt needs a name.');
+    sets.push('name = ?');
+    args.push(name);
+  }
+  if (fields.categoryId !== undefined) {
+    sets.push('category_id = ?');
+    args.push(fields.categoryId);
+  }
+  if (fields.locationNote !== undefined) {
+    sets.push('location_note = ?');
+    args.push(fields.locationNote);
+  }
+  if (fields.notes !== undefined) {
+    sets.push('notes = ?');
+    args.push(fields.notes);
+  }
+
+  if (sets.length === 0) return;
+
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE knowts SET ${sets.join(', ')} WHERE id = ?`,
+    ...args,
+    id,
+  );
+}
+
+/** Edits one schedule. Callers must re-sync: the armed alarm is now stale. */
+export async function updateSchedule(
+  id: string,
+  fields: {
+    label?: string | null;
+    time?: string;
+    repeatType?: RepeatType;
+    daysOfWeek?: number[] | null;
+    intervalDays?: number | null;
+    startDate?: string | null;
+    enabled?: boolean;
+  },
+): Promise<void> {
+  const sets: string[] = [];
+  const args: (string | number | null)[] = [];
+
+  if (fields.label !== undefined) {
+    sets.push('label = ?');
+    args.push(fields.label);
+  }
+  if (fields.time !== undefined) {
+    if (!TIME_PATTERN.test(fields.time)) {
+      throw new Error(`Not a 24 hour time: ${fields.time}`);
+    }
+    sets.push('time = ?');
+    args.push(fields.time);
+  }
+  if (fields.repeatType !== undefined) {
+    sets.push('repeat_type = ?');
+    args.push(fields.repeatType);
+  }
+  if (fields.daysOfWeek !== undefined) {
+    sets.push('days_of_week = ?');
+    args.push(fields.daysOfWeek ? JSON.stringify(fields.daysOfWeek) : null);
+  }
+  if (fields.intervalDays !== undefined) {
+    sets.push('interval_days = ?');
+    args.push(fields.intervalDays);
+  }
+  if (fields.startDate !== undefined) {
+    sets.push('start_date = ?');
+    args.push(fields.startDate);
+  }
+  if (fields.enabled !== undefined) {
+    sets.push('enabled = ?');
+    args.push(fields.enabled ? 1 : 0);
+  }
+
+  if (sets.length === 0) return;
+
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE schedules SET ${sets.join(', ')} WHERE id = ?`,
+    ...args,
+    id,
+  );
+}
+
+/**
+ * Removes a schedule. Its history is kept: events reference schedules with
+ * ON DELETE SET NULL, so past completions survive as unattached records rather
+ * than vanishing along with the schedule.
+ */
+export async function deleteSchedule(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM schedules WHERE id = ?', id);
 }
 
 export async function updateNotes(id: string, notes: string): Promise<void> {

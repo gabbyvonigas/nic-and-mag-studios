@@ -1,4 +1,5 @@
-import { useNavigation } from '@react-navigation/native';
+import { useCallback } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
@@ -11,6 +12,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState } from '../components/ui';
+import { GearIcon } from '../components/icons';
 import {
   describeRepeat,
   formatTime,
@@ -164,6 +166,14 @@ export function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { data, loading, reload } = useQuery(() => listDashboard(), []);
 
+  // Returning here after editing or completing a knowt elsewhere must show
+  // the change, not the board as it was when this screen first rendered.
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
+
   const complete = async (card: DashboardCard) => {
     await logCompletion({
       knowtId: card.knowt.id,
@@ -183,8 +193,20 @@ export function DashboardScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Daily</Text>
-        <Text style={styles.date}>{todayLabel(new Date())}</Text>
+        <View style={styles.headerTop}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Daily</Text>
+            <Text style={styles.date}>{todayLabel(new Date())}</Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            hitSlop={12}
+            onPress={() => navigation.navigate('Settings')}
+            style={({ pressed }) => [styles.gear, pressed && styles.cardPressed]}>
+            <GearIcon />
+          </Pressable>
+        </View>
         {data && data.total > 0 ? (
           <Text style={styles.progress}>
             {data.done} of {data.total} done
@@ -247,6 +269,13 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.md,
     gap: 2,
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  headerText: { flex: 1, gap: 2 },
+  gear: { paddingTop: theme.spacing.sm, paddingLeft: theme.spacing.sm },
   title: {
     fontFamily: theme.font.face.bold,
     fontSize: theme.font.size.display,

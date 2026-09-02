@@ -1,4 +1,5 @@
-import { useNavigation } from '@react-navigation/native';
+import { useCallback } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,7 +35,14 @@ function groupByCategory(knowts: KnowtWithDetail[]): Group[] {
 
 export function AllKnowtsScreen() {
   const navigation = useNavigation<Nav>();
-  const { data, loading } = useQuery(() => listKnowts(), []);
+  const { data, loading, reload } = useQuery(() => listKnowts(), []);
+
+  // A knowt renamed or archived elsewhere must not linger here as it was.
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
   const groups = groupByCategory(data ?? []);
 
   return (

@@ -1,5 +1,10 @@
-import { useEffect, useState } from 'react';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
@@ -12,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Card, Pill, ScreenHeader } from '../components/ui';
+import { Button, Card, Pill, SubScreenHeader } from '../components/ui';
 import { armKnowtAlarm, resyncAlarmsQuietly } from '../alarms';
 import {
   archiveKnowt,
@@ -57,6 +62,15 @@ export function KnowtDetailScreen() {
     if (knowt && !dirty) setDraftNotes(knowt.notes ?? '');
   }, [knowt, dirty]);
 
+  // Coming back from the editor lands on a screen that already rendered, so
+  // the query has to run again or it shows the values from before the edit.
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+      void reloadEvents();
+    }, [reload, reloadEvents]),
+  );
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -69,8 +83,8 @@ export function KnowtDetailScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.content}>
+          <SubScreenHeader onBack={() => navigation.goBack()} />
           <Text style={styles.body}>That knowt no longer exists.</Text>
-          <Button label="Back" variant="quiet" onPress={() => navigation.goBack()} />
         </View>
       </SafeAreaView>
     );
@@ -151,9 +165,20 @@ export function KnowtDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ScreenHeader
+        <SubScreenHeader
           title={knowt.name}
           subtitle={knowt.location_note ?? undefined}
+          onBack={() => navigation.goBack()}
+          action={
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={12}
+              onPress={() =>
+                navigation.navigate('EditKnowt', { knowtId: knowt.id })
+              }>
+              <Text style={styles.editLink}>Edit</Text>
+            </Pressable>
+          }
         />
 
         <View style={styles.pills}>
@@ -277,6 +302,11 @@ export function KnowtDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  editLink: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
   container: { flex: 1, backgroundColor: theme.color.background },
   content: {
     paddingHorizontal: theme.spacing.xl,

@@ -3,7 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, ScreenHeader } from '../components/ui';
+import { SubScreenHeader } from '../components/ui';
 import { LEGAL_TITLES } from './LegalScreen';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -28,7 +28,7 @@ export function LegalDocumentScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ScreenHeader title={title} />
+        <SubScreenHeader title={title} onBack={() => navigation.goBack()} />
 
         {body ? (
           <Text style={styles.body}>{body}</Text>
@@ -39,7 +39,6 @@ export function LegalDocumentScreen() {
         )}
       </ScrollView>
 
-      <Button label="Back" variant="quiet" onPress={() => navigation.goBack()} />
     </SafeAreaView>
   );
 }

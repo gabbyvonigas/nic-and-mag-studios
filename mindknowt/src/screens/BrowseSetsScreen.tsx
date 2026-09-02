@@ -3,7 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { EmptyState, ScreenHeader } from '../components/ui';
+import { EmptyState, SubScreenHeader } from '../components/ui';
 import { listSets } from '../sets';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -17,7 +17,8 @@ export function BrowseSetsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ScreenHeader
+        <SubScreenHeader
+          onBack={() => navigation.goBack()}
           title="Starter sets"
           subtitle="Ready-made knowts you can edit after adding."
         />

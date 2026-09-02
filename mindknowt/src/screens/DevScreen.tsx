@@ -3,7 +3,6 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import {
   cancelAllAlarms,
@@ -209,8 +208,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.lg,
-    // Clears the floating tab bar, which is drawn over the content.
-    paddingBottom: theme.spacing.xxl + TAB_BAR_CLEARANCE,
+    paddingBottom: theme.spacing.xxl,
     gap: theme.spacing.sm,
   },
   sectionTitle: {

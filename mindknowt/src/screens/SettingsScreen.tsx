@@ -2,9 +2,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
-import { ScreenHeader } from '../components/ui';
+import { SubScreenHeader } from '../components/ui';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -21,7 +20,7 @@ export function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ScreenHeader title="Settings" />
+        <SubScreenHeader title="Settings" onBack={() => navigation.goBack()} />
 
         <Pressable
           accessibilityRole="button"
@@ -30,6 +29,17 @@ export function SettingsScreen() {
           <Text style={styles.rowLabel}>Legal</Text>
           <Text style={styles.chevron}>›</Text>
         </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('Dev')}
+          style={styles.row}>
+          <Text style={styles.rowLabel}>Dev tools</Text>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+        <Text style={styles.note}>
+          Test harnesses and database tools. This goes before release.
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -40,8 +50,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.lg,
-    // Clears the floating tab bar, which is drawn over the content.
-    paddingBottom: theme.spacing.xxl + TAB_BAR_CLEARANCE,
+    paddingBottom: theme.spacing.xxl,
   },
   row: {
     flexDirection: 'row',
@@ -55,6 +64,12 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
     color: theme.color.textPrimary,
+  },
+  note: {
+    marginTop: theme.spacing.sm,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textMuted,
   },
   chevron: {
     fontFamily: theme.font.body,

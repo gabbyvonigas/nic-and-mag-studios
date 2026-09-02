@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
+import { ChevronLeft } from './icons';
 import { theme } from '../theme';
 
 export function ScreenHeader({
@@ -63,6 +64,47 @@ export function Button({
   );
 }
 
+/**
+ * Header for anything that is not a top-level tab. The back control is always
+ * visible and always in the same place: the edge swipe alone is not an
+ * affordance, because nothing on screen says it exists.
+ *
+ * `action` renders opposite the back control, for a screen that needs one thing
+ * in the corner.
+ */
+export function SubScreenHeader({
+  title,
+  subtitle,
+  onBack,
+  backLabel = 'Back',
+  action,
+}: {
+  title?: string;
+  subtitle?: string;
+  onBack: () => void;
+  backLabel?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <View style={styles.subHeader}>
+      <View style={styles.subHeaderTop}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={backLabel}
+          hitSlop={12}
+          onPress={onBack}
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+          <ChevronLeft />
+          <Text style={styles.backLabel}>{backLabel}</Text>
+        </Pressable>
+        {action ?? null}
+      </View>
+      {title ? <Text style={styles.title}>{title}</Text> : null}
+      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+    </View>
+  );
+}
+
 /** Spec section 8: empty screens invite action rather than explain absence. */
 export function EmptyState({
   message,
@@ -95,6 +137,26 @@ export function Pill({ label, color }: { label: string; color?: string }) {
 
 const styles = StyleSheet.create({
   header: { gap: theme.spacing.xs, marginBottom: theme.spacing.lg },
+  subHeader: { gap: theme.spacing.xs, marginBottom: theme.spacing.lg },
+  subHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 32,
+    marginBottom: theme.spacing.xs,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.xs,
+    paddingRight: theme.spacing.sm,
+  },
+  backLabel: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
   title: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.display,
