@@ -1,7 +1,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type TabParamList = {
-  Today: undefined;
+  Daily: undefined;
   AllKnowts: undefined;
   Settings: undefined;
   Dev: undefined;

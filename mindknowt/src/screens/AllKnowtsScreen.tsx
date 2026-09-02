@@ -2,6 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import { Button, EmptyState, Pill, ScreenHeader } from '../components/ui';
 import { listKnowts, type KnowtWithDetail } from '../db';
@@ -84,7 +85,8 @@ export function AllKnowtsScreen() {
           </ScrollView>
         )}
 
-        <Button label="Add a knowt" onPress={() => navigation.navigate('AddKnowt')} />
+        {/* Add now lives in the navigation bar, reachable from every screen,
+            so repeating it here would be two buttons for one action. */}
         <Button
           label="Browse sets"
           variant="secondary"
@@ -101,7 +103,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.lg,
+    // Clears the floating tab bar, which is drawn over the content.
+    paddingBottom: TAB_BAR_CLEARANCE,
     gap: theme.spacing.md,
   },
   list: { flex: 1 },

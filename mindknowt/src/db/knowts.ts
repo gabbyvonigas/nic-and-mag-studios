@@ -251,44 +251,6 @@ export async function archiveKnowt(id: string): Promise<void> {
   await db.runAsync('UPDATE knowts SET archived = 1 WHERE id = ?', id);
 }
 
-export type TodayInstance = {
-  knowt: KnowtWithDetail;
-  schedule: ScheduleRow;
-  completedAt: number | null;
-};
-
-/** Today's instances in time order, spec section 5.3. */
-export async function listToday(now = new Date()): Promise<TodayInstance[]> {
-  const knowts = await listKnowts();
-  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const dayEnd = new Date(dayStart.getTime() + 86_400_000);
-
-  const db = await getDatabase();
-  const completions = await db.getAllAsync<EventRow>(
-    `SELECT * FROM events
-      WHERE completed_at IS NOT NULL AND completed_at >= ? AND completed_at < ?`,
-    dayStart.getTime(),
-    dayEnd.getTime(),
-  );
-
-  const instances: TodayInstance[] = [];
-  for (const knowt of knowts) {
-    for (const schedule of knowt.schedules) {
-      if (!isDueOn(schedule, now)) continue;
-      const done = completions.find((e) => e.schedule_id === schedule.id);
-      instances.push({
-        knowt,
-        schedule,
-        completedAt: done?.completed_at ?? null,
-      });
-    }
-  }
-
-  return instances.sort(
-    (a, b) => minutesOf(a.schedule.time) - minutesOf(b.schedule.time),
-  );
-}
-
 /**
  * Writes a history row. `scheduleId` is null for a spontaneous check-in with no
  * alarm pending. Spec section 3 treats that as a valid "I just did this".

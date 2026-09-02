@@ -18,7 +18,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
     screens: {
       Tabs: {
         screens: {
-          Today: 'today',
+          Daily: 'daily',
           AllKnowts: 'knowts',
           Settings: 'settings',
           Dev: 'dev',

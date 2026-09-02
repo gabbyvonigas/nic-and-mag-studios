@@ -15,6 +15,12 @@ export {
   INSTALL_GENERATION,
   setAppMeta,
 } from './database';
+export {
+  listDashboard,
+  type Dashboard,
+  type DashboardCard,
+  type DashboardSection,
+} from './dashboard';
 export { newId } from './ids';
 export { CATEGORY_KEYS, type CategoryKey } from './categoryKeys';
 export { isEmpty, reseed, seed, seedIfEmpty } from './seed';
@@ -41,7 +47,6 @@ export {
   listCategories,
   listEvents,
   listKnowts,
-  listToday,
   logCompletion,
   ModeUnavailableError,
   setMode,
@@ -49,7 +54,6 @@ export {
   todayCompletionCount,
   updateNotes,
   type NewKnowt,
-  type TodayInstance,
 } from './knowts';
 export {
   clearAllPendingAlarms,

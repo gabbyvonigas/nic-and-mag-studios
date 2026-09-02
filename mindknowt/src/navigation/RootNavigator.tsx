@@ -1,6 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { StyleSheet } from 'react-native';
 
 import { AlarmScreen } from '../screens/AlarmScreen';
 import { AddKnowtScreen } from '../screens/AddKnowtScreen';
@@ -14,8 +13,8 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { KnowtDetailScreen } from '../screens/KnowtDetailScreen';
 import { RingingScreen } from '../screens/RingingScreen';
 import { ScanScreen } from '../screens/ScanScreen';
-import { TodayScreen } from '../screens/TodayScreen';
-import { theme } from '../theme';
+import { DashboardScreen } from '../screens/DashboardScreen';
+import { CapsuleTabBar } from './CapsuleTabBar';
 import type { RootStackParamList, TabParamList } from './types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -24,20 +23,14 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 function Tabs() {
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: theme.color.textPrimary,
-        tabBarInactiveTintColor: theme.color.textMuted,
-        tabBarStyle: styles.tabBar,
-        // There are no icons, so the label is the whole control. Rendering text
-        // through tabBarIcon clips it, because the icon slot is sized for a glyph.
-        tabBarIconStyle: styles.hidden,
-        tabBarLabelStyle: styles.tabLabel,
-      }}>
+      // A floating capsule, drawn by hand. The default bar cannot be given a
+      // detached shape, and rendering labels through tabBarIcon clipped them.
+      tabBar={(props) => <CapsuleTabBar {...props} />}
+      screenOptions={{ headerShown: false }}>
       <Tab.Screen
-        name="Today"
-        component={TodayScreen}
-        options={{ tabBarLabel: 'Today' }}
+        name="Daily"
+        component={DashboardScreen}
+        options={{ tabBarLabel: 'Daily' }}
       />
       <Tab.Screen
         name="AllKnowts"
@@ -82,16 +75,3 @@ export function RootNavigator() {
     </Stack.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: theme.color.background,
-    borderTopColor: theme.color.border,
-  },
-  hidden: { display: 'none' },
-  tabLabel: {
-    fontFamily: theme.font.body,
-    fontSize: theme.font.size.sm,
-    fontWeight: theme.font.weight.medium,
-  },
-});

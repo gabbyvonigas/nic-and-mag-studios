@@ -116,7 +116,7 @@ export function RingingScreen() {
     if (knowt && !notesDirty) setNotesDraft(knowt.notes ?? '');
   }, [knowt, notesDirty]);
 
-  const leave = () => navigation.navigate('Tabs', { screen: 'Today' });
+  const leave = () => navigation.navigate('Tabs', { screen: 'Daily' });
 
   /**
    * Runs an action and leaves only if it resolved the alarm. A handler that

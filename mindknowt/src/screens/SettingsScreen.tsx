@@ -2,6 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import { ScreenHeader } from '../components/ui';
 import { theme } from '../theme';
@@ -39,7 +40,8 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.xxl,
+    // Clears the floating tab bar, which is drawn over the content.
+    paddingBottom: theme.spacing.xxl + TAB_BAR_CLEARANCE,
   },
   row: {
     flexDirection: 'row',
