@@ -18,6 +18,8 @@ export type RootStackParamList = {
   AddKnowt: undefined;
   KnowtDetail: { knowtId: string };
   EditKnowt: { knowtId: string };
+  /** Omit scheduleId to create one. */
+  EditSchedule: { knowtId: string; scheduleId?: string };
   /**
    * The screen AlarmKit reopens the app to. Addressable by URL so it can be
    * exercised without waiting for a real alarm. See linking.ts.
@@ -25,6 +27,7 @@ export type RootStackParamList = {
   Ringing: { knowtId: string; scheduleId?: string };
   BrowseSets: undefined;
   ApplySet: { setId: string };
+  Categories: undefined;
   Settings: undefined;
   Dev: undefined;
   Legal: undefined;

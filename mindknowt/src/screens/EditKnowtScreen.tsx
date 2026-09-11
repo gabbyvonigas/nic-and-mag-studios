@@ -1,5 +1,10 @@
-import { useEffect, useState } from 'react';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
@@ -17,64 +22,37 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { resyncAlarmsQuietly } from '../alarms';
 import { Button, SubScreenHeader } from '../components/ui';
 import {
-  addSchedule,
-  deleteSchedule,
+  describeRepeat,
   formatTime,
   getKnowt,
   listCategories,
   ModeUnavailableError,
-  parseTimeInput,
   setMode,
-  toISODate,
   updateKnowt,
-  updateSchedule,
   type KnowtMode,
-  type RepeatType,
-  type ScheduleRow,
 } from '../db';
 import { useQuery } from '../db/useQuery';
-import { theme } from '../theme';
+import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'EditKnowt'>;
 
-const REPEATS: { value: RepeatType; label: string }[] = [
-  { value: 'daily', label: 'Every day' },
-  { value: 'weekdays', label: 'Weekdays' },
-  { value: 'weekends', label: 'Weekends' },
-  { value: 'once', label: 'Once' },
-];
-
 const MODES: { value: KnowtMode; label: string; detail: string }[] = [
-  { value: 'strict', label: 'Strict', detail: 'Only the right tag stops it.' },
-  { value: 'soft', label: 'Soft', detail: 'Scan, or dismiss.' },
-  { value: 'open', label: 'Open', detail: 'No tag. Tap done.' },
+  {
+    value: 'strict',
+    label: 'Strict',
+    detail: 'Keeps ringing until the right tag is scanned.',
+  },
+  { value: 'soft', label: 'Soft', detail: 'Scan it, or dismiss it.' },
+  { value: 'open', label: 'Open', detail: 'No tag. Tap done when it is done.' },
 ];
-
-/** A schedule being edited, held as typed text until it is saved. */
-type ScheduleDraft = {
-  /** Existing row id, or null for one being added. */
-  id: string | null;
-  time: string;
-  repeatType: RepeatType;
-  removed: boolean;
-};
-
-function toDraft(row: ScheduleRow): ScheduleDraft {
-  return {
-    id: row.id,
-    time: formatTime(row.time),
-    repeatType: row.repeat_type,
-    removed: false,
-  };
-}
 
 export function EditKnowtScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
 
-  const { data: knowt, loading } = useQuery(
+  const { data: knowt, loading, reload } = useQuery(
     () => getKnowt(params.knowtId),
     [params.knowtId],
   );
@@ -85,13 +63,12 @@ export function EditKnowtScreen() {
   const [locationNote, setLocationNote] = useState('');
   const [notes, setNotes] = useState('');
   const [mode, setModeChoice] = useState<KnowtMode>('open');
-  const [drafts, setDrafts] = useState<ScheduleDraft[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fills the form once. Re-running on every render of the query would throw
-  // away whatever is half typed.
+  // Fills the form once. Re-running on every query render would throw away
+  // whatever is half typed.
   useEffect(() => {
     if (!knowt || loaded) return;
     setName(knowt.name);
@@ -99,27 +76,18 @@ export function EditKnowtScreen() {
     setLocationNote(knowt.location_note ?? '');
     setNotes(knowt.notes ?? '');
     setModeChoice(knowt.mode);
-    setDrafts(knowt.schedules.map(toDraft));
     setLoaded(true);
   }, [knowt, loaded]);
 
-  const editDraft = (index: number, patch: Partial<ScheduleDraft>) => {
-    setDrafts((prev) =>
-      prev.map((d, i) => (i === index ? { ...d, ...patch } : d)),
-    );
-  };
+  // Schedules are edited on their own screen and saved there, so coming back
+  // has to re-read them. The typed fields above are untouched by this.
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
 
-  const addDraft = () => {
-    // No time is filled in. A guessed time is a time nobody chose.
-    setDrafts((prev) => [
-      ...prev,
-      { id: null, time: '', repeatType: 'daily', removed: false },
-    ]);
-  };
-
-  const visible = drafts.filter((d) => !d.removed);
-  const badTime = visible.find((d) => parseTimeInput(d.time) === null);
-  const canSave = name.trim().length > 0 && !badTime;
+  const tagged = !!knowt?.tag_uid;
 
   const save = async () => {
     if (!knowt) return;
@@ -141,7 +109,7 @@ export function EditKnowtScreen() {
         } catch (err) {
           if (err instanceof ModeUnavailableError) {
             // Everything else saved. Say what did not, rather than rolling the
-            // whole edit back over one field. Tracked in a local because the
+            // whole edit back over one field. Held in a local because the
             // captured `error` is still the value from this render.
             problem = err.message;
             setError(err.message);
@@ -151,36 +119,8 @@ export function EditKnowtScreen() {
         }
       }
 
-      for (const draft of drafts) {
-        if (draft.removed) {
-          if (draft.id) await deleteSchedule(draft.id);
-          continue;
-        }
-
-        const time = parseTimeInput(draft.time);
-        if (!time) continue;
-        const startDate =
-          draft.repeatType === 'once' ? toISODate(new Date()) : null;
-
-        if (draft.id) {
-          await updateSchedule(draft.id, {
-            time,
-            repeatType: draft.repeatType,
-            startDate,
-          });
-        } else {
-          await addSchedule(knowt.id, {
-            time,
-            repeatType: draft.repeatType,
-            startDate: startDate ?? undefined,
-          });
-        }
-      }
-
-      // The name is the alarm's title and the times are when it rings, so the
-      // armed alarms are stale until this runs.
+      // The name is the alarm's title, so an armed alarm is stale until this.
       await resyncAlarmsQuietly();
-
       if (!problem) navigation.goBack();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -191,7 +131,7 @@ export function EditKnowtScreen() {
 
   if (loading || !loaded) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.loading} edges={['top']}>
         <ActivityIndicator color={theme.color.textSecondary} />
       </SafeAreaView>
     );
@@ -241,13 +181,17 @@ export function EditKnowtScreen() {
           <View style={styles.chips}>
             {(categories ?? []).map((category) => {
               const on = categoryId === category.id;
+              const shades = categoryShades(category);
               return (
                 <Pressable
                   key={category.id}
                   accessibilityRole="button"
                   accessibilityState={{ selected: on }}
                   onPress={() => setCategoryId(on ? null : category.id)}
-                  style={[styles.chip, on && styles.chipOn]}>
+                  style={[
+                    styles.chip,
+                    on && { backgroundColor: shades.color, borderColor: shades.color },
+                  ]}>
                   <Text style={[styles.chipText, on && styles.chipTextOn]}>
                     {category.name}
                   </Text>
@@ -255,30 +199,89 @@ export function EditKnowtScreen() {
               );
             })}
           </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('Categories')}>
+            <Text style={styles.link}>Manage categories</Text>
+          </Pressable>
 
-          <Text style={styles.label}>Mode</Text>
+          <Text style={styles.label}>How it stops</Text>
           {MODES.map((option) => {
             const on = mode === option.value;
+            const blocked = option.value !== 'open' && !tagged;
             return (
               <Pressable
                 key={option.value}
                 accessibilityRole="button"
-                accessibilityState={{ selected: on }}
+                accessibilityState={{ selected: on, disabled: blocked }}
+                disabled={blocked}
                 onPress={() => setModeChoice(option.value)}
-                style={[styles.option, on && styles.optionOn]}>
-                <Text style={[styles.optionLabel, on && styles.optionLabelOn]}>
+                style={[
+                  styles.option,
+                  on && styles.optionOn,
+                  blocked && styles.optionBlocked,
+                ]}>
+                <Text
+                  style={[
+                    styles.optionLabel,
+                    on && styles.optionLabelOn,
+                    blocked && styles.optionTextBlocked,
+                  ]}>
                   {option.label}
                 </Text>
-                <Text style={styles.optionDetail}>{option.detail}</Text>
+                <Text
+                  style={[
+                    styles.optionDetail,
+                    blocked && styles.optionTextBlocked,
+                  ]}>
+                  {blocked ? 'Needs a tag attached first.' : option.detail}
+                </Text>
               </Pressable>
             );
           })}
-          {!knowt.tag_uid ? (
+
+          <Text style={styles.label}>Schedules</Text>
+          {knowt.schedules.length === 0 ? (
             <Text style={styles.hint}>
-              Strict and Soft both need a tag. Add one from the knowt screen
-              first.
+              No schedules. Without one this never rings on its own.
             </Text>
-          ) : null}
+          ) : (
+            knowt.schedules.map((schedule) => (
+              <Pressable
+                key={schedule.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit the ${formatTime(schedule.time)} schedule`}
+                onPress={() =>
+                  navigation.navigate('EditSchedule', {
+                    knowtId: knowt.id,
+                    scheduleId: schedule.id,
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.scheduleRow,
+                  pressed && styles.pressed,
+                ]}>
+                <View style={styles.scheduleMain}>
+                  <Text style={styles.scheduleTime}>
+                    {formatTime(schedule.time)}
+                    {schedule.label ? `, ${schedule.label}` : ''}
+                  </Text>
+                  <Text style={styles.scheduleRepeat}>
+                    {describeRepeat(schedule)}
+                    {schedule.enabled ? '' : ', paused'}
+                  </Text>
+                </View>
+                <Text style={styles.chevron}>{'›'}</Text>
+              </Pressable>
+            ))
+          )}
+          <Button
+            label="Add a schedule"
+            variant="secondary"
+            onPress={() =>
+              navigation.navigate('EditSchedule', { knowtId: knowt.id })
+            }
+          />
 
           <Text style={styles.label}>Where it lives</Text>
           <TextInput
@@ -300,76 +303,17 @@ export function EditKnowtScreen() {
             scrollEnabled={false}
             textAlignVertical="top"
           />
-
-          <Text style={styles.label}>Schedules</Text>
-          {visible.length === 0 ? (
-            <Text style={styles.hint}>
-              No schedules. Without one this never rings on its own.
-            </Text>
-          ) : null}
-
-          {drafts.map((draft, index) => {
-            if (draft.removed) return null;
-            const parsed = parseTimeInput(draft.time);
-            return (
-              <View key={draft.id ?? `new-${index}`} style={styles.scheduleCard}>
-                <View style={styles.scheduleTop}>
-                  <TextInput
-                    style={[styles.timeInput, !parsed && styles.timeInputBad]}
-                    value={draft.time}
-                    onChangeText={(text) => editDraft(index, { time: text })}
-                    placeholder="8:00 am"
-                    placeholderTextColor={theme.color.textMuted}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Remove this schedule"
-                    hitSlop={8}
-                    onPress={() => editDraft(index, { removed: true })}>
-                    <Text style={styles.removeLink}>Remove</Text>
-                  </Pressable>
-                </View>
-
-                <View style={styles.chips}>
-                  {REPEATS.map((repeat) => {
-                    const on = draft.repeatType === repeat.value;
-                    return (
-                      <Pressable
-                        key={repeat.value}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: on }}
-                        onPress={() =>
-                          editDraft(index, { repeatType: repeat.value })
-                        }
-                        style={[styles.chip, on && styles.chipOn]}>
-                        <Text style={[styles.chipText, on && styles.chipTextOn]}>
-                          {repeat.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
-                {!parsed ? (
-                  <Text style={styles.errorHint}>
-                    Enter a time such as 8:00 am, 7pm or 19:30.
-                  </Text>
-                ) : null}
-              </View>
-            );
-          })}
-
-          <Button label="Add a schedule" variant="secondary" onPress={addDraft} />
         </ScrollView>
 
         <View style={styles.footer}>
           <Button
             label={saving ? 'Saving' : 'Save changes'}
-            disabled={!canSave || saving}
+            disabled={name.trim().length === 0 || saving}
             onPress={() => void save()}
           />
+          <Text style={styles.footerHint}>
+            Schedules save on their own screen.
+          </Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -377,9 +321,11 @@ export function EditKnowtScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: theme.color.background },
+  loading: {
     flex: 1,
     backgroundColor: theme.color.background,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   flex: { flex: 1 },
@@ -407,10 +353,10 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     color: theme.color.textMuted,
   },
-  errorHint: {
-    fontFamily: theme.font.face.regular,
+  link: {
+    fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.sm,
-    color: theme.color.dangerText,
+    color: theme.color.textSecondary,
   },
   input: {
     fontFamily: theme.font.face.regular,
@@ -444,10 +390,6 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     backgroundColor: theme.color.surface,
   },
-  chipOn: {
-    backgroundColor: theme.color.accent,
-    borderColor: theme.color.accent,
-  },
   chipText: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
@@ -463,6 +405,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   optionOn: { borderColor: theme.color.accent, borderWidth: 2 },
+  optionBlocked: { backgroundColor: theme.color.surfaceMuted },
   optionLabel: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.md,
@@ -474,33 +417,34 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
   },
-  scheduleCard: {
+  optionTextBlocked: { color: theme.color.textMuted },
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
     backgroundColor: theme.color.surface,
     borderWidth: 1,
     borderColor: theme.color.border,
     borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
-    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
   },
-  scheduleTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-  },
-  timeInput: {
-    flex: 1,
-    fontFamily: theme.font.face.regular,
+  pressed: { opacity: 0.7 },
+  scheduleMain: { flex: 1, gap: 2 },
+  scheduleTime: {
+    fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.lg,
     color: theme.color.textPrimary,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.color.border,
-    paddingVertical: theme.spacing.sm,
   },
-  timeInputBad: { borderBottomColor: theme.color.dangerBorder },
-  removeLink: {
-    fontFamily: theme.font.face.medium,
+  scheduleRepeat: {
+    fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
-    color: theme.color.dangerText,
+    color: theme.color.textSecondary,
+  },
+  chevron: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.xl,
+    color: theme.color.textMuted,
   },
   banner: {
     borderRadius: theme.radius.md,
@@ -517,5 +461,12 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: theme.spacing.xl,
     paddingBottom: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  footerHint: {
+    textAlign: 'center',
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textMuted,
   },
 });

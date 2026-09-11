@@ -1,11 +1,6 @@
 import { Platform } from 'react-native';
 
-import {
-  CATEGORY_COLORS,
-  CATEGORY_FALLBACK,
-  CATEGORY_FILL,
-  CATEGORY_INK,
-} from './categoryColors';
+import { CATEGORY_COLORS } from './categoryColors';
 
 /**
  * Single source of truth for branding. Colors and fonts are still being
@@ -126,24 +121,9 @@ export const theme = {
 
 export type Theme = typeof theme;
 
-export type CategoryShades = {
-  /** The swatch itself, for accent bars and dots. */
-  color: string;
-  /** Darkened, for label text and icons on white. */
-  ink: string;
-  /** Barely-there fill, for chips and completed cards. */
-  fill: string;
-};
-
-/**
- * Shades for one category. Takes the key rather than the stored color because
- * ink and fill are not derivable from a hex at render time without a color
- * library. A custom category has no key, so it gets the neutral fallback.
- */
-export function categoryShades(key: string | null | undefined): CategoryShades {
-  if (key && key in CATEGORY_COLORS) {
-    const k = key as keyof typeof CATEGORY_COLORS;
-    return { color: CATEGORY_COLORS[k], ink: CATEGORY_INK[k], fill: CATEGORY_FILL[k] };
-  }
-  return { ...CATEGORY_FALLBACK };
-}
+export {
+  categoryShades,
+  shadesFromHex,
+  CUSTOM_PALETTE,
+  type CategoryShades,
+} from './categoryColors';

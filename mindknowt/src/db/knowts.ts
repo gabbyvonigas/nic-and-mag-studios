@@ -19,6 +19,118 @@ export async function listCategories(): Promise<CategoryRow[]> {
   );
 }
 
+/** Raised when a category cannot be changed the way the caller asked. */
+export class CategoryLockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CategoryLockedError';
+  }
+}
+
+/**
+ * Makes a category of the user's own. `key` stays null: keys identify the six
+ * shipped categories so bundled starter-set content can reference them, and a
+ * custom category is never referenced by content.
+ */
+export async function createCategory(input: {
+  name: string;
+  color: string;
+  icon?: string;
+}): Promise<string> {
+  const name = input.name.trim();
+  if (!name) throw new Error('A category needs a name.');
+
+  const db = await getDatabase();
+  const id = newId();
+  const last = await db.getFirstAsync<{ top: number | null }>(
+    'SELECT MAX(sort) AS top FROM categories',
+  );
+
+  await db.runAsync(
+    `INSERT INTO categories (id, name, key, color, icon, is_custom, sort)
+     VALUES (?, ?, NULL, ?, ?, 1, ?)`,
+    id,
+    name,
+    input.color,
+    input.icon ?? 'dot',
+    (last?.top ?? 0) + 1,
+  );
+  return id;
+}
+
+/**
+ * Edits a category. Shipped categories can be renamed but keep their colour:
+ * the six swatches are the brand, and a migration that repaints them matches on
+ * `is_custom = 0`, so a colour changed here would be silently overwritten by a
+ * later version. Refusing is honest; letting it be reverted later is not.
+ */
+export async function updateCategory(
+  id: string,
+  fields: { name?: string; color?: string },
+): Promise<void> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<CategoryRow>(
+    'SELECT * FROM categories WHERE id = ?',
+    id,
+  );
+  if (!row) return;
+
+  if (fields.color !== undefined && !row.is_custom) {
+    throw new CategoryLockedError(
+      'The built in categories keep their colours. Make your own to choose one.',
+    );
+  }
+
+  const sets: string[] = [];
+  const args: string[] = [];
+
+  if (fields.name !== undefined) {
+    const name = fields.name.trim();
+    if (!name) throw new Error('A category needs a name.');
+    sets.push('name = ?');
+    args.push(name);
+  }
+  if (fields.color !== undefined) {
+    sets.push('color = ?');
+    args.push(fields.color);
+  }
+  if (sets.length === 0) return;
+
+  await db.runAsync(
+    `UPDATE categories SET ${sets.join(', ')} WHERE id = ?`,
+    ...args,
+    id,
+  );
+}
+
+/**
+ * Deletes a category the user made. Knowts in it are not deleted: the schema
+ * points at categories with ON DELETE SET NULL, so they simply become
+ * uncategorized and keep everything else.
+ */
+export async function deleteCategory(id: string): Promise<void> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<CategoryRow>(
+    'SELECT * FROM categories WHERE id = ?',
+    id,
+  );
+  if (!row) return;
+  if (!row.is_custom) {
+    throw new CategoryLockedError('The built in categories cannot be deleted.');
+  }
+  await db.runAsync('DELETE FROM categories WHERE id = ?', id);
+}
+
+/** How many live knowts sit in a category, so deleting it can say so first. */
+export async function countKnowtsInCategory(id: string): Promise<number> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM knowts WHERE category_id = ? AND archived = 0',
+    id,
+  );
+  return row?.n ?? 0;
+}
+
 async function attachDetail(rows: KnowtRow[]): Promise<KnowtWithDetail[]> {
   if (rows.length === 0) return [];
   const db = await getDatabase();
@@ -286,6 +398,14 @@ export async function updateKnowt(
   await db.runAsync(
     `UPDATE knowts SET ${sets.join(', ')} WHERE id = ?`,
     ...args,
+    id,
+  );
+}
+
+export async function getSchedule(id: string): Promise<ScheduleRow | null> {
+  const db = await getDatabase();
+  return db.getFirstAsync<ScheduleRow>(
+    'SELECT * FROM schedules WHERE id = ?',
     id,
   );
 }

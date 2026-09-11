@@ -185,7 +185,7 @@ export function DashboardScreen() {
 
   const sections = (data?.sections ?? []).map((section) => ({
     category: section.category,
-    shades: categoryShades(section.category?.key),
+    shades: categoryShades(section.category),
     title: section.category?.name ?? 'Everything else',
     data: section.cards,
   }));

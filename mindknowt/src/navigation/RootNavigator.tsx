@@ -11,9 +11,11 @@ import { LegalDocumentScreen } from '../screens/LegalDocumentScreen';
 import { LegalScreen } from '../screens/LegalScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditKnowtScreen } from '../screens/EditKnowtScreen';
+import { EditScheduleScreen } from '../screens/EditScheduleScreen';
 import { KnowtDetailScreen } from '../screens/KnowtDetailScreen';
 import { RingingScreen } from '../screens/RingingScreen';
 import { ScanScreen } from '../screens/ScanScreen';
+import { CategoriesScreen } from '../screens/CategoriesScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { CapsuleTabBar } from './CapsuleTabBar';
 import type { RootStackParamList, TabParamList } from './types';
@@ -57,6 +59,7 @@ export function RootNavigator() {
         component={EditKnowtScreen}
         options={{ presentation: 'modal' }}
       />
+      <Stack.Screen name="EditSchedule" component={EditScheduleScreen} />
       <Stack.Screen
         name="Ringing"
         component={RingingScreen}
@@ -64,6 +67,7 @@ export function RootNavigator() {
       />
       <Stack.Screen name="BrowseSets" component={BrowseSetsScreen} />
       <Stack.Screen name="ApplySet" component={ApplySetScreen} />
+      <Stack.Screen name="Categories" component={CategoriesScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Dev" component={DevScreen} />
       <Stack.Screen name="Legal" component={LegalScreen} />

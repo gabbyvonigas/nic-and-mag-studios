@@ -6,9 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import { Button, EmptyState, Pill, ScreenHeader } from '../components/ui';
-import { listKnowts, type KnowtWithDetail } from '../db';
+import { listCategories, listKnowts, type KnowtWithDetail } from '../db';
 import { useQuery } from '../db/useQuery';
-import { theme } from '../theme';
+import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -36,12 +36,17 @@ function groupByCategory(knowts: KnowtWithDetail[]): Group[] {
 export function AllKnowtsScreen() {
   const navigation = useNavigation<Nav>();
   const { data, loading, reload } = useQuery(() => listKnowts(), []);
+  const { data: categories, reload: reloadCategories } = useQuery(
+    () => listCategories(),
+    [],
+  );
 
   // A knowt renamed or archived elsewhere must not linger here as it was.
   useFocusEffect(
     useCallback(() => {
       void reload();
-    }, [reload]),
+      void reloadCategories();
+    }, [reload, reloadCategories]),
   );
   const groups = groupByCategory(data ?? []);
 
@@ -49,6 +54,27 @@ export function AllKnowtsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.content}>
         <ScreenHeader title="All knowts" />
+
+        {/* Visible without being loud: one line, the colours as the signal. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Categories"
+          onPress={() => navigation.navigate('Categories')}
+          style={({ pressed }) => [styles.categoryBar, pressed && styles.pressed]}>
+          <View style={styles.categoryDots}>
+            {(categories ?? []).slice(0, 8).map((category) => (
+              <View
+                key={category.id}
+                style={[
+                  styles.categoryDot,
+                  { backgroundColor: categoryShades(category).color },
+                ]}
+              />
+            ))}
+          </View>
+          <Text style={styles.categoryLabel}>Categories</Text>
+          <Text style={styles.categoryChevron}>›</Text>
+        </Pressable>
 
         {loading ? (
           <ActivityIndicator color={theme.color.textSecondary} />
@@ -106,6 +132,26 @@ export function AllKnowtsScreen() {
 }
 
 const styles = StyleSheet.create({
+  categoryBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  pressed: { opacity: 0.6 },
+  categoryDots: { flexDirection: 'row', gap: 4 },
+  categoryDot: { width: 8, height: 8, borderRadius: 4 },
+  categoryLabel: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
+  categoryChevron: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.lg,
+    color: theme.color.textMuted,
+  },
   container: { flex: 1, backgroundColor: theme.color.background },
   content: {
     flex: 1,
