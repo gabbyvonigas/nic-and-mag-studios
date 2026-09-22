@@ -8,7 +8,6 @@ import { ApplySetScreen } from '../screens/ApplySetScreen';
 import { BrowseSetsScreen } from '../screens/BrowseSetsScreen';
 import { DevScreen } from '../screens/DevScreen';
 import { LegalDocumentScreen } from '../screens/LegalDocumentScreen';
-import { LogScreen } from '../screens/LogScreen';
 import { LegalScreen } from '../screens/LegalScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditKnowtScreen } from '../screens/EditKnowtScreen';
@@ -17,7 +16,7 @@ import { KnowtDetailScreen } from '../screens/KnowtDetailScreen';
 import { RingingScreen } from '../screens/RingingScreen';
 import { ScanScreen } from '../screens/ScanScreen';
 import { CategoriesScreen } from '../screens/CategoriesScreen';
-import { DashboardScreen } from '../screens/DashboardScreen';
+import { HomeScreen } from '../screens/HomeScreen';
 import { CapsuleTabBar } from './CapsuleTabBar';
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -33,18 +32,13 @@ function Tabs() {
       screenOptions={{ headerShown: false }}>
       <Tab.Screen
         name="Daily"
-        component={DashboardScreen}
+        component={HomeScreen}
         options={{ tabBarLabel: 'Daily' }}
       />
       <Tab.Screen
         name="AllKnowts"
         component={AllKnowtsScreen}
         options={{ tabBarLabel: 'Knowts' }}
-      />
-      <Tab.Screen
-        name="Log"
-        component={LogScreen}
-        options={{ tabBarLabel: 'Log' }}
       />
     </Tab.Navigator>
   );

@@ -5,8 +5,15 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
-import { Button, EmptyState, Pill, ScreenHeader } from '../components/ui';
-import { listCategories, listKnowts, type KnowtWithDetail } from '../db';
+import { KnowtCard } from '../components/KnowtCard';
+import { Button, EmptyState, ScreenHeader } from '../components/ui';
+import {
+  describeRepeat,
+  formatTime,
+  listCategories,
+  listKnowts,
+  type KnowtWithDetail,
+} from '../db';
 import { useQuery } from '../db/useQuery';
 import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -95,23 +102,22 @@ export function AllKnowtsScreen() {
                   </View>
 
                   {group.knowts.map((knowt) => (
-                    <Pressable
+                    <KnowtCard
                       key={knowt.id}
+                      name={knowt.name}
+                      meta={
+                        knowt.schedules.length > 0
+                          ? `${formatTime(knowt.schedules[0]!.time)}, ${describeRepeat(knowt.schedules[0]!)}`
+                          : 'No schedule'
+                      }
+                      location={knowt.location_note}
+                      mode={knowt.mode}
+                      priority={knowt.priority}
+                      shades={categoryShades(knowt.category)}
                       onPress={() =>
                         navigation.navigate('KnowtDetail', { knowtId: knowt.id })
                       }
-                      style={styles.row}>
-                      <View style={styles.rowMain}>
-                        <Text style={styles.rowName}>{knowt.name}</Text>
-                        {knowt.location_note ? (
-                          <Text style={styles.rowMeta}>{knowt.location_note}</Text>
-                        ) : null}
-                      </View>
-                      {/* Mode is not a category, so it must not borrow the
-                          category colour. Every "open" pill should look the
-                          same regardless of which group it sits in. */}
-                      <Pill label={knowt.mode} />
-                    </Pressable>
+                    />
                   ))}
                 </View>
               ))
@@ -180,24 +186,5 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.mono,
     fontSize: theme.font.size.sm,
     color: theme.color.textMuted,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: theme.color.surfaceMuted,
-  },
-  rowMain: { flex: 1, gap: 2 },
-  rowName: {
-    fontFamily: theme.font.body,
-    fontSize: theme.font.size.lg,
-    color: theme.color.textPrimary,
-  },
-  rowMeta: {
-    fontFamily: theme.font.body,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
   },
 });
