@@ -39,6 +39,46 @@ export function ChevronLeft({
 }
 
 /**
+ * Expand chevron, pointing at what the tap will do: down when a section is
+ * closed, up when it is open.
+ *
+ * Drawn rather than rotated in place, because a rotation animates the arms
+ * through the wrong angles and, more to the point, a 90 degree rotated "next"
+ * chevron reads as a stray tick rather than as an arrow.
+ */
+export function Chevron({
+  direction,
+  size = 14,
+  color = theme.color.textSecondary,
+  thickness = 2.5,
+}: {
+  direction: 'down' | 'up';
+  size?: number;
+  color?: string;
+  thickness?: number;
+}) {
+  const down = direction === 'down';
+  return (
+    <View style={{ width: size * 1.6, height: size * 1.2, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRightWidth: down ? thickness : 0,
+          borderBottomWidth: down ? thickness : 0,
+          borderLeftWidth: down ? 0 : thickness,
+          borderTopWidth: down ? 0 : thickness,
+          borderColor: color,
+          transform: [{ rotate: '45deg' }],
+          // The corner sits off centre inside its box once rotated.
+          marginTop: down ? -size * 0.3 : size * 0.3,
+        }}
+      />
+    </View>
+  );
+}
+
+/**
  * Gear. Four bars crossed at 45 degree steps make eight teeth, with a ring laid
  * over the middle to cut them back to the rim and leave the hole.
  *

@@ -72,12 +72,9 @@ export function ApplySetScreen() {
       setPreview(result);
       setLoading(false);
       if (result) {
-        // Duplicates start unchecked so nothing is created twice by accident.
-        setSelected(
-          Object.fromEntries(
-            result.entries.map((e) => [e.knowt.name, e.duplicateOf === null]),
-          ),
-        );
+        // Everything starts unchecked. A preset is a menu, not a bundle: it is
+        // easier to add three of twelve than to notice and untick nine.
+        setSelected({});
         setTimes(
           Object.fromEntries(
             result.entries.map((e) => [e.knowt.name, e.knowt.schedules.map(() => '')]),
@@ -163,16 +160,53 @@ export function ApplySetScreen() {
 
   const chosenCount = preview.entries.filter((e) => selected[e.knowt.name]).length;
 
+  // Select all skips what already exists, because adding a second copy of a
+  // knowt someone already has is never what the control meant. The label says
+  // so whenever there is anything to skip.
+  const newEntries = preview.entries.filter((e) => e.duplicateOf === null);
+  const allNewChosen =
+    newEntries.length > 0 && newEntries.every((e) => selected[e.knowt.name]);
+  const hasDuplicates = newEntries.length < preview.entries.length;
+
+  const toggleAll = () =>
+    setSelected(
+      allNewChosen
+        ? {}
+        : Object.fromEntries(newEntries.map((e) => [e.knowt.name, true])),
+    );
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.pinned}>
+          <ScreenHeader title={preview.set.name} subtitle={preview.set.description} />
+
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: allNewChosen }}
+            onPress={toggleAll}
+            style={({ pressed }) => [styles.selectAll, pressed && styles.pressed]}>
+            <View style={[styles.box, allNewChosen && styles.boxChecked]}>
+              {allNewChosen ? <Text style={styles.tick}>✓</Text> : null}
+            </View>
+            <Text style={styles.selectAllLabel}>
+              {allNewChosen
+                ? 'Clear all'
+                : hasDuplicates
+                  ? 'Select all new'
+                  : 'Select all'}
+            </Text>
+            <Text style={styles.selectAllCount}>
+              {chosenCount} of {preview.entries.length}
+            </Text>
+          </Pressable>
+        </View>
+
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled">
-          <ScreenHeader title={preview.set.name} subtitle={preview.set.description} />
-
           <Text style={styles.hint}>
             Pick what you want. Adding a time is optional, and nothing is
             scheduled until you set one.
@@ -308,7 +342,7 @@ export function ApplySetScreen() {
           <Button
             label={
               chosenCount === 0
-                ? 'Choose at least one'
+                ? 'Select knowts to add'
                 : `Add ${chosenCount} knowt${chosenCount === 1 ? '' : 's'}`
             }
             disabled={!ready || saving}
@@ -324,9 +358,35 @@ export function ApplySetScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.color.background },
   flex: { flex: 1 },
-  content: {
+  pinned: {
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.sm,
+    backgroundColor: theme.color.background,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.color.border,
+  },
+  selectAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  selectAllLabel: {
+    flex: 1,
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
+  selectAllCount: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textMuted,
+  },
+  pressed: { opacity: 0.6 },
+  content: {
+    paddingHorizontal: theme.spacing.xl,
+    paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.xl,
     gap: theme.spacing.md,
   },

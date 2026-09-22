@@ -128,8 +128,7 @@ export function AllKnowtsScreen() {
         {/* Add now lives in the navigation bar, reachable from every screen,
             so repeating it here would be two buttons for one action. */}
         <Button
-          label="Browse sets"
-          variant="secondary"
+          label="Browse Presets"
           onPress={() => navigation.navigate('BrowseSets')}
         />
       </View>

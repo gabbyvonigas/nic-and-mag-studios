@@ -19,7 +19,7 @@ export function BrowseSetsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <SubScreenHeader
           onBack={() => navigation.goBack()}
-          title="Starter sets"
+          title="Presets"
           subtitle="Ready-made knowts you can edit after adding."
         />
 

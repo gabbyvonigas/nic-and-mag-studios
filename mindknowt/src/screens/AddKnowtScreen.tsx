@@ -48,7 +48,7 @@ const SUGGESTED = ['Vitamins', 'Water the plants', 'Take the bins out', 'Retinol
 
 /**
  * The one set offered inside the add flow. Everything else stays behind
- * Browse sets: a wall of twenty eight choices is not help when someone came
+ * Browse Presets: a wall of twenty eight choices is not help when someone came
  * here to add one thing.
  */
 const FEATURED_SET_ID = 'morning-essentials';

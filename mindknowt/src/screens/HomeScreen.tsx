@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GearIcon } from '../components/icons';
+import { Chevron, GearIcon } from '../components/icons';
 import { KnowtCard, PriorityBars } from '../components/KnowtCard';
 import { EmptyState } from '../components/ui';
 import {
@@ -146,10 +146,7 @@ function CategorySection({
 
         {next ? <PriorityBars priority={next.knowt.priority} color={shades.ink} /> : null}
 
-        {/* Rotated rather than swapped, so the control never changes shape. */}
-        <Text style={[styles.chevron, expanded && styles.chevronOpen]}>
-          {'›'}
-        </Text>
+        <Chevron direction={expanded ? 'up' : 'down'} />
       </Pressable>
 
       {expanded ? (
@@ -394,11 +391,5 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
   },
-  chevron: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.xl,
-    color: theme.color.textMuted,
-  },
-  chevronOpen: { transform: [{ rotate: '90deg' }] },
   categoryCards: { gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
 });

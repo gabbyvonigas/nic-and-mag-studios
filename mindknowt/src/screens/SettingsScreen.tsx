@@ -1,9 +1,18 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActionSheetIOS,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SubScreenHeader } from '../components/ui';
+import { openTagPack, TAG_PACKS } from '../tags/store';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -16,6 +25,33 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
  */
 export function SettingsScreen() {
   const navigation = useNavigation<Nav>();
+
+  /**
+   * Two quantities, so a sheet rather than a link. Cancel is last and is the
+   * index iOS treats as the dismiss action.
+   */
+  const orderMore = () => {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: 'Order more tags',
+        message: 'Opens Amazon. Any NTAG215 sticker works with MindKnowt.',
+        options: [...TAG_PACKS.map((pack) => pack.label), 'Cancel'],
+        cancelButtonIndex: TAG_PACKS.length,
+      },
+      (index) => {
+        const pack = TAG_PACKS[index];
+        if (!pack) return;
+        void (async () => {
+          if (!(await openTagPack(pack))) {
+            Alert.alert(
+              'Could not open Amazon',
+              'Nothing on this phone would take the link.',
+            );
+          }
+        })();
+      },
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -31,6 +67,17 @@ export function SettingsScreen() {
         </Pressable>
         <Text style={styles.note}>
           Five NFC tags are included with the app. We post them.
+        </Text>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={orderMore}
+          style={styles.row}>
+          <Text style={styles.rowLabel}>Order more tags</Text>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+        <Text style={styles.note}>
+          A choice of two packs on Amazon. We do not sell these ourselves.
         </Text>
 
         <Pressable
