@@ -24,6 +24,17 @@ export function SettingsScreen() {
 
         <Pressable
           accessibilityRole="button"
+          onPress={() => navigation.navigate('ClaimTags')}
+          style={styles.row}>
+          <Text style={styles.rowLabel}>Claim your free tags</Text>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+        <Text style={styles.note}>
+          Five NFC tags are included with the app. We post them.
+        </Text>
+
+        <Pressable
+          accessibilityRole="button"
           onPress={() => navigation.navigate('Legal')}
           style={styles.row}>
           <Text style={styles.rowLabel}>Legal</Text>

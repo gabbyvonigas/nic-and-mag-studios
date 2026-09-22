@@ -17,6 +17,7 @@ import { KnowtDetailScreen } from '../screens/KnowtDetailScreen';
 import { RingingScreen } from '../screens/RingingScreen';
 import { ScanScreen } from '../screens/ScanScreen';
 import { CategoriesScreen } from '../screens/CategoriesScreen';
+import { ClaimTagsScreen } from '../screens/ClaimTagsScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { CapsuleTabBar } from './CapsuleTabBar';
 import type { RootStackParamList, TabParamList } from './types';
@@ -74,6 +75,7 @@ export function RootNavigator() {
       <Stack.Screen name="BrowseSets" component={BrowseSetsScreen} />
       <Stack.Screen name="ApplySet" component={ApplySetScreen} />
       <Stack.Screen name="Categories" component={CategoriesScreen} />
+      <Stack.Screen name="ClaimTags" component={ClaimTagsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Dev" component={DevScreen} />
       <Stack.Screen name="Legal" component={LegalScreen} />

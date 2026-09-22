@@ -23,6 +23,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
           Log: 'log',
         },
       },
+      ClaimTags: 'tags/claim',
       Categories: 'categories',
       Settings: 'settings',
       Dev: 'dev',

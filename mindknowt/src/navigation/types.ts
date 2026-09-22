@@ -28,6 +28,7 @@ export type RootStackParamList = {
   Ringing: { knowtId: string; scheduleId?: string };
   BrowseSets: undefined;
   ApplySet: { setId: string };
+  ClaimTags: undefined;
   Categories: undefined;
   Settings: undefined;
   Dev: undefined;
