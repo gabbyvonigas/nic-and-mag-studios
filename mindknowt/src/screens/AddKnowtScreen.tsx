@@ -23,6 +23,7 @@ import {
   type RepeatType,
 } from '../db';
 import { useQuery } from '../db/useQuery';
+import { listSets } from '../sets';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -45,10 +46,18 @@ const REPEATS: { value: RepeatType; label: string }[] = [
 
 const SUGGESTED = ['Vitamins', 'Water the plants', 'Take the bins out', 'Retinol'];
 
+/**
+ * The one set offered inside the add flow. Everything else stays behind
+ * Browse sets: a wall of twenty eight choices is not help when someone came
+ * here to add one thing.
+ */
+const FEATURED_SET_ID = 'morning-essentials';
+
 
 export function AddKnowtScreen() {
   const navigation = useNavigation<Nav>();
   const { data: categories } = useQuery(() => listCategories(), []);
+  const featured = listSets().find((set) => set.id === FEATURED_SET_ID) ?? null;
 
   const [stepIndex, setStepIndex] = useState(0);
   const [name, setName] = useState('');
@@ -133,6 +142,39 @@ export function AddKnowtScreen() {
                   </Pressable>
                 ))}
               </View>
+
+              {/* Someone adding their first knowt one at a time is the person
+                  a ready-made set helps most, and they would never have
+                  reached the sets browser to find one. */}
+              {featured ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Start from ${featured.name}`}
+                  onPress={() =>
+                    navigation.replace('ApplySet', { setId: featured.id })
+                  }
+                  style={({ pressed }) => [
+                    styles.featured,
+                    pressed && styles.featuredPressed,
+                  ]}>
+                  <Text style={styles.featuredTitle}>
+                    Or start from {featured.name}
+                  </Text>
+                  <Text style={styles.featuredBody}>
+                    {featured.description}
+                  </Text>
+                  <Text style={styles.featuredMeta}>
+                    {featured.knowts.length} to pick from, add only what you
+                    want
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => navigation.replace('BrowseSets')}>
+                <Text style={styles.link}>See all starter sets</Text>
+              </Pressable>
             </View>
           )}
 
@@ -259,6 +301,37 @@ export function AddKnowtScreen() {
 }
 
 const styles = StyleSheet.create({
+  featured: {
+    marginTop: theme.spacing.lg,
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.xl,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.xs,
+  },
+  featuredPressed: { opacity: 0.7 },
+  featuredTitle: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.lg,
+    color: theme.color.textPrimary,
+  },
+  featuredBody: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
+  featuredMeta: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textMuted,
+  },
+  link: {
+    marginTop: theme.spacing.md,
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
   container: { flex: 1, backgroundColor: theme.color.background },
   flex: { flex: 1 },
   content: {
