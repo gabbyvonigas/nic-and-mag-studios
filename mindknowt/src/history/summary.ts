@@ -31,6 +31,22 @@ export type StreakEntry = {
   best: number;
 };
 
+/** A knowt that keeps getting put off, and by how much. */
+export type SnoozeEntry = {
+  knowtId: string;
+  name: string;
+  category: CategoryRow | null;
+  snoozes: number;
+};
+
+/** A knowt that went by without being done, and how often. */
+export type MissEntry = {
+  knowtId: string;
+  name: string;
+  category: CategoryRow | null;
+  misses: number;
+};
+
 export type MonthSummary = {
   year: number;
   /** 0 to 11, matching Date. */
@@ -49,6 +65,26 @@ export type MonthSummary = {
   /** Whether this is the month containing today. */
   isCurrentMonth: boolean;
   streaks: StreakEntry[];
+
+  /** Every snooze pressed this month, across everything. */
+  snoozes: number;
+  /**
+   * What gets put off most, busiest first.
+   *
+   * The actionable number in here. A knowt snoozed every day does not have a
+   * discipline problem, it has a wrong time, and nothing else in the app says
+   * so.
+   */
+  mostSnoozed: SnoozeEntry[];
+  /**
+   * Median minutes from the alarm ringing to it being finished. Null when
+   * nothing rang: a spontaneous check-in never had a ring to answer.
+   */
+  medianResponseMinutes: number | null;
+  /** Completions per weekday, Sunday first, so a weekend collapse shows. */
+  byWeekday: number[];
+  /** What was missed, with names rather than just a count. */
+  missedKnowts: MissEntry[];
 };
 
 const DAY_MS = 86_400_000;
@@ -258,6 +294,69 @@ export function summarizeMonth(input: {
     return a.name.localeCompare(b.name);
   });
 
+  // Snoozes count across every event in the month, not only completed ones:
+  // an alarm snoozed four times and then ignored is the clearest case of all.
+  let snoozes = 0;
+  const snoozeByKnowt = new Map<string, number>();
+  for (const event of inMonth) {
+    if (event.snooze_count <= 0) continue;
+    snoozes += event.snooze_count;
+    snoozeByKnowt.set(
+      event.knowt_id,
+      (snoozeByKnowt.get(event.knowt_id) ?? 0) + event.snooze_count,
+    );
+  }
+
+  const mostSnoozed: SnoozeEntry[] = [...snoozeByKnowt.entries()]
+    .map(([knowtId, count]) => {
+      const knowt = knowtById.get(knowtId);
+      return {
+        knowtId,
+        name: knowt?.name ?? 'Deleted knowt',
+        category: knowt?.category ?? null,
+        snoozes: count,
+      };
+    })
+    .sort((a, b) => b.snoozes - a.snoozes || a.name.localeCompare(b.name));
+
+  // Only completions that answered a ring have a response time. A check-in
+  // with no fired_at would otherwise report as instant and drag the median
+  // towards zero.
+  const responses = completions
+    .filter((e) => e.fired_at !== null && (e.completed_at as number) >= e.fired_at)
+    .map((e) => ((e.completed_at as number) - (e.fired_at as number)) / 60_000)
+    .sort((a, b) => a - b);
+
+  const medianResponseMinutes =
+    responses.length === 0
+      ? null
+      : responses.length % 2 === 1
+        ? (responses[(responses.length - 1) / 2] as number)
+        : ((responses[responses.length / 2 - 1] as number) +
+            (responses[responses.length / 2] as number)) /
+          2;
+
+  const byWeekday = [0, 0, 0, 0, 0, 0, 0];
+  for (const event of completions) {
+    byWeekday[new Date(event.completed_at as number).getDay()] += 1;
+  }
+
+  const missByKnowt = new Map<string, number>();
+  for (const event of missed) {
+    missByKnowt.set(event.knowt_id, (missByKnowt.get(event.knowt_id) ?? 0) + 1);
+  }
+  const missedKnowts: MissEntry[] = [...missByKnowt.entries()]
+    .map(([knowtId, count]) => {
+      const knowt = knowtById.get(knowtId);
+      return {
+        knowtId,
+        name: knowt?.name ?? 'Deleted knowt',
+        category: knowt?.category ?? null,
+        misses: count,
+      };
+    })
+    .sort((a, b) => b.misses - a.misses || a.name.localeCompare(b.name));
+
   const rated = completions.length + missed.length;
 
   return {
@@ -273,5 +372,10 @@ export function summarizeMonth(input: {
     daysInMonth,
     isCurrentMonth,
     streaks,
+    snoozes,
+    mostSnoozed,
+    medianResponseMinutes,
+    byWeekday,
+    missedKnowts,
   };
 }

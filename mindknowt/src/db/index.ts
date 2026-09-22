@@ -23,7 +23,14 @@ export {
   type DashboardCard,
   type DashboardSection,
 } from './dashboard';
-export { loadMonthSummary } from './history';
+export {
+  loadMonthLog,
+  loadMonthSummary,
+  undoCompletion,
+  type LogCategoryGroup,
+  type LoggedCompletion,
+  type MonthLog,
+} from './history';
 export { newId } from './ids';
 export { CATEGORY_KEYS, type CategoryKey } from './categoryKeys';
 export { isEmpty, reseed, seed, seedIfEmpty } from './seed';
