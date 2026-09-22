@@ -52,7 +52,6 @@ function Field({
   onChangeText,
   onBlur,
   problem,
-  optional,
   ...input
 }: {
   label: string;
@@ -60,14 +59,10 @@ function Field({
   onChangeText: (next: string) => void;
   onBlur: () => void;
   problem?: string;
-  optional?: boolean;
 } & TextInputProps) {
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>
-        {label}
-        {optional ? <Text style={styles.optional}>{'  optional'}</Text> : null}
-      </Text>
+      <Text style={styles.label}>{label}</Text>
       <TextInput
         {...input}
         style={[styles.input, problem ? styles.inputProblem : null]}
@@ -296,12 +291,11 @@ export function ClaimTagsScreen() {
 
           <Field
             label="Email"
-            optional
             value={draft.email}
             onChangeText={set('email')}
             onBlur={blur('email')}
             problem={shownProblem('email')}
-            placeholder="So we can tell you it shipped"
+            placeholder="If there is a problem with delivery"
             autoComplete="email"
             textContentType="emailAddress"
             keyboardType="email-address"
@@ -407,12 +401,6 @@ const styles = StyleSheet.create({
     color: theme.color.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-  },
-  optional: {
-    fontFamily: theme.font.face.regular,
-    color: theme.color.textMuted,
-    textTransform: 'none',
-    letterSpacing: 0,
   },
   input: {
     fontFamily: theme.font.face.regular,

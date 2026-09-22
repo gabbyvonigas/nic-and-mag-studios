@@ -35,8 +35,10 @@ export type ClaimProblems = Partial<Record<ClaimField, string>>;
  * parcel had nowhere to go; and a 422 arrives after the address has already
  * left the phone, which is too late to be useful to anyone.
  *
- * Email is the one optional field. Everything else has to be there for a
- * parcel to arrive.
+ * Everything is required. Email is not for the parcel, it is for when the
+ * parcel goes wrong: a bounced address or a shipping problem leaves no other
+ * way to reach someone, because the app has no accounts and we hold nothing
+ * else about them.
  */
 export function validateClaim(draft: TagClaim): ClaimProblems {
   const problems: ClaimProblems = {};
@@ -56,9 +58,9 @@ export function validateClaim(draft: TagClaim): ClaimProblems {
   }
 
   const email = draft.email.trim();
-  // Optional, so blank is fine. Something typed that cannot be an address is
-  // not, because a typo here is how a shipping note goes nowhere.
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!email) {
+    problems.email = 'Needed, so we can reach you if the parcel goes astray.';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     problems.email = 'That does not look like an email address.';
   }
 
