@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SubScreenHeader } from '../components/ui';
-import { openTagPack, TAG_PACKS } from '../tags/store';
+import { DISCLOSURE, openTagPack, TAG_PACKS } from '../tags/store';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -34,7 +34,10 @@ export function SettingsScreen() {
     ActionSheetIOS.showActionSheetWithOptions(
       {
         title: 'Order more tags',
-        message: 'Opens Amazon. Any NTAG215 sticker works with MindKnowt.',
+        // The disclosure repeats here on purpose. This sheet is the moment
+        // the affiliate link is actually chosen, and it covers the sheet for
+        // anyone who reached it without reading the note behind it.
+        message: `Opens Amazon. Any NTAG215 sticker works with MindKnowt. ${DISCLOSURE}`,
         options: [...TAG_PACKS.map((pack) => pack.label), 'Cancel'],
         cancelButtonIndex: TAG_PACKS.length,
       },
@@ -78,6 +81,8 @@ export function SettingsScreen() {
         </Pressable>
         <Text style={styles.note}>
           A choice of two packs on Amazon. We do not sell these ourselves.
+          {' '}
+          {DISCLOSURE}
         </Text>
 
         <Pressable

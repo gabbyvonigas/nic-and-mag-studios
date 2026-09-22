@@ -1,9 +1,10 @@
 /**
  * Where to buy more tags.
  *
- * These are plain Amazon product links today. Associates tagged versions of
- * the same two URLs go in here when that account exists, and nothing else has
- * to change: callers only ever see the pack list.
+ * These are Amazon Associates links: the tag on the end is what credits a
+ * purchase to our account. Amazon requires that this be disclosed wherever
+ * the links appear, so anything that offers a pack shows DISCLOSURE with it.
+ * That is a program rule, not a courtesy.
  */
 import { Linking } from 'react-native';
 
@@ -14,9 +15,28 @@ export type TagPack = {
   url: string;
 };
 
+/** Our Amazon Associates tracking ID. */
+const ASSOCIATES_TAG = 'nicandmagstud-20';
+
+/**
+ * Required by the Associates program wherever these links are offered. Kept
+ * next to the links themselves so the two cannot drift apart: if a new place
+ * offers a pack, the disclosure is already in hand.
+ */
+export const DISCLOSURE =
+  'As an Amazon Associate, we earn from qualifying purchases.';
+
 export const TAG_PACKS: TagPack[] = [
-  { id: 'ten', label: '10 pack', url: 'https://www.amazon.com/dp/B09536MQGY' },
-  { id: 'twenty', label: '20 pack', url: 'https://www.amazon.com/dp/B09538RD2W' },
+  {
+    id: 'ten',
+    label: '10 pack',
+    url: `https://www.amazon.com/dp/B09536MQGY?tag=${ASSOCIATES_TAG}`,
+  },
+  {
+    id: 'twenty',
+    label: '20 pack',
+    url: `https://www.amazon.com/dp/B09538RD2W?tag=${ASSOCIATES_TAG}`,
+  },
 ];
 
 /**
