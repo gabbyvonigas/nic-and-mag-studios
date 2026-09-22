@@ -63,9 +63,9 @@ export async function previewSet(setId: string): Promise<SetPreview | null> {
 }
 
 /**
- * Creates real knowts from a set. Everything is created Open, because Strict and Soft
- * need a tag, and these have none yet, with the set's suggestion stored for
- * when a tag is attached.
+ * Creates real knowts from a set. Everything starts as Alarm Only, because Scan
+ * Knowt needs a tag and these have none yet. The set's suggestion is stored for
+ * when one is attached.
  */
 export type SetSelection = {
   name: string;

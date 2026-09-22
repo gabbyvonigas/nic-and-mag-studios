@@ -278,21 +278,18 @@ export class ModeUnavailableError extends Error {
 export async function attachTag(
   knowtId: string,
   tagUid: string,
-  mode?: Exclude<KnowtMode, 'open'>,
+  mode?: Extract<KnowtMode, 'strict'>,
 ): Promise<void> {
   const owner = await findKnowtByTagUid(tagUid);
   if (owner && owner.id !== knowtId) {
     throw new TagInUseError(owner.name);
   }
 
-  // A knowt created from a starter set carries the set's suggestion, which
-  // only becomes applicable now that it has a tag. 'open' is ignored here: a
-  // knowt being given a tag is being promoted, so strict is the floor.
-  const knowt = await getKnowt(knowtId);
-  const suggested = knowt?.suggested_mode;
-  const target =
-    mode ??
-    (suggested === 'strict' || suggested === 'soft' ? suggested : 'strict');
+  // Attaching a tag is a promotion, so the result is Scan Knowt. With only two
+  // modes left there is nothing else it could become: Alarm Only is what a
+  // knowt already is before it has a tag. The set's suggestion no longer needs
+  // consulting, because it can only have said the same thing.
+  const target: KnowtMode = mode ?? 'strict';
 
   const db = await getDatabase();
   await db.runAsync(
@@ -303,14 +300,14 @@ export async function attachTag(
   );
 }
 
-/** Strict and Soft both require a tag. Spec section 2.1. */
+/** Scan Knowt requires a tag. Alarm Only does not. */
 export async function setMode(knowtId: string, mode: KnowtMode): Promise<void> {
   const knowt = await getKnowt(knowtId);
   if (!knowt) return;
 
   if (mode !== 'open' && !knowt.tag_uid) {
     throw new ModeUnavailableError(
-      `${mode === 'strict' ? 'Strict' : 'Soft'} needs a tag. Add a tag to this knowt first.`,
+      'Scan Knowt needs a tag. Add a tag to this knowt first.',
     );
   }
 

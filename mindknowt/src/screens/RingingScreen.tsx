@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../components/ui';
 import { HoldToConfirm } from '../components/HoldToConfirm';
 import { describeRepeat, formatTime } from '../db';
+import { canScan, requiresScan } from '../knowts/modes';
 import { useRingingSession } from '../ringing/useRingingSession';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -146,7 +147,9 @@ export function RingingScreen() {
   useEffect(() => {
     if (loading || !knowt || resolved) return;
     if (autoScanned.current) return;
-    if (knowt.mode === 'open' || !knowt.tag_uid) return;
+    // Only when the scan is required. Opening the sheet unasked on a knowt
+    // that can simply be dismissed is an interruption, not a shortcut.
+    if (!requiresScan(knowt.mode) || !knowt.tag_uid) return;
 
     autoScanned.current = true;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -193,9 +196,9 @@ export function RingingScreen() {
   }
 
   const schedule = knowt.schedules.find((s) => s.id === params.scheduleId) ?? null;
-  const strict = knowt.mode === 'strict';
-  const soft = knowt.mode === 'soft';
-  const open = knowt.mode === 'open';
+  const scanRequired = requiresScan(knowt.mode);
+  // Alarm Only with a tag can still be scanned, it just does not have to be.
+  const scanOffered = canScan(knowt.mode, knowt.tag_uid);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -287,31 +290,30 @@ export function RingingScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          {(strict || soft) && (
+          {scanRequired ? (
             <Button
-              label={scanning ? 'Scanning…' : 'Scan to stop'}
+              label={scanning ? 'Scanning' : 'Scan to stop'}
               disabled={scanning}
               onPress={() => void finish(scanToStop)}
             />
-          )}
-
-          {open && (
+          ) : (
             <Button label="Done" onPress={() => void finish(() => complete('tap'))} />
           )}
+
+          {!scanRequired && scanOffered ? (
+            <Button
+              label={scanning ? 'Scanning' : 'Scan it instead'}
+              variant="secondary"
+              disabled={scanning}
+              onPress={() => void finish(scanToStop)}
+            />
+          ) : null}
 
           <Button
             label="Snooze"
             variant="secondary"
             onPress={() => void finish(snooze)}
           />
-
-          {soft && (
-            <Button
-              label="Dismiss"
-              variant="quiet"
-              onPress={() => void finish(() => complete('tap'))}
-            />
-          )}
 
           <View style={styles.remindRow}>
             <Text style={styles.remindLabel}>Remind me in</Text>
@@ -326,7 +328,7 @@ export function RingingScreen() {
             ))}
           </View>
 
-          {strict && (
+          {scanRequired && (
             <View style={styles.overrideArea}>
               {overrideOpen ? (
                 <View style={styles.overridePanel}>

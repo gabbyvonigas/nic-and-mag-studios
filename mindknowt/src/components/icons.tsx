@@ -100,3 +100,173 @@ const styles = StyleSheet.create({
   iconBox: { alignItems: 'center', justifyContent: 'center' },
   absolute: { position: 'absolute' },
 });
+
+/**
+ * Scan mark, in the shape iOS uses for scanning: four corner brackets framing
+ * a subject. Built from four L shapes, each a square with two borders, rotated
+ * into position, with wave arcs in the middle standing for the tag being read.
+ */
+export function ScanIcon({
+  size = 20,
+  color = theme.color.textPrimary,
+  thickness = 2,
+}: {
+  size?: number;
+  color?: string;
+  thickness?: number;
+}) {
+  const arm = size * 0.32;
+  const corners = [
+    { top: 0, left: 0, rotate: '0deg' },
+    { top: 0, right: 0, rotate: '-90deg' },
+    { bottom: 0, right: 0, rotate: '180deg' },
+    { bottom: 0, left: 0, rotate: '90deg' },
+  ];
+
+  return (
+    <View style={[styles.iconBox, { width: size, height: size }]}>
+      {corners.map((corner, index) => {
+        const { rotate, ...position } = corner;
+        return (
+          <View
+            key={index}
+            style={[
+              styles.absolute,
+              position,
+              {
+                width: arm,
+                height: arm,
+                borderLeftWidth: thickness,
+                borderTopWidth: thickness,
+                borderColor: color,
+                transform: [{ rotate }],
+              },
+            ]}
+          />
+        );
+      })}
+      {/* Two bars for the signal between the brackets. */}
+      <View
+        style={{
+          width: thickness,
+          height: size * 0.34,
+          borderRadius: thickness,
+          backgroundColor: color,
+          marginRight: size * 0.12,
+        }}
+      />
+      <View
+        style={[
+          styles.absolute,
+          {
+            width: thickness,
+            height: size * 0.2,
+            borderRadius: thickness,
+            backgroundColor: color,
+            marginLeft: size * 0.14,
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
+/**
+ * Alarm mark. A bell is not honestly drawable from rectangles, so this is a
+ * clock face instead: a ring with two hands. It reads as "it rings at a time",
+ * which is what Alarm Only means.
+ */
+export function AlarmIcon({
+  size = 20,
+  color = theme.color.textPrimary,
+  thickness = 2,
+}: {
+  size?: number;
+  color?: string;
+  thickness?: number;
+}) {
+  return (
+    <View style={[styles.iconBox, { width: size, height: size }]}>
+      <View
+        style={{
+          width: size * 0.86,
+          height: size * 0.86,
+          borderRadius: size * 0.43,
+          borderWidth: thickness,
+          borderColor: color,
+        }}
+      />
+      {/* Hour hand, upright. */}
+      <View
+        style={[
+          styles.absolute,
+          {
+            width: thickness,
+            height: size * 0.26,
+            backgroundColor: color,
+            borderRadius: thickness,
+            marginBottom: size * 0.26,
+          },
+        ]}
+      />
+      {/* Minute hand, to the right. */}
+      <View
+        style={[
+          styles.absolute,
+          {
+            width: size * 0.22,
+            height: thickness,
+            backgroundColor: color,
+            borderRadius: thickness,
+            marginLeft: size * 0.22,
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
+/** Outlined circle with a tick. Replaces the Done pill on cards. */
+export function CheckIcon({
+  size = 24,
+  color = theme.color.textPrimary,
+  thickness = 2,
+  filled = false,
+}: {
+  size?: number;
+  color?: string;
+  thickness?: number;
+  filled?: boolean;
+}) {
+  const tickColor = filled ? theme.color.onAccent : color;
+
+  return (
+    <View style={[styles.iconBox, { width: size, height: size }]}>
+      <View
+        style={[
+          styles.absolute,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: thickness,
+            borderColor: color,
+            backgroundColor: filled ? color : 'transparent',
+          },
+        ]}
+      />
+      {/* The tick: a corner turned on its side, the short arm down-left. */}
+      <View
+        style={{
+          width: size * 0.36,
+          height: size * 0.2,
+          borderLeftWidth: thickness,
+          borderBottomWidth: thickness,
+          borderColor: tickColor,
+          transform: [{ rotate: '-45deg' }],
+          marginTop: -size * 0.06,
+        }}
+      />
+    </View>
+  );
+}

@@ -20,7 +20,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resyncAlarmsQuietly } from '../alarms';
+import { AlarmIcon, ScanIcon } from '../components/icons';
 import { Button, SubScreenHeader } from '../components/ui';
+import { MODE_CHOICES, modeChoice } from '../knowts/modes';
 import {
   describeRepeat,
   formatTime,
@@ -37,16 +39,6 @@ import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'EditKnowt'>;
-
-const MODES: { value: KnowtMode; label: string; detail: string }[] = [
-  {
-    value: 'strict',
-    label: 'Strict',
-    detail: 'Keeps ringing until the right tag is scanned.',
-  },
-  { value: 'soft', label: 'Soft', detail: 'Scan it, or dismiss it.' },
-  { value: 'open', label: 'Open', detail: 'No tag. Tap done when it is done.' },
-];
 
 export function EditKnowtScreen() {
   const navigation = useNavigation<Nav>();
@@ -75,7 +67,7 @@ export function EditKnowtScreen() {
     setCategoryId(knowt.category_id);
     setLocationNote(knowt.location_note ?? '');
     setNotes(knowt.notes ?? '');
-    setModeChoice(knowt.mode);
+    setModeChoice(modeChoice(knowt.mode));
     setLoaded(true);
   }, [knowt, loaded]);
 
@@ -206,7 +198,7 @@ export function EditKnowtScreen() {
           </Pressable>
 
           <Text style={styles.label}>How it stops</Text>
-          {MODES.map((option) => {
+          {MODE_CHOICES.map((option) => {
             const on = mode === option.value;
             const blocked = option.value !== 'open' && !tagged;
             return (
@@ -221,14 +213,27 @@ export function EditKnowtScreen() {
                   on && styles.optionOn,
                   blocked && styles.optionBlocked,
                 ]}>
-                <Text
-                  style={[
-                    styles.optionLabel,
-                    on && styles.optionLabelOn,
-                    blocked && styles.optionTextBlocked,
-                  ]}>
-                  {option.label}
-                </Text>
+                <View style={styles.optionHead}>
+                  {option.value === 'strict' ? (
+                    <ScanIcon
+                      size={18}
+                      color={blocked ? theme.color.textMuted : theme.color.textPrimary}
+                    />
+                  ) : (
+                    <AlarmIcon
+                      size={18}
+                      color={blocked ? theme.color.textMuted : theme.color.textPrimary}
+                    />
+                  )}
+                  <Text
+                    style={[
+                      styles.optionLabel,
+                      on && styles.optionLabelOn,
+                      blocked && styles.optionTextBlocked,
+                    ]}>
+                    {option.label}
+                  </Text>
+                </View>
                 <Text
                   style={[
                     styles.optionDetail,
@@ -396,6 +401,11 @@ const styles = StyleSheet.create({
     color: theme.color.textPrimary,
   },
   chipTextOn: { color: theme.color.onAccent },
+  optionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
   option: {
     borderWidth: 1,
     borderColor: theme.color.border,

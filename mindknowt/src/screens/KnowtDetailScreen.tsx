@@ -19,6 +19,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Card, Pill, SubScreenHeader } from '../components/ui';
 import { armKnowtAlarm, resyncAlarmsQuietly } from '../alarms';
+import { AlarmIcon, ScanIcon } from '../components/icons';
+import { MODE_CHOICES, modeChoice, modeLabel } from '../knowts/modes';
 import {
   archiveKnowt,
   attachTag,
@@ -185,7 +187,7 @@ export function KnowtDetailScreen() {
           {knowt.category ? (
             <Pill label={knowt.category.name} color={knowt.category.color} />
           ) : null}
-          <Pill label={knowt.mode} />
+          <Pill label={modeLabel(knowt.mode)} />
           {knowt.tag_uid ? <Pill label="Tagged" /> : <Pill label="No tag" />}
         </View>
 
@@ -210,27 +212,46 @@ export function KnowtDetailScreen() {
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>Mode</Text>
+        <Text style={styles.sectionTitle}>How it stops</Text>
         <View style={styles.modeRow}>
-          {(['strict', 'soft', 'open'] as KnowtMode[]).map((mode) => {
-            const selected = knowt.mode === mode;
+          {MODE_CHOICES.map((choice) => {
+            const selected = modeChoice(knowt.mode) === choice.value;
+            const blocked = choice.value === 'strict' && !knowt.tag_uid;
+            const tint = selected ? theme.color.onAccent : theme.color.textPrimary;
             return (
               <Pressable
-                key={mode}
+                key={choice.value}
                 accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => void changeMode(mode)}
-                style={[styles.modeChip, selected && styles.modeChipSelected]}>
+                accessibilityLabel={choice.label}
+                accessibilityState={{ selected, disabled: blocked }}
+                disabled={blocked}
+                onPress={() => void changeMode(choice.value)}
+                style={[
+                  styles.modeChip,
+                  selected && styles.modeChipSelected,
+                  blocked && styles.modeChipBlocked,
+                ]}>
+                {choice.value === 'strict' ? (
+                  <ScanIcon size={16} color={blocked ? theme.color.textMuted : tint} />
+                ) : (
+                  <AlarmIcon size={16} color={blocked ? theme.color.textMuted : tint} />
+                )}
                 <Text
-                  style={[styles.modeText, selected && styles.modeTextSelected]}>
-                  {mode}
+                  style={[
+                    styles.modeText,
+                    selected && styles.modeTextSelected,
+                    blocked && styles.modeTextBlocked,
+                  ]}>
+                  {choice.label}
                 </Text>
               </Pressable>
             );
           })}
         </View>
         <Text style={styles.hint}>
-          Strict and soft both need a tag. Open completes by tapping done.
+          {knowt.tag_uid
+            ? 'Alarm Only can still be scanned if you want to, it just does not have to be.'
+            : 'Scan Knowt needs a tag attached first.'}
         </Text>
 
         <Button
@@ -372,9 +393,14 @@ const styles = StyleSheet.create({
     color: theme.color.warningText,
   },
   modeRow: { flexDirection: 'row', gap: theme.spacing.sm },
+  modeChipBlocked: { backgroundColor: theme.color.surfaceMuted },
+  modeTextBlocked: { color: theme.color.textMuted },
   modeChip: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.color.border,
     borderRadius: theme.radius.sm,

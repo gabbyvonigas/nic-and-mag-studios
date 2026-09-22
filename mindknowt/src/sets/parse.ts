@@ -14,7 +14,16 @@ const REPEATS: RepeatType[] = [
   'once',
 ];
 
+/**
+ * Content is still allowed to say 'soft', because bundled JSON written before
+ * the modes collapsed should not fail validation. It is normalised to 'open'
+ * on the way in, so nothing downstream ever sees the retired value.
+ */
 const MODES: KnowtMode[] = ['strict', 'soft', 'open'];
+
+function normalizeMode(mode: KnowtMode): KnowtMode {
+  return mode === 'soft' ? 'open' : mode;
+}
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -155,7 +164,7 @@ function parseKnowt(
     name,
     category,
     icon: optionalString(raw.icon),
-    suggestedMode: (mode as KnowtMode | undefined) ?? null,
+    suggestedMode: mode ? normalizeMode(mode as KnowtMode) : null,
     locationNote: optionalString(raw.locationNote),
     notes: optionalString(raw.notes),
     schedules,
