@@ -37,6 +37,25 @@ function parseDays(json: string | null): number[] {
   }
 }
 
+/** Whole calendar months between two local dates, ignoring the day. */
+function monthsSince(startISO: string, date: Date): number {
+  const [y, m] = startISO.split('-').map(Number);
+  return (date.getFullYear() - (y ?? 1970)) * 12 + (date.getMonth() - ((m ?? 1) - 1));
+}
+
+/**
+ * The day a monthly repeat lands on in a given month.
+ *
+ * A schedule anchored to the 31st has nowhere to land in February, so it falls
+ * back to the last day of the month. Without this, a monthly knowt set on the
+ * 31st would ring in seven months of the year and silently skip the other five.
+ */
+function clampDayOfMonth(year: number, month: number, day: number): number {
+  // Day 0 of the following month is the last day of this one.
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return Math.min(day, lastDay);
+}
+
 /** Whether a schedule produces an instance on the given local day. */
 export function isDueOn(schedule: ScheduleRow, date: Date): boolean {
   if (!schedule.enabled) return false;
@@ -53,8 +72,23 @@ export function isDueOn(schedule: ScheduleRow, date: Date): boolean {
     case 'days_of_week':
       return parseDays(schedule.days_of_week).includes(weekday);
     case 'interval': {
+      if (!schedule.start_date) return false;
+
+      // Months win when both are set. Counting months in days drifts: thirty
+      // days is not a month, and twelve of them is not a year.
+      const months = schedule.interval_months ?? 0;
+      if (months > 0) {
+        const elapsed = monthsSince(schedule.start_date, date);
+        if (elapsed < 0 || elapsed % months !== 0) return false;
+        const anchorDay = Number(schedule.start_date.split('-')[2] ?? 1);
+        return (
+          date.getDate() ===
+          clampDayOfMonth(date.getFullYear(), date.getMonth(), anchorDay)
+        );
+      }
+
       const every = schedule.interval_days ?? 0;
-      if (!schedule.start_date || every <= 0) return false;
+      if (every <= 0) return false;
       const elapsed = daysSince(schedule.start_date, date);
       return elapsed >= 0 && elapsed % every === 0;
     }
@@ -133,8 +167,19 @@ export function describeRepeat(schedule: ScheduleRow): string {
       const days = parseDays(schedule.days_of_week).map((d) => names[d - 1] ?? '');
       return days.length ? days.join(', ') : 'Some days';
     }
-    case 'interval':
-      return `Every ${schedule.interval_days ?? 0} days`;
+    case 'interval': {
+      const months = schedule.interval_months ?? 0;
+      if (months === 1) return 'Every month';
+      if (months === 12) return 'Every year';
+      if (months > 0) return `Every ${months} months`;
+
+      const days = schedule.interval_days ?? 0;
+      if (days === 1) return 'Every day';
+      if (days === 2) return 'Every other day';
+      if (days === 7) return 'Every week';
+      if (days === 14) return 'Every two weeks';
+      return `Every ${days} days`;
+    }
     case 'supply':
       return `${schedule.supply_days ?? 0} day supply`;
     case 'once':

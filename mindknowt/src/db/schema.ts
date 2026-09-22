@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS knowts (
   -- required to tell them apart.
   daily_target   INTEGER,
   target_unit    TEXT,
+  -- 0 low, 1 normal, 2 high. An integer so it sorts without a lookup.
+  priority       INTEGER NOT NULL DEFAULT 1,
   refire_minutes INTEGER NOT NULL DEFAULT 5,
   snooze_minutes INTEGER NOT NULL DEFAULT 5,
   archived       INTEGER NOT NULL DEFAULT 0,
@@ -59,6 +61,12 @@ CREATE TABLE IF NOT EXISTS schedules (
                   ('daily','weekdays','weekends','days_of_week','interval','supply','once')),
   days_of_week  TEXT,
   interval_days INTEGER,
+  -- Calendar months rather than days, for monthly, six monthly and annual.
+  -- It rides on repeat_type 'interval' on purpose: repeat_type carries a
+  -- CHECK constraint, and SQLite cannot alter one without rebuilding the
+  -- table on every device that already exists. A schedule uses whichever of
+  -- the two is set; months wins if both somehow are.
+  interval_months INTEGER,
   supply_days   INTEGER,
   lead_days     INTEGER,
   start_date    TEXT,
@@ -124,6 +132,13 @@ export const ADDED_COLUMNS: { to: number; table: string; column: string; type: s
   { to: 3, table: 'knowts', column: 'daily_target', type: 'INTEGER' },
   { to: 3, table: 'knowts', column: 'target_unit', type: 'TEXT' },
   { to: 5, table: 'pending_alarms', column: 'signature', type: 'TEXT' },
+  {
+    to: 6,
+    table: 'knowts',
+    column: 'priority',
+    type: 'INTEGER NOT NULL DEFAULT 1',
+  },
+  { to: 6, table: 'schedules', column: 'interval_months', type: 'INTEGER' },
 ];
 
 /**
@@ -154,6 +169,16 @@ export const BACKFILLS: { to: number; sql: string }[] = [
     // every row still holds the old default and none of this is a user choice
     // being overwritten.
     sql: `UPDATE knowts SET snooze_minutes = 5 WHERE snooze_minutes = 10;`,
+  },
+  {
+    to: 6,
+    // Three modes became two. Soft was "has a tag but can be dismissed", which
+    // is Alarm Only with a tag attached, and tag_uid is a separate column, so
+    // collapsing it into open loses nothing. The CHECK still permits 'soft'
+    // because dropping a value would mean rebuilding the table; nothing writes
+    // it any more.
+    sql: `UPDATE knowts SET mode = 'open' WHERE mode = 'soft';
+          UPDATE knowts SET suggested_mode = 'open' WHERE suggested_mode = 'soft';`,
   },
 ];
 

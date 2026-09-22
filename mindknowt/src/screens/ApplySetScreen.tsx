@@ -44,6 +44,7 @@ function describeShape(repeat: RepeatType): string {
     repeat_type: repeat,
     days_of_week: null,
     interval_days: null,
+    interval_months: null,
     supply_days: null,
     lead_days: null,
     start_date: null,

@@ -1,6 +1,25 @@
 /** Row shapes mirroring the schema in spec section 3. */
 
+/**
+ * What it takes to finish a knowt.
+ *
+ * `strict` is Scan Knowt: only the right tag stops it. `open` is Alarm Only:
+ * it rings and can be dismissed, and if a tag happens to be attached it can
+ * still be scanned by choice.
+ *
+ * `soft` is retired. It meant "has a tag but can be dismissed", which is Alarm
+ * Only with a tag, so migration 6 rewrote every row to `open`. It stays in the
+ * type because old databases carry the CHECK constraint that permits it, and
+ * because a value that once existed should not silently become unreadable.
+ */
 export type KnowtMode = 'strict' | 'soft' | 'open';
+
+/** 0 low, 1 normal, 2 high. */
+export type Priority = 0 | 1 | 2;
+
+export const PRIORITY_LOW = 0;
+export const PRIORITY_NORMAL = 1;
+export const PRIORITY_HIGH = 2;
 
 export type RepeatType =
   | 'daily'
@@ -43,6 +62,8 @@ export type KnowtRow = {
   daily_target: number | null;
   /** Label for the thing being counted, for example "glasses". */
   target_unit: string | null;
+  /** 0 low, 1 normal, 2 high. */
+  priority: number;
   refire_minutes: number;
   snooze_minutes: number;
   archived: number;
@@ -59,6 +80,8 @@ export type ScheduleRow = {
   /** JSON array of 1-7, Sunday = 1. */
   days_of_week: string | null;
   interval_days: number | null;
+  /** Calendar months, for monthly and longer. Rides on repeat_type 'interval'. */
+  interval_months: number | null;
   supply_days: number | null;
   lead_days: number | null;
   start_date: string | null;

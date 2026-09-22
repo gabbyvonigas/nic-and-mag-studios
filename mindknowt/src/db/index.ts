@@ -76,6 +76,11 @@ export {
   takePendingForKnowt,
 } from './pendingAlarms';
 export { SCHEMA_VERSION } from './schema';
+export {
+  PRIORITY_HIGH,
+  PRIORITY_LOW,
+  PRIORITY_NORMAL,
+} from './types';
 export type {
   CategoryRow,
   EventMethod,
@@ -84,6 +89,7 @@ export type {
   KnowtRow,
   KnowtWithDetail,
   PendingAlarmKind,
+  Priority,
   PendingAlarmRow,
   RepeatType,
   ScheduleRow,

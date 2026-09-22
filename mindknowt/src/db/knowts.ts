@@ -1,6 +1,11 @@
 import { getDatabase } from './database';
 import { newId } from './ids';
 import { isDueOn, minutesOf, TIME_PATTERN, toISODate } from './scheduling';
+import {
+  PRIORITY_HIGH,
+  PRIORITY_LOW,
+  PRIORITY_NORMAL,
+} from './types';
 import type {
   CategoryRow,
   EventMethod,
@@ -189,6 +194,8 @@ export type NewKnowt = {
   notes?: string | null;
   /** What the knowt becomes once a tag is attached. */
   suggestedMode?: KnowtMode | null;
+  /** 0 low, 1 normal, 2 high. Normal when unset. */
+  priority?: number;
   schedule?: {
     label?: string | null;
     time: string;
@@ -207,9 +214,9 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
     await db.runAsync(
       `INSERT INTO knowts
          (id, tag_uid, mode, name, icon, category_id, location_note, notes,
-          link_url, suggested_mode, refire_minutes, snooze_minutes, archived,
-          created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 5, 5, 0, ?)`,
+          link_url, suggested_mode, priority, refire_minutes, snooze_minutes,
+          archived, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 5, 5, 0, ?)`,
       id,
       input.tagUid ?? null,
       input.mode ?? 'open',
@@ -219,6 +226,7 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
       input.locationNote ?? null,
       input.notes ?? null,
       input.suggestedMode ?? null,
+      input.priority ?? PRIORITY_NORMAL,
       Date.now(),
     );
 
@@ -329,6 +337,7 @@ export async function addSchedule(
     repeatType: RepeatType;
     daysOfWeek?: number[];
     intervalDays?: number;
+    intervalMonths?: number;
     supplyDays?: number;
     leadDays?: number;
     startDate?: string;
@@ -338,8 +347,8 @@ export async function addSchedule(
   await db.runAsync(
     `INSERT INTO schedules
        (id, knowt_id, label, time, repeat_type, days_of_week, interval_days,
-        supply_days, lead_days, start_date, enabled, alarmkit_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)`,
+        interval_months, supply_days, lead_days, start_date, enabled, alarmkit_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)`,
     newId(),
     knowtId,
     schedule.label ?? null,
@@ -347,6 +356,7 @@ export async function addSchedule(
     schedule.repeatType,
     schedule.daysOfWeek ? JSON.stringify(schedule.daysOfWeek) : null,
     schedule.intervalDays ?? null,
+    schedule.intervalMonths ?? null,
     schedule.supplyDays ?? null,
     schedule.leadDays ?? null,
     schedule.startDate ?? null,
@@ -368,10 +378,12 @@ export async function updateKnowt(
     categoryId?: string | null;
     locationNote?: string | null;
     notes?: string | null;
+    /** 0 low, 1 normal, 2 high. */
+    priority?: number;
   },
 ): Promise<void> {
   const sets: string[] = [];
-  const args: (string | null)[] = [];
+  const args: (string | number | null)[] = [];
 
   if (fields.name !== undefined) {
     const name = fields.name.trim();
@@ -390,6 +402,12 @@ export async function updateKnowt(
   if (fields.notes !== undefined) {
     sets.push('notes = ?');
     args.push(fields.notes);
+  }
+  if (fields.priority !== undefined) {
+    // Clamped rather than trusted: a value outside the three levels would sort
+    // in a way nothing in the interface can explain.
+    sets.push('priority = ?');
+    args.push(Math.max(PRIORITY_LOW, Math.min(PRIORITY_HIGH, Math.round(fields.priority))));
   }
 
   if (sets.length === 0) return;
@@ -419,6 +437,7 @@ export async function updateSchedule(
     repeatType?: RepeatType;
     daysOfWeek?: number[] | null;
     intervalDays?: number | null;
+    intervalMonths?: number | null;
     startDate?: string | null;
     enabled?: boolean;
   },
@@ -448,6 +467,10 @@ export async function updateSchedule(
   if (fields.intervalDays !== undefined) {
     sets.push('interval_days = ?');
     args.push(fields.intervalDays);
+  }
+  if (fields.intervalMonths !== undefined) {
+    sets.push('interval_months = ?');
+    args.push(fields.intervalMonths);
   }
   if (fields.startDate !== undefined) {
     sets.push('start_date = ?');
