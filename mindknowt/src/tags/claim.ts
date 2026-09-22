@@ -17,11 +17,58 @@ const TABLE = 'Tag Claims';
 
 export type TagClaim = {
   name: string;
+  email: string;
   address: string;
   city: string;
   state: string;
   zip: string;
 };
+
+export type ClaimField = keyof TagClaim;
+
+/** A message per field that is wrong, keyed so it can be shown under it. */
+export type ClaimProblems = Partial<Record<ClaimField, string>>;
+
+/**
+ * Checked here rather than by Airtable, for two reasons: Airtable accepts a
+ * blank cell happily, so a skipped zip used to go through silently and the
+ * parcel had nowhere to go; and a 422 arrives after the address has already
+ * left the phone, which is too late to be useful to anyone.
+ *
+ * Email is the one optional field. Everything else has to be there for a
+ * parcel to arrive.
+ */
+export function validateClaim(draft: TagClaim): ClaimProblems {
+  const problems: ClaimProblems = {};
+
+  if (!draft.name.trim()) problems.name = 'Needed, so the parcel has a name on it.';
+  if (!draft.address.trim()) problems.address = 'Needed.';
+  if (!draft.city.trim()) problems.city = 'Needed.';
+
+  const state = draft.state.trim();
+  if (!state) problems.state = 'Needed.';
+
+  const zip = draft.zip.trim();
+  if (!zip) {
+    problems.zip = 'Needed.';
+  } else if (!/^\d{5}(-\d{4})?$/.test(zip)) {
+    problems.zip = 'Five digits, or five plus four.';
+  }
+
+  const email = draft.email.trim();
+  // Optional, so blank is fine. Something typed that cannot be an address is
+  // not, because a typo here is how a shipping note goes nowhere.
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    problems.email = 'That does not look like an email address.';
+  }
+
+  return problems;
+}
+
+/** True when nothing is wrong, which is what the send control waits for. */
+export function isClaimComplete(draft: TagClaim): boolean {
+  return Object.keys(validateClaim(draft)).length === 0;
+}
 
 export type ClaimFailureReason =
   /** The build carried no token. Nothing to do but fix the build. */
@@ -106,6 +153,7 @@ export async function submitTagClaim(claim: TagClaim): Promise<void> {
           {
             fields: {
               Name: claim.name,
+              Email: claim.email,
               Address: claim.address,
               City: claim.city,
               State: claim.state,

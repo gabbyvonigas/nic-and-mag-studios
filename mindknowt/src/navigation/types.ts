@@ -28,7 +28,12 @@ export type RootStackParamList = {
   Ringing: { knowtId: string; scheduleId?: string };
   BrowseSets: undefined;
   ApplySet: { setId: string };
-  ClaimTags: undefined;
+  /**
+   * `prompt` is the one-time offer, which opens on the pitch and can be
+   * declined. Without it the screen is the Settings entry and opens on the
+   * form, because arriving there was already a decision.
+   */
+  ClaimTags: { prompt?: boolean } | undefined;
   Categories: undefined;
   Settings: undefined;
   Dev: undefined;

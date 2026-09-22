@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -25,6 +25,8 @@ import {
 } from '../db';
 import { useQuery } from '../db/useQuery';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
+import { isClaimConfigured } from '../tags/claim';
+import { shouldOfferTags } from '../tags/offer';
 import type { RootStackParamList } from '../navigation/types';
 import { categoryShades, theme } from '../theme';
 
@@ -195,6 +197,23 @@ export function HomeScreen() {
       void reload();
       void reloadGroups();
     }, [reload, reloadGroups]),
+  );
+
+  // The free tags are offered once, on the first Daily screen someone sees.
+  // The ref keeps it to one attempt per run: shouldOfferTags only turns false
+  // once the offer has been answered, and coming back here in between should
+  // not reopen it.
+  const offered = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      void (async () => {
+        if (offered.current || !isClaimConfigured()) return;
+        offered.current = true;
+        if (await shouldOfferTags()) {
+          navigation.navigate('ClaimTags', { prompt: true });
+        }
+      })();
+    }, [navigation]),
   );
 
   const complete = async (card: DashboardCard) => {

@@ -26,7 +26,7 @@ export function SettingsScreen() {
           accessibilityRole="button"
           onPress={() => navigation.navigate('ClaimTags')}
           style={styles.row}>
-          <Text style={styles.rowLabel}>Claim your free tags</Text>
+          <Text style={styles.rowLabel}>Your first 5 tags</Text>
           <Text style={styles.chevron}>›</Text>
         </Pressable>
         <Text style={styles.note}>
