@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resyncAlarmsQuietly } from '../alarms';
 import { AlarmIcon, ScanIcon } from '../components/icons';
+import { PriorityBars } from '../components/KnowtCard';
 import { Button, SubScreenHeader } from '../components/ui';
 import { MODE_CHOICES, modeChoice } from '../knowts/modes';
 import {
@@ -29,6 +30,9 @@ import {
   getKnowt,
   listCategories,
   ModeUnavailableError,
+  PRIORITY_HIGH,
+  PRIORITY_LOW,
+  PRIORITY_NORMAL,
   setMode,
   updateKnowt,
   type KnowtMode,
@@ -55,6 +59,7 @@ export function EditKnowtScreen() {
   const [locationNote, setLocationNote] = useState('');
   const [notes, setNotes] = useState('');
   const [mode, setModeChoice] = useState<KnowtMode>('open');
+  const [priority, setPriority] = useState<number>(PRIORITY_NORMAL);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +73,7 @@ export function EditKnowtScreen() {
     setLocationNote(knowt.location_note ?? '');
     setNotes(knowt.notes ?? '');
     setModeChoice(modeChoice(knowt.mode));
+    setPriority(knowt.priority);
     setLoaded(true);
   }, [knowt, loaded]);
 
@@ -93,6 +99,7 @@ export function EditKnowtScreen() {
         categoryId,
         locationNote: locationNote.trim() || null,
         notes: notes.trim() || null,
+        priority,
       });
 
       if (mode !== knowt.mode) {
@@ -297,6 +304,42 @@ export function EditKnowtScreen() {
             placeholderTextColor={theme.color.textMuted}
           />
 
+          <Text style={styles.label}>Priority</Text>
+          <View style={styles.priorityRow}>
+            {[
+              { value: PRIORITY_LOW, label: 'Low' },
+              { value: PRIORITY_NORMAL, label: 'Normal' },
+              { value: PRIORITY_HIGH, label: 'High' },
+            ].map((level) => {
+              const on = priority === level.value;
+              return (
+                <Pressable
+                  key={level.value}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${level.label} priority`}
+                  accessibilityState={{ selected: on }}
+                  onPress={() => setPriority(level.value)}
+                  style={[styles.priority, on && styles.priorityOn]}>
+                  {/* The same bars the cards use, so the control and the
+                      result are recognisably the same thing. */}
+                  <PriorityBars
+                    priority={level.value}
+                    color={on ? theme.color.textPrimary : theme.color.textMuted}
+                    size={14}
+                  />
+                  <Text
+                    style={[styles.priorityText, on && styles.priorityTextOn]}>
+                    {level.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.hint}>
+            Priority orders a category when it is expanded. It does not change
+            when anything rings.
+          </Text>
+
           <Text style={styles.label}>Notes</Text>
           <TextInput
             style={styles.notesInput}
@@ -405,6 +448,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
+  },
+  priorityRow: { flexDirection: 'row', gap: theme.spacing.sm },
+  priority: {
+    flex: 1,
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.color.surface,
+  },
+  priorityOn: { borderColor: theme.color.accent, borderWidth: 2 },
+  priorityText: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
+  priorityTextOn: {
+    fontFamily: theme.font.face.medium,
+    color: theme.color.textPrimary,
   },
   option: {
     borderWidth: 1,
