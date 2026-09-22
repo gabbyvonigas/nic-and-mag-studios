@@ -12,6 +12,16 @@ import { categoryShades, METHOD_COLORS, theme } from '../theme';
  * quietly become the way the app is used.
  */
 
+const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+/** Minutes read as minutes until they stop being readable that way. */
+function formatMinutes(minutes: number): string {
+  if (minutes < 1) return 'under a minute';
+  if (minutes < 90) return `${Math.round(minutes)} min`;
+  const hours = minutes / 60;
+  return `${hours < 10 ? hours.toFixed(1) : Math.round(hours)} hr`;
+}
+
 function percent(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
@@ -82,6 +92,8 @@ function Key({
 export function SummaryPanel({ summary }: { summary: MonthSummary }) {
   const { byMethod } = summary;
   const anyMethod = byMethod.scan + byMethod.tap + byMethod.override > 0;
+  const busiest = Math.max(...summary.byWeekday, 1);
+  const anyWeekday = summary.byWeekday.some((n) => n > 0);
 
   if (summary.completions === 0 && summary.missed === 0) {
     return (
@@ -167,6 +179,97 @@ export function SummaryPanel({ summary }: { summary: MonthSummary }) {
         </View>
       ) : null}
 
+      {summary.medianResponseMinutes !== null || summary.snoozes > 0 ? (
+        <View style={styles.pairRow}>
+          {summary.medianResponseMinutes !== null ? (
+            <View style={styles.pair}>
+              <Text style={styles.pairValue}>
+                {formatMinutes(summary.medianResponseMinutes)}
+              </Text>
+              <Text style={styles.pairLabel}>typical time to answer</Text>
+            </View>
+          ) : null}
+          {summary.snoozes > 0 ? (
+            <View style={styles.pair}>
+              <Text style={styles.pairValue}>{summary.snoozes}</Text>
+              <Text style={styles.pairLabel}>
+                snooze{summary.snoozes === 1 ? '' : 's'}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {anyWeekday ? (
+        <View style={styles.weekRow}>
+          {summary.byWeekday.map((count, index) => (
+            <View key={index} style={styles.weekCol}>
+              <View style={styles.weekTrack}>
+                <View
+                  style={[
+                    styles.weekFill,
+                    {
+                      // Proportional to the busiest day, so the shape of the
+                      // week reads even when the numbers are small.
+                      height: `${count === 0 ? 0 : Math.max(8, (count / busiest) * 100)}%`,
+                      backgroundColor: METHOD_COLORS.scan,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.weekLabel}>{WEEKDAYS[index]}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {summary.mostSnoozed.length > 0 ? (
+        <View style={styles.list}>
+          <Text style={styles.listTitle}>Put off most</Text>
+          {summary.mostSnoozed.slice(0, 3).map((entry) => (
+            <View key={entry.knowtId} style={styles.listRow}>
+              <View
+                style={[
+                  styles.listDot,
+                  { backgroundColor: categoryShades(entry.category).color },
+                ]}
+              />
+              <Text numberOfLines={1} style={styles.listName}>
+                {entry.name}
+              </Text>
+              <Text style={styles.listValue}>
+                {entry.snoozes} snooze{entry.snoozes === 1 ? '' : 's'}
+              </Text>
+            </View>
+          ))}
+          <Text style={styles.listHint}>
+            Something snoozed every day is usually set at the wrong time.
+          </Text>
+        </View>
+      ) : null}
+
+      {summary.missedKnowts.length > 0 ? (
+        <View style={styles.list}>
+          <Text style={styles.listTitle}>Went by</Text>
+          {summary.missedKnowts.slice(0, 3).map((entry) => (
+            <View key={entry.knowtId} style={styles.listRow}>
+              <View
+                style={[
+                  styles.listDot,
+                  { backgroundColor: categoryShades(entry.category).color },
+                ]}
+              />
+              <Text numberOfLines={1} style={styles.listName}>
+                {entry.name}
+              </Text>
+              <Text style={styles.listValue}>
+                {entry.misses} time{entry.misses === 1 ? '' : 's'}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       {summary.missed > 0 ? (
         <Text style={styles.missed}>
           {summary.missed} went by without being done.
@@ -247,6 +350,67 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
+  },
+  pairRow: { flexDirection: 'row', gap: theme.spacing.xl },
+  pair: { gap: 2 },
+  pairValue: {
+    fontFamily: theme.font.face.bold,
+    fontSize: theme.font.size.xl,
+    color: theme.color.textPrimary,
+  },
+  pairLabel: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textSecondary,
+  },
+  weekRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    height: 72,
+    marginTop: theme.spacing.xs,
+  },
+  weekCol: { flex: 1, alignItems: 'center', gap: theme.spacing.xs },
+  weekTrack: {
+    flex: 1,
+    alignSelf: 'stretch',
+    justifyContent: 'flex-end',
+    backgroundColor: theme.color.surfaceMuted,
+    borderRadius: theme.radius.sm,
+    overflow: 'hidden',
+  },
+  weekFill: { borderRadius: theme.radius.sm },
+  weekLabel: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textMuted,
+  },
+  list: { gap: theme.spacing.xs, marginTop: theme.spacing.xs },
+  listTitle: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  listDot: { width: 8, height: 8, borderRadius: 4 },
+  listName: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textPrimary,
+  },
+  listValue: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
+  listHint: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textMuted,
   },
   missed: {
     fontFamily: theme.font.face.regular,

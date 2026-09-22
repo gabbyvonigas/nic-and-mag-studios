@@ -8,6 +8,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 export type TabParamList = {
   Daily: undefined;
   AllKnowts: undefined;
+  Log: undefined;
 };
 
 /** Documents supplied by the owner; the app only routes to them. */

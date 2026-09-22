@@ -13,14 +13,12 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { GearIcon } from '../components/icons';
 import { KnowtCard, PriorityBars } from '../components/KnowtCard';
-import { SummaryPanel } from '../components/SummaryPanel';
 import { EmptyState } from '../components/ui';
 import {
   describeRepeat,
   formatTime,
   listCategoryGroups,
   listDashboard,
-  loadMonthSummary,
   logCompletion,
   type CategoryGroup,
   type DashboardCard,
@@ -189,11 +187,6 @@ export function HomeScreen() {
     () => listCategoryGroups(),
     [],
   );
-  const { data: summary, reload: reloadSummary } = useQuery(
-    () => loadMonthSummary(now.getFullYear(), now.getMonth()),
-    [],
-  );
-
   // Collapsed is the default, so this holds only the ones opened by hand.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -201,8 +194,7 @@ export function HomeScreen() {
     useCallback(() => {
       void reload();
       void reloadGroups();
-      void reloadSummary();
-    }, [reload, reloadGroups, reloadSummary]),
+    }, [reload, reloadGroups]),
   );
 
   const complete = async (card: DashboardCard) => {
@@ -212,13 +204,15 @@ export function HomeScreen() {
       method: 'tap',
     });
     await reload();
-    await reloadSummary();
   };
 
   const openKnowt = (knowtId: string) =>
     navigation.navigate('KnowtDetail', { knowtId });
 
-  const today = board?.today ?? [];
+  // Completing is what sends a knowt to Log, so it leaves Daily. The query
+  // still returns everything, which is what keeps the counter above honest
+  // and gives Log the full picture.
+  const remaining = (board?.today ?? []).filter((c) => c.completedAt === null);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -253,14 +247,22 @@ export function HomeScreen() {
             { paddingBottom: TAB_BAR_CLEARANCE + insets.bottom },
           ]}
           showsVerticalScrollIndicator={false}>
-          {today.length === 0 ? (
+          {remaining.length === 0 ? (
             <EmptyState
-              message="Nothing due today."
-              actionLabel="Add a knowt"
-              onAction={() => navigation.navigate('AddKnowt')}
+              message={
+                board && board.total > 0
+                  ? 'Everything due today is done. It is all in Log.'
+                  : 'Nothing due today.'
+              }
+              actionLabel={board && board.total > 0 ? undefined : 'Add a knowt'}
+              onAction={
+                board && board.total > 0
+                  ? undefined
+                  : () => navigation.navigate('AddKnowt')
+              }
             />
           ) : (
-            today.map((card) => (
+            remaining.map((card) => (
               <KnowtCard
                 key={`${card.knowt.id}:${card.schedule?.id ?? 'untimed'}`}
                 name={card.knowt.name}
@@ -270,7 +272,6 @@ export function HomeScreen() {
                 mode={card.knowt.mode}
                 priority={card.knowt.priority}
                 shades={categoryShades(card.knowt.category)}
-                done={card.completedAt !== null}
                 onPress={() => openKnowt(card.knowt.id)}
                 onComplete={() => void complete(card)}
               />
@@ -297,9 +298,6 @@ export function HomeScreen() {
               })}
             </>
           ) : null}
-
-          <Text style={styles.sectionTitle}>Summary</Text>
-          {summary ? <SummaryPanel summary={summary} /> : null}
         </ScrollView>
       )}
     </SafeAreaView>

@@ -8,6 +8,7 @@ import { ApplySetScreen } from '../screens/ApplySetScreen';
 import { BrowseSetsScreen } from '../screens/BrowseSetsScreen';
 import { DevScreen } from '../screens/DevScreen';
 import { LegalDocumentScreen } from '../screens/LegalDocumentScreen';
+import { LogScreen } from '../screens/LogScreen';
 import { LegalScreen } from '../screens/LegalScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditKnowtScreen } from '../screens/EditKnowtScreen';
@@ -39,6 +40,11 @@ function Tabs() {
         name="AllKnowts"
         component={AllKnowtsScreen}
         options={{ tabBarLabel: 'Knowts' }}
+      />
+      <Tab.Screen
+        name="Log"
+        component={LogScreen}
+        options={{ tabBarLabel: 'Log' }}
       />
     </Tab.Navigator>
   );

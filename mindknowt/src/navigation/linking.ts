@@ -20,6 +20,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
         screens: {
           Daily: 'daily',
           AllKnowts: 'knowts',
+          Log: 'log',
         },
       },
       Categories: 'categories',
