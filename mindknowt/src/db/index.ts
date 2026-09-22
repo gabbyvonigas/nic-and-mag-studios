@@ -16,7 +16,9 @@ export {
   setAppMeta,
 } from './database';
 export {
+  listCategoryGroups,
   listDashboard,
+  type CategoryGroup,
   type Dashboard,
   type DashboardCard,
   type DashboardSection,

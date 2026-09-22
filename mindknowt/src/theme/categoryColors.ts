@@ -40,6 +40,20 @@ export const CATEGORY_FILL = {
   admin: '#F4F2EF',
 } as const;
 
+/**
+ * How a knowt was finished. Deliberately outside the category palette: these
+ * are not categories, and borrowing a category colour for them would make the
+ * Summary look like it was reporting on Home or Care.
+ *
+ * Scan is the intended path, tap is fine but untagged, override is the one
+ * worth noticing if it climbs.
+ */
+export const METHOD_COLORS = {
+  scan: '#5E8F6E',
+  tap: '#5F7FB4',
+  override: '#C08A3E',
+} as const;
+
 /** Used for custom categories, which have no key and so no shipped shades. */
 export const CATEGORY_FALLBACK = {
   color: '#8A8F98',

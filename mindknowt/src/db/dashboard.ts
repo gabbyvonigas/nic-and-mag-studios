@@ -1,7 +1,7 @@
 import { getDatabase } from './database';
 import { listKnowts } from './knowts';
 import { listPendingAlarms } from './pendingAlarms';
-import { isDueOn, minutesOf } from './scheduling';
+import { isDueOn, minutesOf, nextOccurrence } from './scheduling';
 import type {
   CategoryRow,
   EventRow,
@@ -33,8 +33,28 @@ export type DashboardSection = {
 
 export type Dashboard = {
   sections: DashboardSection[];
+  /**
+   * Every card for today in one list, in time order across categories. The
+   * home screen leads with this: today is a single sequence of things, not six
+   * separate ones.
+   */
+  today: DashboardCard[];
   total: number;
   done: number;
+};
+
+/**
+ * A category and everything in it, with whatever is coming up next.
+ *
+ * This is the browse layer under today, not a view of today. It covers every
+ * live knowt in the category whether or not it is due, which is why it carries
+ * its own next-occurrence rather than reusing the dashboard cards.
+ */
+export type CategoryGroup = {
+  category: CategoryRow | null;
+  knowts: KnowtWithDetail[];
+  /** The soonest thing due in this category, or null if nothing is scheduled. */
+  next: { knowt: KnowtWithDetail; at: Date } | null;
 };
 
 /** Key for the group holding knowts with no category. Cannot collide with an id. */
@@ -149,6 +169,7 @@ function groupByCategory(cards: DashboardCard[]): Dashboard {
 
   return {
     sections: ordered,
+    today: [...cards].sort(compareCards),
     total: cards.length,
     done: cards.filter((c) => c.completedAt !== null).length,
   };
@@ -167,3 +188,58 @@ function compareCards(a: DashboardCard, b: DashboardCard): number {
 }
 
 export type { KnowtWithDetail };
+
+/** The soonest moment any of a knowt's schedules next fires. */
+function soonestFor(knowt: KnowtWithDetail, now: Date): Date | null {
+  let soonest: Date | null = null;
+  for (const schedule of knowt.schedules) {
+    const at = nextOccurrence(schedule, now);
+    if (at && (!soonest || at < soonest)) soonest = at;
+  }
+  return soonest;
+}
+
+/**
+ * Every category with its knowts, for the collapsed rows under today.
+ *
+ * Categories with nothing in them are left out: an empty row that can never
+ * expand is a dead end. Uncategorized knowts group together and sort last,
+ * the same as everywhere else.
+ */
+export async function listCategoryGroups(
+  now = new Date(),
+): Promise<CategoryGroup[]> {
+  const knowts = await listKnowts();
+  const groups = new Map<string, CategoryGroup>();
+
+  for (const knowt of knowts) {
+    const category = knowt.category;
+    const key = category?.id ?? UNCATEGORIZED;
+    const group = groups.get(key);
+    if (group) group.knowts.push(knowt);
+    else groups.set(key, { category, knowts: [knowt], next: null });
+  }
+
+  for (const group of groups.values()) {
+    for (const knowt of group.knowts) {
+      const at = soonestFor(knowt, now);
+      if (at && (!group.next || at < group.next.at)) group.next = { knowt, at };
+    }
+
+    // Highest priority first, then by name. What is next is shown separately
+    // on the collapsed row, so the list itself sorts by what matters.
+    group.knowts.sort((a, b) => {
+      if (a.priority !== b.priority) return b.priority - a.priority;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  return [...groups.values()].sort((a, b) => {
+    if (!a.category) return 1;
+    if (!b.category) return -1;
+    if (a.category.sort !== b.category.sort) {
+      return a.category.sort - b.category.sort;
+    }
+    return a.category.name.localeCompare(b.category.name);
+  });
+}

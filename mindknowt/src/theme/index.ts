@@ -122,6 +122,7 @@ export const theme = {
 export type Theme = typeof theme;
 
 export {
+  METHOD_COLORS,
   categoryShades,
   shadesFromHex,
   CUSTOM_PALETTE,
