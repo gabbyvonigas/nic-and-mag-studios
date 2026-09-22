@@ -24,23 +24,19 @@ import {
   getSchedule,
   toISODate,
   updateSchedule,
-  type RepeatType,
 } from '../db';
+import {
+  presetFor,
+  REPEAT_PRESETS,
+  shapeFor,
+  type RepeatPresetId,
+} from '../knowts/repeats';
 import { useQuery } from '../db/useQuery';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'EditSchedule'>;
-
-const REPEATS: { value: RepeatType; label: string }[] = [
-  { value: 'daily', label: 'Every day' },
-  { value: 'weekdays', label: 'Weekdays' },
-  { value: 'weekends', label: 'Weekends' },
-  { value: 'days_of_week', label: 'Certain days' },
-  { value: 'interval', label: 'Every few days' },
-  { value: 'once', label: 'Just once' },
-];
 
 /** Sunday = 1, matching the schema and AlarmKit. */
 const DAYS = [
@@ -78,7 +74,7 @@ export function EditScheduleScreen() {
   // about to turn, not a value saved on their behalf: nothing is written until
   // Save, and Add a knowt still refuses to guess for them.
   const [time, setTime] = useState('08:00');
-  const [repeatType, setRepeatType] = useState<RepeatType>('daily');
+  const [preset, setPreset] = useState<RepeatPresetId>('daily');
   const [days, setDays] = useState<number[]>([]);
   const [intervalDays, setIntervalDays] = useState('2');
   const [label, setLabel] = useState('');
@@ -92,7 +88,7 @@ export function EditScheduleScreen() {
 
     if (existing) {
       setTime(existing.time);
-      setRepeatType(existing.repeat_type);
+      setPreset(presetFor(existing));
       setDays(parseDays(existing.days_of_week));
       setIntervalDays(`${existing.interval_days ?? 2}`);
       setLabel(existing.label ?? '');
@@ -106,13 +102,15 @@ export function EditScheduleScreen() {
     );
   };
 
+  const chosen = REPEAT_PRESETS.find((p) => p.id === preset) ?? REPEAT_PRESETS[0]!;
   const interval = Number(intervalDays);
   const intervalOk = Number.isInteger(interval) && interval >= 1 && interval <= 365;
 
-  const canSave =
-    repeatType === 'days_of_week'
+  const canSave = chosen.needsDay
+    ? days.length === 1
+    : chosen.needsDays
       ? days.length > 0
-      : repeatType === 'interval'
+      : chosen.needsCount
         ? intervalOk
         : true;
 
@@ -120,18 +118,22 @@ export function EditScheduleScreen() {
     setSaving(true);
     setError(null);
     try {
+      // One place decides what the columns become. The screen only collects
+      // the answers the chosen preset asks for.
+      const shape = shapeFor(preset, { days, count: interval });
       const fields = {
         time,
-        repeatType,
+        repeatType: shape.repeatType,
         label: label.trim() || null,
-        daysOfWeek: repeatType === 'days_of_week' ? days : null,
-        intervalDays: repeatType === 'interval' ? interval : null,
+        daysOfWeek: shape.daysOfWeek,
+        intervalDays: shape.intervalDays,
+        intervalMonths: shape.intervalMonths,
         // An interval counts from a start date, and a one-off needs a day to
-        // land on. Both are today unless one is already stored.
-        startDate:
-          repeatType === 'interval' || repeatType === 'once'
-            ? (existing?.start_date ?? toISODate(new Date()))
-            : null,
+        // land on. Both are today unless one is already stored, so editing an
+        // existing schedule does not silently restart its rhythm.
+        startDate: shape.needsStartDate
+          ? (existing?.start_date ?? toISODate(new Date()))
+          : null,
       };
 
       if (existingId) {
@@ -143,6 +145,7 @@ export function EditScheduleScreen() {
           label: fields.label,
           daysOfWeek: fields.daysOfWeek ?? undefined,
           intervalDays: fields.intervalDays ?? undefined,
+          intervalMonths: fields.intervalMonths ?? undefined,
           startDate: fields.startDate ?? undefined,
         });
       }
@@ -210,26 +213,44 @@ export function EditScheduleScreen() {
 
           <Text style={styles.label}>How often</Text>
           <View style={styles.chips}>
-            {REPEATS.map((repeat) => {
-              const on = repeatType === repeat.value;
+            {REPEAT_PRESETS.map((option) => {
+              const on = preset === option.id;
               return (
                 <Pressable
-                  key={repeat.value}
+                  key={option.id}
                   accessibilityRole="button"
                   accessibilityState={{ selected: on }}
-                  onPress={() => setRepeatType(repeat.value)}
+                  onPress={() => {
+                    setPreset(option.id);
+                    // Weekly takes one day, so a set carried over from
+                    // Certain days would silently make it several.
+                    if (option.needsDay && days.length > 1) setDays([days[0]!]);
+                  }}
                   style={[styles.chip, on && styles.chipOn]}>
                   <Text style={[styles.chipText, on && styles.chipTextOn]}>
-                    {repeat.label}
+                    {option.label}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
 
-          {repeatType === 'days_of_week' ? (
+          {/* An interval has to count from somewhere, and that somewhere is
+              invisible otherwise. Editing an existing schedule keeps its
+              original date, so the rhythm does not silently restart. */}
+          {shapeFor(preset).needsStartDate ? (
+            <Text style={styles.hint}>
+              {existing?.start_date
+                ? `Counting from ${existing.start_date}.`
+                : 'Counting from today.'}
+            </Text>
+          ) : null}
+
+          {chosen.needsDay || chosen.needsDays ? (
             <>
-              <Text style={styles.label}>Which days</Text>
+              <Text style={styles.label}>
+                {chosen.needsDay ? 'Which day' : 'Which days'}
+              </Text>
               <View style={styles.dayRow}>
                 {DAYS.map((day) => {
                   const on = days.includes(day.value);
@@ -239,7 +260,9 @@ export function EditScheduleScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={day.label}
                       accessibilityState={{ selected: on }}
-                      onPress={() => toggleDay(day.value)}
+                      onPress={() =>
+                        chosen.needsDay ? setDays([day.value]) : toggleDay(day.value)
+                      }
                       style={[styles.day, on && styles.dayOn]}>
                       <Text style={[styles.dayText, on && styles.dayTextOn]}>
                         {day.label}
@@ -249,12 +272,14 @@ export function EditScheduleScreen() {
                 })}
               </View>
               {days.length === 0 ? (
-                <Text style={styles.errorHint}>Pick at least one day.</Text>
+                <Text style={styles.errorHint}>
+                  {chosen.needsDay ? 'Pick a day.' : 'Pick at least one day.'}
+                </Text>
               ) : null}
             </>
           ) : null}
 
-          {repeatType === 'interval' ? (
+          {chosen.needsCount ? (
             <>
               <Text style={styles.label}>How many days apart</Text>
               <View style={styles.intervalRow}>
@@ -324,6 +349,11 @@ const styles = StyleSheet.create({
     color: theme.color.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  hint: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textMuted,
   },
   errorHint: {
     fontFamily: theme.font.face.regular,
