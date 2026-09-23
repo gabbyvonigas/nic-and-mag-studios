@@ -6,11 +6,15 @@ import type { KnowtMode } from '../db/types';
 import { theme, type CategoryShades } from '../theme';
 
 /**
- * The one knowt card, used in every list in the app.
+ * The knowt card, used by Daily and anywhere else a knowt is shown as a card.
+ *
+ * Knowts does not use it. That screen answers a different question and gets a
+ * dense row instead, so the two do not read as one screen shown twice.
  *
  * Every card is the same height wherever it appears, whatever it contains.
  * That is the point: a list of cards that grow and shrink with their content
- * reads as a jumble, and the eye cannot use position to find anything.
+ * reads as a jumble, and the eye cannot use position to find anything. The
+ * same rule holds for the Knowts rows, at their own height.
  *
  * The cost is truncation, and it is deliberate. A card gets one line for the
  * name, one for the schedule, and one shared slot for status. When there is

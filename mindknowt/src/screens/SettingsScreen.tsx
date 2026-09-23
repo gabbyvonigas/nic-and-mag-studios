@@ -1,7 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  ActionSheetIOS,
   Alert,
   Pressable,
   ScrollView,
@@ -12,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SubScreenHeader } from '../components/ui';
-import { DISCLOSURE, openTagPack, TAG_PACKS } from '../tags/store';
+import { DISCLOSURE, openTagStore } from '../tags/store';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -27,33 +26,18 @@ export function SettingsScreen() {
   const navigation = useNavigation<Nav>();
 
   /**
-   * Two quantities, so a sheet rather than a link. Cancel is last and is the
-   * index iOS treats as the dismiss action.
+   * One product, so no sheet to choose from: the row is the link. Sizes are
+   * picked on Amazon's own page now.
    */
   const orderMore = () => {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title: 'Order more tags',
-        // The disclosure repeats here on purpose. This sheet is the moment
-        // the affiliate link is actually chosen, and it covers the sheet for
-        // anyone who reached it without reading the note behind it.
-        message: `Opens Amazon. Any NTAG215 sticker works with MindKnowt. ${DISCLOSURE}`,
-        options: [...TAG_PACKS.map((pack) => pack.label), 'Cancel'],
-        cancelButtonIndex: TAG_PACKS.length,
-      },
-      (index) => {
-        const pack = TAG_PACKS[index];
-        if (!pack) return;
-        void (async () => {
-          if (!(await openTagPack(pack))) {
-            Alert.alert(
-              'Could not open Amazon',
-              'Nothing on this phone would take the link.',
-            );
-          }
-        })();
-      },
-    );
+    void (async () => {
+      if (!(await openTagStore())) {
+        Alert.alert(
+          'Could not open Amazon',
+          'Nothing on this phone would take the link.',
+        );
+      }
+    })();
   };
 
   return (
@@ -80,9 +64,7 @@ export function SettingsScreen() {
           <Text style={styles.chevron}>›</Text>
         </Pressable>
         <Text style={styles.note}>
-          A choice of two packs on Amazon. We do not sell these ourselves.
-          {' '}
-          {DISCLOSURE}
+          Opens Amazon. We do not sell these ourselves. {DISCLOSURE}
         </Text>
 
         <Pressable
