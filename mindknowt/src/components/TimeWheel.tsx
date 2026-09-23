@@ -20,34 +20,49 @@ import { theme } from '../theme';
  *
  * Typing a time into a text field was the previous approach, and it was the
  * single worst thing about editing a knowt.
+ *
+ * `compact` is the same wheel at two thirds the size, for places where a time
+ * is one field among many rather than the subject of the screen. It is the
+ * same control deliberately: a preset that asked for a typed time while the
+ * editor offered a wheel taught two different ways to say the same thing.
  */
 
-const ITEM_HEIGHT = 44;
-/** Odd, so one row sits centred with equal space above and below. */
-const VISIBLE_ROWS = 5;
-const PAD = ((VISIBLE_ROWS - 1) / 2) * ITEM_HEIGHT;
+type Size = {
+  itemHeight: number;
+  /** Odd, so one row sits centred with equal space above and below. */
+  rows: number;
+  columnWidth: number;
+  fontSize: number;
+};
+
+const FULL: Size = { itemHeight: 44, rows: 5, columnWidth: 72, fontSize: theme.font.size.xl };
+const COMPACT: Size = { itemHeight: 32, rows: 3, columnWidth: 52, fontSize: theme.font.size.md };
 
 const HOURS = Array.from({ length: 12 }, (_, i) => `${i + 1}`);
 const MINUTES = Array.from({ length: 60 }, (_, i) => `${i}`.padStart(2, '0'));
 const MERIDIEMS = ['am', 'pm'];
 
+function padFor(size: Size): number {
+  return ((size.rows - 1) / 2) * size.itemHeight;
+}
+
 function Column({
   values,
   index,
   onIndexChange,
-  width,
   label,
+  size,
 }: {
   values: string[];
   index: number;
   onIndexChange: (next: number) => void;
-  width: number;
   label: string;
+  size: Size;
 }) {
   const ref = useRef<ScrollView>(null);
 
   const settle = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const next = Math.round(event.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+    const next = Math.round(event.nativeEvent.contentOffset.y / size.itemHeight);
     const clamped = Math.max(0, Math.min(values.length - 1, next));
     if (clamped !== index) onIndexChange(clamped);
   };
@@ -56,21 +71,28 @@ function Column({
     <ScrollView
       ref={ref}
       accessibilityLabel={label}
-      style={{ width }}
-      contentContainerStyle={{ paddingVertical: PAD }}
+      style={{ width: size.columnWidth }}
+      contentContainerStyle={{ paddingVertical: padFor(size) }}
       showsVerticalScrollIndicator={false}
-      snapToInterval={ITEM_HEIGHT}
+      snapToInterval={size.itemHeight}
       decelerationRate="fast"
       // Set once. The wheel owns the value after that, so scrolling it from the
       // outside on every render would fight the finger.
-      contentOffset={{ x: 0, y: index * ITEM_HEIGHT }}
+      contentOffset={{ x: 0, y: index * size.itemHeight }}
       onMomentumScrollEnd={settle}
       // A slow drag that never gains momentum fires no momentum event, and
       // without this the value would silently fail to change.
       onScrollEndDrag={settle}>
       {values.map((value, i) => (
-        <View key={value} style={styles.item}>
-          <Text style={[styles.itemText, i === index && styles.itemTextOn]}>
+        <View
+          key={value}
+          style={[styles.item, { height: size.itemHeight }]}>
+          <Text
+            style={[
+              styles.itemText,
+              { fontSize: size.fontSize },
+              i === index && styles.itemTextOn,
+            ]}>
             {value}
           </Text>
         </View>
@@ -83,10 +105,13 @@ function Column({
 export function TimeWheel({
   value,
   onChange,
+  compact = false,
 }: {
   value: string;
   onChange: (next: string) => void;
+  compact?: boolean;
 }) {
+  const size = compact ? COMPACT : FULL;
   const parts = value.split(':').map(Number);
   const rawHour = Number.isFinite(parts[0]) ? (parts[0] as number) : 8;
   const minute = Number.isFinite(parts[1]) ? (parts[1] as number) : 0;
@@ -102,26 +127,32 @@ export function TimeWheel({
   };
 
   return (
-    <View style={styles.wheel}>
-      <View style={styles.highlight} pointerEvents="none" />
+    <View style={[styles.wheel, { height: size.itemHeight * size.rows }]}>
+      <View
+        style={[
+          styles.highlight,
+          { top: padFor(size), height: size.itemHeight },
+        ]}
+        pointerEvents="none"
+      />
       <View style={styles.columns}>
         <Column
           label="Hour"
-          width={72}
+          size={size}
           values={HOURS}
           index={hour12 - 1}
           onIndexChange={(i) => emit(i + 1, minute, isPm)}
         />
         <Column
           label="Minute"
-          width={72}
+          size={size}
           values={MINUTES}
           index={minute}
           onIndexChange={(i) => emit(hour12, i, isPm)}
         />
         <Column
           label="Morning or afternoon"
-          width={72}
+          size={size}
           values={MERIDIEMS}
           index={isPm ? 1 : 0}
           onIndexChange={(i) => emit(hour12, minute, i === 1)}
@@ -132,21 +163,18 @@ export function TimeWheel({
 }
 
 const styles = StyleSheet.create({
-  wheel: { height: ITEM_HEIGHT * VISIBLE_ROWS, justifyContent: 'center' },
+  wheel: { justifyContent: 'center' },
   columns: { flexDirection: 'row', justifyContent: 'center' },
   highlight: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: PAD,
-    height: ITEM_HEIGHT,
     borderRadius: theme.radius.md,
     backgroundColor: theme.color.surfaceMuted,
   },
-  item: { height: ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center' },
+  item: { alignItems: 'center', justifyContent: 'center' },
   itemText: {
     fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.xl,
     color: theme.color.textMuted,
   },
   itemTextOn: {

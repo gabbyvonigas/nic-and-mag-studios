@@ -18,7 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Card, Pill, SubScreenHeader } from '../components/ui';
-import { armKnowtAlarm, resyncAlarmsQuietly } from '../alarms';
+import { resyncAlarmsQuietly } from '../alarms';
 import { AlarmIcon, ScanIcon } from '../components/icons';
 import { MODE_CHOICES, modeChoice, modeLabel } from '../knowts/modes';
 import {
@@ -140,24 +140,6 @@ export function KnowtDetailScreen() {
     }
   };
 
-  const testAlarm = async () => {
-    setNotice(null);
-    setBusy(true);
-    try {
-      await armKnowtAlarm({
-        knowtId: knowt.id,
-        title: knowt.name,
-        firesAt: new Date(Date.now() + 60_000),
-        kind: 'test',
-      });
-      setNotice('Alarm set for one minute from now. Lock the phone.');
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const checkIn = async () => {
     // Spec section 3: a completion with no alarm pending is a valid check-in.
     await logCompletion({ knowtId: knowt.id, scheduleId: null, method: 'tap' });
@@ -217,7 +199,13 @@ export function KnowtDetailScreen() {
           {MODE_CHOICES.map((choice) => {
             const selected = modeChoice(knowt.mode) === choice.value;
             const blocked = choice.value === 'strict' && !knowt.tag_uid;
-            const tint = selected ? theme.color.onAccent : theme.color.textPrimary;
+            // One value for both. The icon used onAccent while the label used
+            // textPrimary, on a chip whose selected background is a light
+            // surface, so the two were never the same colour.
+            const tint =
+              blocked || !selected
+                ? theme.color.textMuted
+                : theme.color.textPrimary;
             return (
               <Pressable
                 key={choice.value}
@@ -232,9 +220,9 @@ export function KnowtDetailScreen() {
                   blocked && styles.modeChipBlocked,
                 ]}>
                 {choice.value === 'strict' ? (
-                  <ScanIcon size={16} color={blocked ? theme.color.textMuted : tint} />
+                  <ScanIcon size={16} color={tint} />
                 ) : (
-                  <AlarmIcon size={16} color={blocked ? theme.color.textMuted : tint} />
+                  <AlarmIcon size={16} color={tint} />
                 )}
                 <Text
                   style={[
@@ -255,7 +243,11 @@ export function KnowtDetailScreen() {
         </Text>
 
         <Button
-          label={knowt.tag_uid ? 'Replace tag' : 'Add a tag to this'}
+          label={
+            knowt.tag_uid
+              ? 'Replace the Knowt tag'
+              : 'Add a Knowt tag to scan'
+          }
           variant="secondary"
           disabled={busy}
           onPress={() => void scanToAttach()}
@@ -266,16 +258,17 @@ export function KnowtDetailScreen() {
           </Text>
         ) : null}
 
-        <Button
-          label="Ring this in 1 minute"
-          variant="quiet"
-          disabled={busy}
-          onPress={() => void testAlarm()}
-        />
-
         <Text style={styles.sectionTitle}>Schedules</Text>
         {knowt.schedules.length === 0 ? (
-          <Text style={styles.body}>No schedules yet.</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add a schedule"
+            onPress={() =>
+              navigation.navigate('EditSchedule', { knowtId: knowt.id })
+            }
+            style={({ pressed }) => [styles.addRow, pressed && styles.pressed]}>
+            <Text style={styles.addRowText}>Tap to add a schedule</Text>
+          </Pressable>
         ) : (
           knowt.schedules.map((schedule) => (
             <Card key={schedule.id}>
@@ -323,6 +316,20 @@ export function KnowtDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  pressed: { opacity: 0.7 },
+  addRow: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.lg,
+    paddingVertical: theme.spacing.lg,
+    alignItems: 'center',
+  },
+  addRowText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.md,
+    color: theme.color.accent,
+  },
   editLink: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.md,

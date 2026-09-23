@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -11,16 +11,14 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Chevron, GearIcon } from '../components/icons';
-import { KnowtCard, PriorityBars } from '../components/KnowtCard';
+import { GearIcon } from '../components/icons';
+import { KnowtCard } from '../components/KnowtCard';
 import { EmptyState } from '../components/ui';
 import {
   describeRepeat,
   formatTime,
-  listCategoryGroups,
   listDashboard,
   logCompletion,
-  type CategoryGroup,
   type DashboardCard,
 } from '../db';
 import { useQuery } from '../db/useQuery';
@@ -68,18 +66,6 @@ function clock(at: number | Date): string {
   return `${hours % 12 === 0 ? 12 : hours % 12}:${minutes} ${suffix}`;
 }
 
-/** When the next thing in a category is, said the way a person would. */
-function whenLabel(at: Date, now: Date): string {
-  const day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const days = Math.round((day.getTime() - today.getTime()) / 86_400_000);
-
-  if (days <= 0) return `Today, ${clock(at)}`;
-  if (days === 1) return `Tomorrow, ${clock(at)}`;
-  if (days < 7) return `${DAYS[at.getDay()]}, ${clock(at)}`;
-  return `${MONTHS[at.getMonth()]} ${at.getDate()}`;
-}
-
 /** The live thing to say about a card, if there is one. */
 function statusOf(card: DashboardCard): string | null {
   if (card.completedAt) return `Done at ${clock(card.completedAt)}`;
@@ -106,94 +92,17 @@ function metaOf(card: DashboardCard): string {
   }, ${describeRepeat(schedule)}`;
 }
 
-function CategorySection({
-  group,
-  expanded,
-  onToggle,
-  onOpenKnowt,
-  now,
-}: {
-  group: CategoryGroup;
-  expanded: boolean;
-  onToggle: () => void;
-  onOpenKnowt: (id: string) => void;
-  now: Date;
-}) {
-  const shades = categoryShades(group.category);
-  const name = group.category?.name ?? 'Everything else';
-  const next = group.next;
-
-  return (
-    <View style={styles.category}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${name}, ${group.knowts.length} knowts`}
-        accessibilityState={{ expanded }}
-        onPress={onToggle}
-        style={({ pressed }) => [styles.categoryRow, pressed && styles.pressed]}>
-        <View style={[styles.categoryDot, { backgroundColor: shades.color }]} />
-
-        <View style={styles.categoryText}>
-          <Text numberOfLines={1} style={[styles.categoryName, { color: shades.ink }]}>
-            {name}
-          </Text>
-          <Text numberOfLines={1} style={styles.categoryNext}>
-            {next
-              ? `${next.knowt.name}, ${whenLabel(next.at, now)}`
-              : `${group.knowts.length} knowt${group.knowts.length === 1 ? '' : 's'}, nothing scheduled`}
-          </Text>
-        </View>
-
-        {next ? <PriorityBars priority={next.knowt.priority} color={shades.ink} /> : null}
-
-        <Chevron direction={expanded ? 'up' : 'down'} />
-      </Pressable>
-
-      {expanded ? (
-        <View style={styles.categoryCards}>
-          {group.knowts.map((knowt) => {
-            const soonest = knowt.schedules.length > 0 ? describeRepeat(knowt.schedules[0]!) : '';
-            return (
-              <KnowtCard
-                key={knowt.id}
-                name={knowt.name}
-                meta={
-                  knowt.schedules.length > 0
-                    ? `${formatTime(knowt.schedules[0]!.time)}, ${soonest}`
-                    : 'No schedule'
-                }
-                location={knowt.location_note}
-                mode={knowt.mode}
-                priority={knowt.priority}
-                shades={shades}
-                onPress={() => onOpenKnowt(knowt.id)}
-              />
-            );
-          })}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
 export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const now = new Date();
 
   const { data: board, loading, reload } = useQuery(() => listDashboard(), []);
-  const { data: groups, reload: reloadGroups } = useQuery(
-    () => listCategoryGroups(),
-    [],
-  );
-  // Collapsed is the default, so this holds only the ones opened by hand.
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useFocusEffect(
     useCallback(() => {
       void reload();
-      void reloadGroups();
-    }, [reload, reloadGroups]),
+    }, [reload]),
   );
 
   // The free tags are offered once, on the first Daily screen someone sees.
@@ -293,27 +202,6 @@ export function HomeScreen() {
               />
             ))
           )}
-
-          {(groups ?? []).length > 0 ? (
-            <>
-              <Text style={styles.sectionTitle}>Categories</Text>
-              {(groups ?? []).map((group) => {
-                const key = group.category?.id ?? 'none';
-                return (
-                  <CategorySection
-                    key={key}
-                    group={group}
-                    now={now}
-                    expanded={!!expanded[key]}
-                    onToggle={() =>
-                      setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))
-                    }
-                    onOpenKnowt={openKnowt}
-                  />
-                );
-              })}
-            </>
-          ) : null}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -358,38 +246,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: theme.spacing.xl,
-    gap: theme.spacing.sm,
+    // Matches Knowts. The cards got shorter, so the breathing room between
+    // them had to grow or the list would read as one block.
+    gap: theme.spacing.md,
   },
   pressed: { opacity: 0.7 },
-  sectionTitle: {
-    marginTop: theme.spacing.xl,
-    marginBottom: theme.spacing.xs,
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  category: { gap: theme.spacing.sm },
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.lg,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-  },
-  categoryDot: { width: 10, height: 10, borderRadius: 5 },
-  categoryText: { flex: 1, gap: 2 },
-  categoryName: {
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.md,
-  },
-  categoryNext: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
-  },
-  categoryCards: { gap: theme.spacing.sm, marginBottom: theme.spacing.sm },
 });

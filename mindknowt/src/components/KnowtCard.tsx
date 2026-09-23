@@ -18,8 +18,14 @@ import { theme, type CategoryShades } from '../theme';
  * the slot shows where the thing lives. Both clip rather than wrap.
  */
 
-/** Every knowt card in the app is exactly this tall. */
-export const KNOWT_CARD_HEIGHT = 88;
+/**
+ * Every knowt card in the app is exactly this tall.
+ *
+ * It was 88, which left the three lines of text swimming in space while the
+ * cards themselves ran together. The height came down and the gap between
+ * cards went up: the separation belongs between them, not inside them.
+ */
+export const KNOWT_CARD_HEIGHT = 76;
 
 /**
  * Three bars, filled to the level. Always visible, unlike a marker that only
@@ -157,11 +163,11 @@ const styles = StyleSheet.create({
     height: KNOWT_CARD_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
     backgroundColor: theme.color.surface,
     borderRadius: theme.radius.xl,
     paddingLeft: theme.spacing.md,
-    paddingRight: theme.spacing.lg,
+    paddingRight: theme.spacing.md,
     shadowColor: '#0b1220',
     shadowOpacity: 0.06,
     shadowRadius: 12,
@@ -170,7 +176,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   accent: {
     width: 4,
-    height: KNOWT_CARD_HEIGHT - theme.spacing.lg * 2,
+    height: KNOWT_CARD_HEIGHT - theme.spacing.md * 2,
     borderRadius: 2,
   },
   body: { flex: 1, justifyContent: 'center', gap: 2 },

@@ -25,11 +25,13 @@ import { PriorityBars } from '../components/KnowtCard';
 import { Button, SubScreenHeader } from '../components/ui';
 import { MODE_CHOICES, modeChoice } from '../knowts/modes';
 import {
+  attachTag,
   describeRepeat,
   formatTime,
   getKnowt,
   listCategories,
   ModeUnavailableError,
+  TagInUseError,
   PRIORITY_HIGH,
   PRIORITY_LOW,
   PRIORITY_NORMAL,
@@ -37,6 +39,7 @@ import {
   updateKnowt,
   type KnowtMode,
 } from '../db';
+import { NfcScanError, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
 import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -62,6 +65,7 @@ export function EditKnowtScreen() {
   const [priority, setPriority] = useState<number>(PRIORITY_NORMAL);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fills the form once. Re-running on every query render would throw away
@@ -86,6 +90,33 @@ export function EditKnowtScreen() {
   );
 
   const tagged = !!knowt?.tag_uid;
+
+  /**
+   * Attaching lived only on the detail screen, which meant the editor could
+   * offer Scan Knowt, refuse it for want of a tag, and give no way to fix that
+   * without leaving. It writes straight through rather than waiting for Save,
+   * the same as it does on detail: the tag is a fact about the hardware, not a
+   * draft edit, and the mode buttons above have to unlock the moment it lands.
+   */
+  const scanToAttach = async () => {
+    setError(null);
+    setScanning(true);
+    try {
+      const tag = await nfcReader.scanTag();
+      await attachTag(params.knowtId, tag.rawUid);
+      await reload();
+    } catch (err) {
+      if (err instanceof TagInUseError) {
+        setError(`That tag is already ${err.knowtName}. Scan a different one.`);
+      } else if (err instanceof NfcScanError && err.reason === 'cancelled') {
+        // Backing out is not a failure.
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const save = async () => {
     if (!knowt) return;
@@ -252,11 +283,29 @@ export function EditKnowtScreen() {
             );
           })}
 
+          <Button
+            label={tagged ? 'Replace the Knowt tag' : 'Add a Knowt tag to scan'}
+            variant="secondary"
+            disabled={scanning || saving}
+            onPress={() => void scanToAttach()}
+          />
+          {tagged ? (
+            <Text style={styles.tagUid} selectable>
+              {knowt.tag_uid}
+            </Text>
+          ) : null}
+
           <Text style={styles.label}>Schedules</Text>
           {knowt.schedules.length === 0 ? (
-            <Text style={styles.hint}>
-              No schedules. Without one this never rings on its own.
-            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add a schedule"
+              onPress={() =>
+                navigation.navigate('EditSchedule', { knowtId: knowt.id })
+              }
+              style={({ pressed }) => [styles.addRow, pressed && styles.pressed]}>
+              <Text style={styles.addRowText}>Tap to add a schedule</Text>
+            </Pressable>
           ) : (
             knowt.schedules.map((schedule) => (
               <Pressable
@@ -492,6 +541,25 @@ const styles = StyleSheet.create({
     color: theme.color.textSecondary,
   },
   optionTextBlocked: { color: theme.color.textMuted },
+  addRow: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.lg,
+    paddingVertical: theme.spacing.lg,
+    alignItems: 'center',
+  },
+  addRowText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.md,
+    color: theme.color.accent,
+  },
+  tagUid: {
+    fontFamily: theme.font.mono,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textMuted,
+    textAlign: 'center',
+  },
   scheduleRow: {
     flexDirection: 'row',
     alignItems: 'center',

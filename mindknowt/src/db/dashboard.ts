@@ -16,7 +16,11 @@ import type {
  */
 export type DashboardCard = {
   knowt: KnowtWithDetail;
-  /** The schedule that put this on today's board, or null for an untimed one. */
+  /**
+   * The schedule that put this on today's board. Nullable because completions
+   * and pending alarms can both be schedule-less; nothing reaches the board
+   * without one.
+   */
   schedule: ScheduleRow | null;
   completedAt: number | null;
   /** Completions today. Only above one for a knowt with a daily target. */
@@ -46,9 +50,9 @@ export type Dashboard = {
 /**
  * A category and everything in it, with whatever is coming up next.
  *
- * This is the browse layer under today, not a view of today. It covers every
- * live knowt in the category whether or not it is due, which is why it carries
- * its own next-occurrence rather than reusing the dashboard cards.
+ * This is the browse layer, not a view of today. It covers every live knowt in
+ * the category whether or not it is due, which is why it carries its own
+ * next-occurrence rather than reusing the dashboard cards.
  */
 export type CategoryGroup = {
   category: CategoryRow | null;
@@ -63,11 +67,12 @@ const UNCATEGORIZED = 'uncategorized:none';
 /**
  * What belongs on the dashboard today.
  *
- * Two things qualify: anything with a schedule due today, and every Open-mode
- * knowt whether or not it is due. Open knowts are the habit-shaped ones with no
- * tag to scan, so they stay tappable all day. Everything else lives in Knowts,
- * which is the full inventory; repeating that inventory here would make the
- * dashboard a second copy of it rather than a picture of today.
+ * One thing qualifies: a schedule due today. Nothing else, whatever its mode.
+ *
+ * Open-mode knowts used to be included whether or not they were due, on the
+ * reasoning that a habit with no tag should stay tappable all day. In practice
+ * that put things on Daily that were never going to ring, which is the one
+ * thing Daily is supposed to tell you. The full inventory is Knowts.
  */
 export async function listDashboard(now = new Date()): Promise<Dashboard> {
   const knowts = await listKnowts();
@@ -97,19 +102,6 @@ export async function listDashboard(now = new Date()): Promise<Dashboard> {
         completedAt: done?.completed_at ?? null,
         completions: mine.length,
         pending: pendingFor(pending, knowt.id, schedule.id),
-      });
-    }
-
-    // An Open knowt with nothing due still belongs here. One with a schedule
-    // due today already has its card above, so this must not add a second.
-    if (knowt.mode === 'open' && dueToday.length === 0) {
-      const done = mine.find((e) => e.schedule_id === null);
-      cards.push({
-        knowt,
-        schedule: null,
-        completedAt: done?.completed_at ?? null,
-        completions: mine.length,
-        pending: pendingFor(pending, knowt.id, null),
       });
     }
   }
@@ -200,7 +192,7 @@ function soonestFor(knowt: KnowtWithDetail, now: Date): Date | null {
 }
 
 /**
- * Every category with its knowts, for the collapsed rows under today.
+ * Every category with its knowts, for the collapsible groups on Knowts.
  *
  * Categories with nothing in them are left out: an empty row that can never
  * expand is a dead end. Uncategorized knowts group together and sort last,

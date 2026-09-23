@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+  armKnowtAlarm,
   cancelAllAlarms,
   resyncAlarmsQuietly,
   syncScheduledAlarms,
@@ -187,6 +188,54 @@ export function DevScreen() {
           JSON, not in the app.
         </Text>
 
+        <Text style={styles.sectionTitle}>Ring a knowt in 1 minute</Text>
+        <Text style={styles.hint}>
+          Arms a one-off alarm so the ringing screen and the scan-to-stop loop
+          can be exercised without waiting for a real schedule. This used to sit
+          on the knowt itself, where it was not something anyone needed.
+        </Text>
+        {(knowts ?? []).length === 0 ? (
+          <Text style={styles.hint}>No knowts to ring.</Text>
+        ) : (
+          (knowts ?? []).map((knowt) => (
+            <Pressable
+              key={knowt.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Ring ${knowt.name} in one minute`}
+              disabled={busy}
+              onPress={() =>
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    await armKnowtAlarm({
+                      knowtId: knowt.id,
+                      title: knowt.name,
+                      firesAt: new Date(Date.now() + 60_000),
+                      kind: 'test',
+                    });
+                    setAlarmNotice(
+                      `${knowt.name} rings in one minute. Lock the phone.`,
+                    );
+                    await reloadPending();
+                  } catch (err) {
+                    setAlarmNotice(
+                      err instanceof Error ? err.message : String(err),
+                    );
+                  } finally {
+                    setBusy(false);
+                  }
+                })()
+              }
+              style={({ pressed }) => [
+                styles.ringRow,
+                pressed && styles.pressed,
+              ]}>
+              <Text style={styles.ringName}>{knowt.name}</Text>
+              <Text style={styles.ringGo}>Ring</Text>
+            </Pressable>
+          ))
+        )}
+
         <Text style={styles.sectionTitle}>Hardware harnesses</Text>
         <Button
           label="NFC"
@@ -205,6 +254,29 @@ export function DevScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.color.background },
+  pressed: { opacity: 0.6 },
+  ringRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.color.surface,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  ringName: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
+  ringGo: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.accent,
+  },
   content: {
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.lg,

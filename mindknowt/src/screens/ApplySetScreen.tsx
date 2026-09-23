@@ -9,13 +9,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Pill, ScreenHeader } from '../components/ui';
-import { describeRepeat, parseTimeInput, type RepeatType } from '../db';
+import { TimeWheel } from '../components/TimeWheel';
+import { describeRepeat, formatTime, type RepeatType } from '../db';
 import { resyncAlarmsQuietly } from '../alarms';
 import { applySet, previewSet, type SetPreview, type SetSelection } from '../sets';
 import { theme } from '../theme';
@@ -32,7 +32,19 @@ const REPEAT_CHOICES: { value: RepeatType; label: string }[] = [
   { value: 'once', label: 'Once' },
 ];
 
-type ExtraSchedule = { time: string; repeat: RepeatType | null };
+/**
+ * The optional schedule a preset does not declare. `on` is what makes it
+ * optional: a wheel always reads some time, so absence has to be its own
+ * state rather than an empty value.
+ */
+type ExtraSchedule = { on: boolean; time: string; repeat: RepeatType | null };
+
+/**
+ * Where each wheel starts. It is a starting position for a control the person
+ * is about to turn, not a time chosen on their behalf: nothing is written
+ * until Add is pressed, and the wheel is on screen the whole time.
+ */
+const WHEEL_START = '08:00';
 
 /** `describeRepeat` reads a schedule row; set content only has the repeat type. */
 function describeShape(repeat: RepeatType): string {
@@ -77,12 +89,18 @@ export function ApplySetScreen() {
         setSelected({});
         setTimes(
           Object.fromEntries(
-            result.entries.map((e) => [e.knowt.name, e.knowt.schedules.map(() => '')]),
+            result.entries.map((e) => [
+              e.knowt.name,
+              e.knowt.schedules.map(() => WHEEL_START),
+            ]),
           ),
         );
         setExtras(
           Object.fromEntries(
-            result.entries.map((e) => [e.knowt.name, { time: '', repeat: null }]),
+            result.entries.map((e) => [
+              e.knowt.name,
+              { on: false, time: WHEEL_START, repeat: null },
+            ]),
           ),
         );
       }
@@ -96,21 +114,13 @@ export function ApplySetScreen() {
     if (!preview) return false;
     const chosen = preview.entries.filter((e) => selected[e.knowt.name]);
     if (chosen.length === 0) return false;
+    // The wheels always read a valid time, so the only thing left to check is
+    // that an added schedule has been told how often to repeat.
     return chosen.every((entry) => {
-      // A schedule the set declares needs a time, because none is assumed.
-      const declared = entry.knowt.schedules.every(
-        (_, index) => parseTimeInput(times[entry.knowt.name]?.[index] ?? '') !== null,
-      );
-
-      // A schedule added here is optional, but half of one is not usable.
       const extra = extras[entry.knowt.name];
-      const added =
-        !extra?.time.trim() ||
-        (parseTimeInput(extra.time) !== null && extra.repeat !== null);
-
-      return declared && added;
+      return !extra?.on || extra.repeat !== null;
     });
-  }, [preview, selected, times, extras]);
+  }, [preview, selected, extras]);
 
   if (loading) {
     return (
@@ -138,14 +148,13 @@ export function ApplySetScreen() {
         .filter((e) => selected[e.knowt.name])
         .map((e) => {
           const extra = extras[e.knowt.name];
-          const extraTime = extra?.time ? parseTimeInput(extra.time) : null;
           return {
             name: e.knowt.name,
-            // Stored as 24 hour regardless of how it was typed.
-            times: (times[e.knowt.name] ?? []).map((t) => parseTimeInput(t) ?? ''),
+            // The wheel deals only in 24 hour HH:MM, which is what is stored.
+            times: times[e.knowt.name] ?? [],
             extraSchedule:
-              extraTime && extra?.repeat
-                ? { time: extraTime, repeat: extra.repeat }
+              extra?.on && extra.repeat
+                ? { time: extra.time, repeat: extra.repeat }
                 : null,
           };
         });
@@ -244,32 +253,49 @@ export function ApplySetScreen() {
 
                 {isSelected && entry.knowt.schedules.length === 0 ? (
                   <View style={styles.scheduleRow}>
-                    <Text style={styles.scheduleLabel}>
-                      Schedule, optional
-                    </Text>
-                    <TextInput
-                      style={[
-                        styles.timeInput,
-                        extras[entry.knowt.name]?.time.trim() !== '' &&
-                          parseTimeInput(extras[entry.knowt.name]?.time ?? '') === null &&
-                          styles.timeInputInvalid,
-                      ]}
-                      value={extras[entry.knowt.name]?.time ?? ''}
-                      onChangeText={(text) =>
-                        setExtras((prev) => ({
-                          ...prev,
-                          [entry.knowt.name]: {
-                            time: text,
-                            repeat: prev[entry.knowt.name]?.repeat ?? null,
-                          },
-                        }))
-                      }
-                      placeholder="8:00 am"
-                      placeholderTextColor={theme.color.textMuted}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                    {extras[entry.knowt.name]?.time.trim() ? (
+                    <Pressable
+                      accessibilityRole="switch"
+                      accessibilityState={{
+                        checked: !!extras[entry.knowt.name]?.on,
+                      }}
+                      onPress={() =>
+                        setExtras((prev) => {
+                          const current = prev[entry.knowt.name];
+                          return {
+                            ...prev,
+                            [entry.knowt.name]: {
+                              on: !current?.on,
+                              time: current?.time ?? WHEEL_START,
+                              repeat: current?.repeat ?? null,
+                            },
+                          };
+                        })
+                      }>
+                      <Text style={styles.scheduleToggle}>
+                        {extras[entry.knowt.name]?.on
+                          ? 'Remove the time'
+                          : 'Add a time, optional'}
+                      </Text>
+                    </Pressable>
+
+                    {extras[entry.knowt.name]?.on ? (
+                      <TimeWheel
+                        compact
+                        value={extras[entry.knowt.name]?.time ?? WHEEL_START}
+                        onChange={(next) =>
+                          setExtras((prev) => ({
+                            ...prev,
+                            [entry.knowt.name]: {
+                              on: true,
+                              time: next,
+                              repeat: prev[entry.knowt.name]?.repeat ?? null,
+                            },
+                          }))
+                        }
+                      />
+                    ) : null}
+
+                    {extras[entry.knowt.name]?.on ? (
                       <View style={styles.repeatRow}>
                         {REPEAT_CHOICES.map((choice) => {
                           const active =
@@ -283,7 +309,8 @@ export function ApplySetScreen() {
                                 setExtras((prev) => ({
                                   ...prev,
                                   [entry.knowt.name]: {
-                                    time: prev[entry.knowt.name]?.time ?? '',
+                                    on: true,
+                                    time: prev[entry.knowt.name]?.time ?? WHEEL_START,
                                     repeat: choice.value,
                                   },
                                 }))
@@ -306,29 +333,24 @@ export function ApplySetScreen() {
 
                 {isSelected &&
                   entry.knowt.schedules.map((schedule, index) => {
-                    const value = times[entry.knowt.name]?.[index] ?? '';
-                    const invalid =
-                      value.trim() !== '' && parseTimeInput(value) === null;
+                    const value = times[entry.knowt.name]?.[index] ?? WHEEL_START;
                     return (
                       <View key={index} style={styles.scheduleRow}>
                         <Text style={styles.scheduleLabel}>
                           {schedule.label ?? describeShape(schedule.repeat)}
                           {schedule.label ? ` · ${describeShape(schedule.repeat)}` : ''}
+                          {`, ${formatTime(value)}`}
                         </Text>
-                        <TextInput
-                          style={[styles.timeInput, invalid && styles.timeInputInvalid]}
+                        <TimeWheel
+                          compact
                           value={value}
-                          onChangeText={(text) =>
+                          onChange={(next) =>
                             setTimes((prev) => {
-                              const next = [...(prev[entry.knowt.name] ?? [])];
-                              next[index] = text;
-                              return { ...prev, [entry.knowt.name]: next };
+                              const list = [...(prev[entry.knowt.name] ?? [])];
+                              list[index] = next;
+                              return { ...prev, [entry.knowt.name]: list };
                             })
                           }
-                          placeholder="8:00 am"
-                          placeholderTextColor={theme.color.textMuted}
-                          autoCapitalize="none"
-                          autoCorrect={false}
                         />
                       </View>
                     );
@@ -440,17 +462,12 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.xs,
     color: theme.color.textMuted,
   },
-  timeInput: {
-    fontFamily: theme.font.mono,
-    fontSize: theme.font.size.md,
-    color: theme.color.textPrimary,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: theme.radius.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+  scheduleToggle: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.accent,
+    paddingVertical: theme.spacing.xs,
   },
-  timeInputInvalid: { borderColor: theme.color.dangerBorder },
   repeatRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
