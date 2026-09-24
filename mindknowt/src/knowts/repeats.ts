@@ -6,7 +6,7 @@ import type { RepeatType, ScheduleRow } from '../db/types';
  *
  * The mapping lives here rather than in the screen because it has to work in
  * both directions: picking a preset writes the columns, and opening an
- * existing schedule has to recognise which preset it came from. Splitting
+ * existing schedule has to recognize which preset it came from. Splitting
  * those across two files is how they drift.
  *
  * Several presets are the same repeat_type with different numbers. Monthly and

@@ -10,7 +10,7 @@ import { theme } from '../theme';
  * The neon needed somewhere to live above the content without becoming the
  * content. One small mark per screen, always the same size in the same place,
  * reads as a masthead rule rather than as decoration, and it is the cheapest
- * way to tie the colour through the whole app.
+ * way to tie the color through the whole app.
  */
 export function HeaderRule() {
   return <View style={styles.rule} />;

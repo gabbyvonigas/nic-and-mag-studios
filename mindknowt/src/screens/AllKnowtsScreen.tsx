@@ -39,7 +39,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
  * in a pill on the right. Definition comes from the shape and the fill rather
  * than from a shadow, which keeps it distinct from Daily's raised white cards.
  *
- * Variation is by category, not by position, so a colour means something. The
+ * Variation is by category, not by position, so a color means something. The
  * one exception is priority: a high priority row puts the neon in its time
  * pill, which is the sort of key state the neon is for.
  */
@@ -158,7 +158,7 @@ function CategoryGroupView({
   now: Date;
 }) {
   const shades = categoryShades(group.category);
-  const name = group.category?.name ?? 'Uncategorised';
+  const name = group.category?.name ?? 'Uncategorized';
   const count = group.knowts.length;
 
   return (
@@ -293,7 +293,7 @@ export function AllKnowtsScreen() {
       <View style={styles.content}>
         <ScreenHeader title="All knowts" />
 
-        {/* Visible without being loud: one line, the colours as the signal. */}
+        {/* Visible without being loud: one line, the colors as the signal. */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Categories"

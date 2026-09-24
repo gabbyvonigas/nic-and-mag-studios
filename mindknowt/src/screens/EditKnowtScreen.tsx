@@ -46,7 +46,7 @@ import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-/** Icon and label share one colour, and the chosen one sits on lime. */
+/** Icon and label share one color, and the chosen one sits on lime. */
 function optionTint(selected: boolean, blocked: boolean): string {
   if (blocked) return theme.color.textMuted;
   return selected ? theme.color.onHighlight : theme.color.textPrimary;
@@ -114,7 +114,7 @@ export function EditKnowtScreen() {
     } catch (err) {
       if (err instanceof TagInUseError) {
         setError(`That tag is already ${err.knowtName}. Scan a different one.`);
-      } else if (err instanceof NfcScanError && err.reason === 'cancelled') {
+      } else if (err instanceof NfcScanError && err.reason === 'canceled') {
         // Backing out is not a failure.
       } else {
         setError(err instanceof Error ? err.message : String(err));
@@ -371,7 +371,7 @@ export function EditKnowtScreen() {
                   onPress={() => setPriority(level.value)}
                   style={[styles.priority, on && styles.priorityOn]}>
                   {/* The same bars the cards use, so the control and the
-                      result are recognisably the same thing. */}
+                      result are recognizably the same thing. */}
                   <PriorityBars
                     priority={level.value}
                     color={on ? theme.color.textPrimary : theme.color.textMuted}

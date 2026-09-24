@@ -35,7 +35,7 @@ export type SyncResult = {
   armed: number;
   /** Alarms replaced because the schedule or knowt changed. */
   replaced: number;
-  /** Alarms cancelled because they should no longer exist. */
+  /** Alarms canceled because they should no longer exist. */
   cleared: number;
   /** Schedules that could not be armed. The rest still are. */
   failed: number;
@@ -54,7 +54,7 @@ function keyOf(knowtId: string, scheduleId: string): string {
 /**
  * Everything that would make an armed alarm wrong if it changed: when it
  * rings, how often, and what it says. Compared as a string so an unchanged
- * schedule can be recognised without re-deriving the alarm.
+ * schedule can be recognized without re-deriving the alarm.
  */
 export function signatureOf(
   knowt: KnowtWithDetail,
@@ -100,8 +100,8 @@ async function cancelRecord(row: PendingAlarmRow): Promise<void> {
   try {
     await alarmScheduler.cancel(row.alarmkit_id);
   } catch {
-    // Already fired, already cancelled, or gone. The record goes either way:
-    // one that cannot be cancelled is not worth keeping.
+    // Already fired, already canceled, or gone. The record goes either way:
+    // one that cannot be canceled is not worth keeping.
   }
   await deletePendingAlarm(row.id);
 }

@@ -124,7 +124,7 @@ export function DevScreen() {
               setAlarmNotice(
                 count === 0
                   ? 'AlarmKit had nothing scheduled.'
-                  : `Cancelled ${count} alarm${count === 1 ? '' : 's'}.`,
+                  : `Canceled ${count} alarm${count === 1 ? '' : 's'}.`,
               );
             })
           }

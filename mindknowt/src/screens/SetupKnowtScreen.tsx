@@ -135,7 +135,7 @@ export function SetupKnowtScreen() {
       setTagUid(tag.rawUid);
       setMode('strict');
     } catch (err) {
-      if (err instanceof NfcScanError && err.reason === 'cancelled') return;
+      if (err instanceof NfcScanError && err.reason === 'canceled') return;
       setNotice(err instanceof Error ? err.message : String(err));
     } finally {
       setScanning(false);

@@ -83,17 +83,17 @@ export async function cancelKnowtAlarms(
   filter: { scheduleId?: string | null; kinds?: PendingAlarmKind[] } = {},
 ): Promise<number> {
   const rows = await takePendingForKnowt(knowtId, filter);
-  let cancelled = 0;
+  let canceled = 0;
   for (const row of rows) {
     try {
       await alarmScheduler.cancel(row.alarmkit_id);
-      cancelled += 1;
+      canceled += 1;
     } catch {
-      // Already fired, already cancelled, or gone. The row is removed either
-      // way, because a pending record that cannot be cancelled is just noise.
+      // Already fired, already canceled, or gone. The row is removed either
+      // way, because a pending record that cannot be canceled is just noise.
     }
   }
-  return cancelled;
+  return canceled;
 }
 
 /** What is armed for a knowt right now, soonest first. */
@@ -121,11 +121,11 @@ export async function pruneFiredAlarms(): Promise<number> {
  */
 export async function cancelAllAlarms(): Promise<number> {
   const ids = await alarmScheduler.listScheduled();
-  let cancelled = 0;
+  let canceled = 0;
   for (const id of ids) {
     try {
       await alarmScheduler.cancel(id);
-      cancelled += 1;
+      canceled += 1;
     } catch {
       // Already gone. Keep going: one stuck id must not strand the rest.
     }
@@ -133,15 +133,15 @@ export async function cancelAllAlarms(): Promise<number> {
   try {
     await clearAllPendingAlarms();
   } catch {
-    // The alarms are cancelled, which is the part that matters.
+    // The alarms are canceled, which is the part that matters.
   }
-  return cancelled;
+  return canceled;
 }
 
 /**
  * The kinds that fire once and are then finished. A completion clears these
  * and leaves a recurring alarm in place, because tomorrow's 8:00 am is not
- * cancelled by doing today's.
+ * canceled by doing today's.
  */
 export const ONE_SHOT_KINDS: PendingAlarmKind[] = ['refire', 'snooze', 'test'];
 

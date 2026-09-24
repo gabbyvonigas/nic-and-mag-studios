@@ -24,7 +24,7 @@ export type ScannedTag = {
  * error types onto these so the UI can render copy without platform knowledge.
  */
 export type NfcFailureReason =
-  | 'cancelled'
+  | 'canceled'
   /** A tag was read, but it was not the one the caller was waiting for. */
   | 'wrong-tag'
   | 'timeout'

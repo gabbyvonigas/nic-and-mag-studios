@@ -103,7 +103,7 @@ export const theme = {
      *
      * Weight comes back by bundling the real SF Pro Rounded faces through
      * expo-font, which is native and costs a rebuild. Until then hierarchy is
-     * size and colour. Kept here only so the scale is written down.
+     * size and color. Kept here only so the scale is written down.
      */
     weight: {
       regular: '400',

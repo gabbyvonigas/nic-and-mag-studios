@@ -29,7 +29,7 @@ function scanFailureText(err: unknown): RingingMessage | null {
     };
   }
   switch (err.reason) {
-    case 'cancelled':
+    case 'canceled':
       // Backing out of the sheet is not a failure; the alarm simply continues.
       return null;
     case 'wrong-tag':

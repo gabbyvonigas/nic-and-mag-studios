@@ -32,8 +32,8 @@ const LAUNCH_APP_ON_DISMISS = true;
 /**
  * How the alarm looks on the Lock Screen.
  *
- * AlarmKit draws that banner; this app hands it text and colours, not a layout.
- * What can be set is the tint, the two button labels and their text colours.
+ * AlarmKit draws that banner; this app hands it text and colors, not a layout.
+ * What can be set is the tint, the two button labels and their text colors.
  * Without a tint the module defaults to `Color.blue`, which is where the blue
  * came from: it was never chosen.
  *

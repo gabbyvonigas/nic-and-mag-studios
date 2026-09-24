@@ -1,5 +1,8 @@
 # MindKnowt design tokens
 
+All copy in this file and in the app is American English. See the copy rules in
+`AGENTS.md`.
+
 The source of truth for the visual direction. Every value here is implemented
 in `src/theme/`, and nothing outside that directory should carry a hex value, a
 radius, a shadow or a font name. If a screen needs a value that is not here,
@@ -121,14 +124,14 @@ ordinary font, so there is no supported route to it from JavaScript.
 
 **Confirmed working on device, with one hard limit: never set `fontWeight`.**
 
-`RCTFont.mm` resolves a family it does not recognise by calling `fontWithName:`,
+`RCTFont.mm` resolves a family it does not recognize by calling `fontWithName:`,
 which returns the regular face and nothing else, then reassigns the family to
 that font's real family, which is the plain system one. Any weight asked for is
 matched against plain San Francisco faces from there. So `fontWeight` on rounded
 text either does nothing or silently drops the rounding, depending on the iOS
 version, and headers and button labels were the styles that had it.
 
-There is therefore **one weight**. Hierarchy is size and colour. Real weights
+There is therefore **one weight**. Hierarchy is size and color. Real weights
 mean bundling the SF Pro Rounded faces through `expo-font` so they resolve by
 PostScript name through the ordinary path, which is native and costs a rebuild.
 
@@ -194,18 +197,18 @@ Expanding and collapsing is a plus and a minus, not a chevron. The horizontal
 bar stays put and only the upright comes and goes, so it reads as one control
 changing state.
 
-## Adding a palette colour
+## Adding a palette color
 
 `categories.color` is stored, so changing `CATEGORY_COLORS` means adding a new
 `RECOLOR_SQL` back-fill entry stamped at the new schema version. The repaint SQL
 is generated from the current constant, so an install already past the previous
-entry never runs it again and would keep the old colours silently. There is a
+entry never runs it again and would keep the old colors silently. There is a
 test that migrates a database from every version predating the newest repaint
 and insists it lands on the current values.
 
 ## The Lock Screen
 
-AlarmKit draws it. This app supplies text and colour, not a layout.
+AlarmKit draws it. This app supplies text and color, not a layout.
 
 | What | Value |
 | --- | --- |

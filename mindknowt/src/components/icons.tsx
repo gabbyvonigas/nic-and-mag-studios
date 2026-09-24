@@ -8,7 +8,7 @@ import { theme } from '../theme';
  * There is no icon font in this project, and adding one pulls in expo-font,
  * which is native and would turn every JS-only change into a twenty minute
  * rebuild. Unicode glyphs are not an option either: the obvious gear and
- * chevron characters get replaced by colour emoji on iOS, which breaks both the
+ * chevron characters get replaced by color emoji on iOS, which breaks both the
  * look and the no-emoji rule. So they are shapes.
  */
 
@@ -31,7 +31,7 @@ export function ChevronLeft({
         borderBottomWidth: thickness,
         borderColor: color,
         transform: [{ rotate: '45deg' }],
-        // The rotation leaves the stroke visually right of centre.
+        // The rotation leaves the stroke visually right of center.
         marginRight: size * 0.25,
       }}
     />
@@ -88,8 +88,8 @@ export function ExpandSign({
  * Gear. Four bars crossed at 45 degree steps make eight teeth, with a ring laid
  * over the middle to cut them back to the rim and leave the hole.
  *
- * The ring is drawn rather than filled on purpose. A solid centre reads as a
- * grey blob at small sizes, not as a gear, which is exactly how the first
+ * The ring is drawn rather than filled on purpose. A solid center reads as a
+ * gray blob at small sizes, not as a gear, which is exactly how the first
  * version of this looked. There is no circle behind it and no shadow: this is
  * a quiet corner control, not a floating button.
  *

@@ -78,6 +78,27 @@ minutes. Always state which kind a change is.
 
 ## Copy rules
 
+**American English only. Everywhere, permanently.**
+
+MindKnowt and Nic & Mag Studios are American. This is not a per-file judgment
+call and it is not limited to what a user reads: it covers in-app copy, code
+comments, identifiers, documentation, commit messages and starter-set content.
+
+color not colour, gray not grey, center not centre, organize not organise,
+customize not customise, recognize not recognise, categorize not categorise,
+canceled not cancelled, labeled not labelled, behavior not behaviour, license
+not licence, defense not defence, analyze not analyse, judgment not judgement,
+program not programme, and every other pair that works the same way.
+
+Prefixed forms are the ones that get missed, because a word boundary does not
+sit in front of them: `recoloured` survived a sweep that caught `coloured`.
+Check with a bare stem, not with `\b`:
+
+    grep -rniE "colour|behaviour|organis|customis|recognis|categoris|centre|grey|licence|defence|analyse|judgement|cancelled|labelled" src/ App.tsx assets/ docs/ design-notes.md
+
+which must return nothing. It excludes this file on purpose, since the list
+above spells out the forms it is looking for.
+
 **No em dashes. Anywhere, ever.** Not in user-facing copy, not in comments, not
 in JSON content. Use a comma, a colon, a full stop or brackets. Verify with
 `grep -rn "\u2014" src/ App.tsx`, which must return nothing.
@@ -138,7 +159,7 @@ tomorrow's.
 ## The dev build draws things this project does not
 
 `expo-dev-client` puts a floating "Tools button" in its own window above every
-screen: a translucent grey circle with a `gearshape.fill` glyph and a shadow,
+screen: a translucent gray circle with a `gearshape.fill` glyph and a shadow,
 at half opacity, in the top right. It is not app code, it appears on every
 screen including ones with no such control, and it is absent from release
 builds.
@@ -156,8 +177,8 @@ menu.
 ## The Lock Screen is AlarmKit's, not ours
 
 `expo-alarm-kit` hands AlarmKit an `AlarmPresentation` and lets it draw the
-banner. What can be set from JavaScript is the title, the tint colour, and the
-two button labels and their text colours. Not fonts, not layout, not icons, not
+banner. What can be set from JavaScript is the title, the tint color, and the
+two button labels and their text colors. Not fonts, not layout, not icons, not
 extra buttons.
 
 Three limits are in the module's own source, not in AlarmKit:
@@ -176,7 +197,7 @@ Three limits are in the module's own source, not in AlarmKit:
 presentations are never configured, which is why a snoozed alarm's banner
 carries no buttons: that state has no presentation to draw.
 
-Anything beyond text and colour therefore needs a patched or forked
+Anything beyond text and color therefore needs a patched or forked
 `expo-alarm-kit` plus a widget extension target, and this is a CNG project with
 no `ios/` directory, so the target needs a config plugin too. Do not promise
 Lock Screen layout work as part of an ordinary rebuild.

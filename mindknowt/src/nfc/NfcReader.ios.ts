@@ -34,7 +34,7 @@ const SHEET_SUCCESS = 'Tag read';
 type IosTag = TagEvent & { tech?: string; idm?: string };
 
 function reasonFor(err: unknown): NfcFailureReason {
-  if (err instanceof NfcError.UserCancel) return 'cancelled';
+  if (err instanceof NfcError.UserCancel) return 'canceled';
   if (err instanceof NfcError.Timeout) return 'timeout';
   if (err instanceof NfcError.RadioDisabled) return 'radio-disabled';
   if (err instanceof NfcError.UnsupportedFeature) return 'unsupported';

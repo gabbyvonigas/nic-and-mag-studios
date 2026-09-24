@@ -64,9 +64,9 @@ export async function createCategory(input: {
 }
 
 /**
- * Edits a category. Shipped categories can be renamed but keep their colour:
+ * Edits a category. Shipped categories can be renamed but keep their color:
  * the six swatches are the brand, and a migration that repaints them matches on
- * `is_custom = 0`, so a colour changed here would be silently overwritten by a
+ * `is_custom = 0`, so a color changed here would be silently overwritten by a
  * later version. Refusing is honest; letting it be reverted later is not.
  */
 export async function updateCategory(
@@ -82,7 +82,7 @@ export async function updateCategory(
 
   if (fields.color !== undefined && !row.is_custom) {
     throw new CategoryLockedError(
-      'The built in categories keep their colours. Make your own to choose one.',
+      'The built in categories keep their colors. Make your own to choose one.',
     );
   }
 
@@ -328,7 +328,7 @@ export async function findCategoryByKey(
   );
 }
 
-/** Knowts can carry several labelled schedules; `createKnowt` seeds only one. */
+/** Knowts can carry several labeled schedules; `createKnowt` seeds only one. */
 export async function addSchedule(
   knowtId: string,
   schedule: {

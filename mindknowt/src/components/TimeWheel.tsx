@@ -29,7 +29,7 @@ import { theme } from '../theme';
 
 type Size = {
   itemHeight: number;
-  /** Odd, so one row sits centred with equal space above and below. */
+  /** Odd, so one row sits centered with equal space above and below. */
   rows: number;
   columnWidth: number;
   fontSize: number;

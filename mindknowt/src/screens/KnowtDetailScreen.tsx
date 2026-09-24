@@ -117,7 +117,7 @@ export function KnowtDetailScreen() {
     } catch (err) {
       if (err instanceof TagInUseError) {
         setNotice(`That tag is already ${err.knowtName}. Scan a different one.`);
-      } else if (err instanceof NfcScanError && err.reason === 'cancelled') {
+      } else if (err instanceof NfcScanError && err.reason === 'canceled') {
         // Backing out is not a failure.
       } else {
         setNotice(err instanceof Error ? err.message : String(err));

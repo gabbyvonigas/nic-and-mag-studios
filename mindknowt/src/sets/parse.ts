@@ -16,7 +16,7 @@ const REPEATS: RepeatType[] = [
 
 /**
  * Content is still allowed to say 'soft', because bundled JSON written before
- * the modes collapsed should not fail validation. It is normalised to 'open'
+ * the modes collapsed should not fail validation. It is normalized to 'open'
  * on the way in, so nothing downstream ever sees the retired value.
  */
 const MODES: KnowtMode[] = ['strict', 'soft', 'open'];

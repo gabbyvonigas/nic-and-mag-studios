@@ -22,10 +22,10 @@ type Copy = {
 
 function failureCopy(failure: ScanFailure): Copy {
   switch (failure.reason) {
-    case 'cancelled':
+    case 'canceled':
       return {
         tone: 'warn',
-        title: 'Scan cancelled',
+        title: 'Scan canceled',
         detail: 'The scan sheet was closed before a tag was read.',
       };
     case 'timeout':

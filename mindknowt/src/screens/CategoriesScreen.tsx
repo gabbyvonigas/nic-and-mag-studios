@@ -45,7 +45,7 @@ function Swatches({
           <Pressable
             key={color}
             accessibilityRole="button"
-            accessibilityLabel={`Colour ${color}`}
+            accessibilityLabel={`Color ${color}`}
             accessibilityState={{ selected: on }}
             onPress={() => onChange(color)}
             style={[
@@ -105,7 +105,7 @@ function CategoryRowView({
             <Swatches value={category.color} onChange={onRecolor} />
           ) : (
             <Text style={styles.hint}>
-              Built in categories keep their colours. Make your own to choose
+              Built in categories keep their colors. Make your own to choose
               one.
             </Text>
           )}
@@ -199,7 +199,7 @@ export function CategoriesScreen() {
           keyboardShouldPersistTaps="handled">
           <SubScreenHeader
             title="Categories"
-            subtitle="Tap one to rename it. Yours can be recoloured or removed."
+            subtitle="Tap one to rename it. Yours can be recolored or removed."
             onBack={() => navigation.goBack()}
           />
 

@@ -191,7 +191,7 @@ export const BACKFILLS: { to: number; sql: string }[] = [
     // The palette was brightened for the new visual direction. RECOLOR_SQL is
     // generated from the current constant, so this paints the same values the
     // v4 entry would; it exists because an install already past 4 never runs
-    // that one again. Custom colours are still excluded by is_custom = 0.
+    // that one again. Custom colors are still excluded by is_custom = 0.
     sql: RECOLOR_SQL,
   },
   {

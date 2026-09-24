@@ -10,7 +10,7 @@ import type { PendingAlarmKind, PendingAlarmRow } from './types';
  * can cancel an alarm that is no longer wanted. That blindness is what let
  * repeated test rings stack up and fire on top of each other.
  *
- * Rows are removed when the alarm is cancelled, and pruned once its time has
+ * Rows are removed when the alarm is canceled, and pruned once its time has
  * passed, since a fired alarm is no longer pending. The record is deliberately
  * best-effort: it can drift if AlarmKit drops an alarm on its own, so nothing
  * here is treated as proof that an alarm will ring.

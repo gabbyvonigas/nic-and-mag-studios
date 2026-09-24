@@ -15,7 +15,7 @@
  *
  * Brightening the muted originals was not enough: saturation was the problem,
  * not lightness. Care sat at 0.31 saturation and admin at 0.17, which is a
- * greyish colour with a hue attached, and next to neon and near-black they read
+ * grayish color with a hue attached, and next to neon and near-black they read
  * as dirt. These run 0.62 to 0.86.
  *
  * Two of the six changed identity rather than just intensity, because there is
@@ -38,7 +38,7 @@ export const CATEGORY_COLORS = {
 /**
  * Darkened for label text and icons on white. The swatch mixed 42 percent
  * towards black, the same mix a custom category gets, so the shipped six and a
- * colour someone picked behave identically. Every value clears 5.6 against
+ * color someone picked behave identically. Every value clears 5.6 against
  * white, so it is legible at body size.
  */
 export const CATEGORY_INK = {
@@ -62,7 +62,7 @@ export const CATEGORY_FILL = {
 
 /**
  * How a knowt was finished. Deliberately outside the category palette: these
- * are not categories, and borrowing a category colour for them would make the
+ * are not categories, and borrowing a category color for them would make the
  * Summary look like it was reporting on Home or Care.
  *
  * Scan is the intended path, tap is fine but untagged, override is the one
@@ -135,12 +135,12 @@ function mix(
 }
 
 /**
- * Derives the ink and fill for a colour the app did not choose.
+ * Derives the ink and fill for a color the app did not choose.
  *
  * The shipped six have hand-picked shades because they are the brand. A
  * category someone makes themselves cannot, so its shades are mixed towards
  * black and white. Close enough to stay legible, and it means a custom
- * category renders in its own colour instead of falling back to grey.
+ * category renders in its own color instead of falling back to gray.
  */
 export function shadesFromHex(hex: string): CategoryShades {
   const rgb = parseHex(hex);
@@ -155,7 +155,7 @@ export function shadesFromHex(hex: string): CategoryShades {
 /**
  * Shades for one category. A shipped category is matched by its stable key so
  * it always gets the curated triple, whatever is stored; anything else is
- * derived from its own colour.
+ * derived from its own color.
  */
 export function categoryShades(
   category: { key?: string | null; color?: string | null } | null | undefined,
