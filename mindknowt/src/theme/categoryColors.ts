@@ -10,34 +10,45 @@
  * back-fills these can be tested without the React Native runtime.
  */
 
-/** The swatch. Muted but distinct, chosen to sit on white. */
+/**
+ * The swatch. Same six hues, brightened to hold their own against the higher
+ * contrast palette: the muted originals went flat next to near-black and neon.
+ *
+ * Between 2.1 and 3.2 against white, which is why these are never text. Bars,
+ * dots and rules only. See design-notes.md.
+ */
 export const CATEGORY_COLORS = {
-  home: '#C06A4C',
-  daily: '#C4972C',
-  care: '#AE7B92',
-  ritual: '#7C8A4E',
-  go: '#5F8FB4',
-  admin: '#96897C',
+  home: '#D9744F',
+  daily: '#E0A92B',
+  care: '#C98BA6',
+  ritual: '#8FA254',
+  go: '#6BA3CF',
+  admin: '#A89A8B',
 } as const;
 
-/** Darkened for label text and icons on white. */
+/**
+ * Darkened for label text and icons on white. The swatch mixed 42 percent
+ * towards black, the same mix a custom category gets, so the shipped six and a
+ * colour someone picked behave identically. Every value clears 5.6 against
+ * white, so it is legible at body size.
+ */
 export const CATEGORY_INK = {
-  home: '#8E4830',
-  daily: '#856312',
-  care: '#7E5568',
-  ritual: '#556036',
-  go: '#3E6685',
-  admin: '#6B6157',
+  home: '#7E432E',
+  daily: '#826219',
+  care: '#755160',
+  ritual: '#535E31',
+  go: '#3E5F78',
+  admin: '#615951',
 } as const;
 
-/** Barely-there fill for chips and completed cards. */
+/** Barely-there fill for chips and completed cards: 88 percent towards white. */
 export const CATEGORY_FILL = {
-  home: '#F9EDE8',
-  daily: '#FBF3E1',
-  care: '#F7EEF2',
-  ritual: '#F1F3E9',
-  go: '#EBF2F8',
-  admin: '#F4F2EF',
+  home: '#FAEEEA',
+  daily: '#FBF5E6',
+  care: '#F9F1F4',
+  ritual: '#F2F4EA',
+  go: '#EDF4F9',
+  admin: '#F5F3F1',
 } as const;
 
 /**

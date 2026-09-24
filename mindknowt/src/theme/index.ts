@@ -8,46 +8,73 @@ import { CATEGORY_COLORS } from './categoryColors';
  * font family; screens consume semantic tokens only.
  */
 
-/** Raw values. Swap these when the brand palette lands. */
+/**
+ * Raw values. Every one of these is documented in `design-notes.md`, which is
+ * the source of truth; if the two disagree, the file is right and this is a bug.
+ */
 const palette = {
-  ink900: '#111827',
-  ink600: '#4b5563',
-  ink500: '#6b7280',
-  ink400: '#9ca3af',
-  ink200: '#e5e7eb',
-  ink100: '#f3f4f6',
-  white: '#ffffff',
-  /** Cool off-white. The page sits on this so white cards read as cards. */
-  page: '#f6f7f9',
+  /** The page. Light warm gray, never white, so cards read as cards. */
+  page: '#F0F0EE',
+  card: '#FFFFFF',
 
-  green50: '#f0fdf4',
-  green200: '#bbf7d0',
-  green700: '#15803d',
+  /** Near black. Primary buttons, icons, headings, body. */
+  ink: '#111111',
+  /** Secondary text, where ink would be too heavy. */
+  charcoal: '#3A3A3A',
+  /** Dividers, borders, disabled. Distinct from the page. Never text. */
+  lightGray: '#D8D8D6',
+  /** Between charcoal and lightGray, for text that has to recede. */
+  gray: '#7A7A78',
 
-  amber50: '#fffbeb',
-  amber200: '#fde68a',
-  amber700: '#b45309',
+  /**
+   * Neon yellow green. Highlights, active states, key numbers, nothing else.
+   * 1.19 against white, so it never carries text and never draws a thin line.
+   */
+  neon: '#D9FA3C',
 
-  red50: '#fef2f2',
-  red200: '#fecaca',
-  red700: '#b91c1c',
+  green50: '#F1FAF3',
+  green200: '#BCE6C6',
+  green700: '#1F7A3D',
+
+  amber50: '#FDF7E8',
+  amber200: '#F3DFA0',
+  amber700: '#8A5E0F',
+
+  red50: '#FDF1F1',
+  red200: '#F1C4C4',
+  red700: '#A82525',
 } as const;
 
 export const theme = {
   color: {
     background: palette.page,
-    surface: palette.white,
-    surfaceMuted: palette.ink100,
-    border: palette.ink200,
+    surface: palette.card,
+    /** A panel inside a card, or an inactive segment. */
+    surfaceMuted: palette.page,
+    border: palette.lightGray,
 
-    textPrimary: palette.ink900,
-    textSecondary: palette.ink500,
-    textMuted: palette.ink400,
-    textBody: palette.ink600,
+    /** Near black. What was called accent, because it is the primary action. */
+    primary: palette.ink,
+    onPrimary: palette.card,
+    primaryDisabled: palette.lightGray,
 
-    accent: palette.ink900,
-    onAccent: palette.white,
-    accentDisabled: palette.ink200,
+    /** The neon. Fill only, with `onHighlight` text over it. */
+    highlight: palette.neon,
+    onHighlight: palette.ink,
+
+    textPrimary: palette.ink,
+    textSecondary: palette.charcoal,
+    textMuted: palette.gray,
+    textBody: palette.charcoal,
+
+    /**
+     * Aliases kept so screens still compile while the direction is applied one
+     * screen at a time. Both point at primary, which is where accent already
+     * pointed. They go once stage three is finished.
+     */
+    accent: palette.ink,
+    onAccent: palette.card,
+    accentDisabled: palette.lightGray,
 
     successSurface: palette.green50,
     successBorder: palette.green200,
@@ -64,18 +91,26 @@ export const theme = {
 
   font: {
     /**
-     * Helvetica Neue ships with iOS, so this needs no bundled asset and no
-     * native build. React Native maps `fontWeight` onto a face within the
-     * family, which is reliable for Regular, Medium and Bold but not for Light,
-     * so `face` below names the PostScript faces directly for anywhere the
-     * weight has to be exact.
+     * SF Pro Rounded. React Native does not expose it by family name and iOS
+     * does not install it as an ordinary font, so it is reached through the
+     * private family below. Undocumented, but it has worked on iOS for years,
+     * and an unknown family falls back to San Francisco rather than breaking,
+     * so being wrong here costs the rounding and nothing else.
+     *
+     * The guaranteed alternative is bundling the files through `expo-font`,
+     * which is native and costs a rebuild. Not worth it until this is shown to
+     * fail on a device.
+     *
+     * The private family carries no separate PostScript faces, so `face` maps
+     * onto the one family and weight is applied through `weight` below. Rounded
+     * holds weight well, so medium does most of the work bold used to.
      */
-    body: Platform.select({ ios: 'Helvetica Neue', default: undefined }),
+    body: Platform.select({ ios: '.AppleSystemUIFontRounded', default: undefined }),
     face: {
-      light: Platform.select({ ios: 'HelveticaNeue-Light', default: undefined }),
-      regular: Platform.select({ ios: 'HelveticaNeue', default: undefined }),
-      medium: Platform.select({ ios: 'HelveticaNeue-Medium', default: undefined }),
-      bold: Platform.select({ ios: 'HelveticaNeue-Bold', default: undefined }),
+      light: Platform.select({ ios: '.AppleSystemUIFontRounded', default: undefined }),
+      regular: Platform.select({ ios: '.AppleSystemUIFontRounded', default: undefined }),
+      medium: Platform.select({ ios: '.AppleSystemUIFontRounded', default: undefined }),
+      bold: Platform.select({ ios: '.AppleSystemUIFontRounded', default: undefined }),
     },
     mono: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
     size: {
@@ -105,10 +140,26 @@ export const theme = {
   },
 
   radius: {
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
+    sm: 10,
+    md: 14,
+    lg: 18,
+    /** Cards. This is the shape of the app. */
+    xl: 22,
+    pill: 999,
+  },
+
+  /**
+   * One shadow, used wherever a card lifts off the page. Soft and low: the
+   * white against the gray page does most of the work, and a card carries no
+   * border on top of it, because a line drawn around a card reads as a line.
+   */
+  shadow: {
+    card: {
+      shadowColor: '#111111',
+      shadowOpacity: 0.07,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 8 },
+    },
   },
 
   /**

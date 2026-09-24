@@ -107,12 +107,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xs,
     borderRadius: BAR_HEIGHT / 2,
     backgroundColor: theme.color.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.color.border,
-    shadowColor: '#0b1220',
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
+    // Lifted further than a card, because it floats over content rather than
+    // sitting in it. No border: the same reason cards have none.
+    shadowColor: '#111111',
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
   },
   tab: {
     flex: 1,
@@ -121,7 +121,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: (BAR_HEIGHT - theme.spacing.sm * 2) / 2,
   },
-  tabActive: { backgroundColor: theme.color.surfaceMuted },
+  // The one place the neon earns its keep: which tab you are on is exactly the
+  // kind of active state it is for.
+  tabActive: { backgroundColor: theme.color.highlight },
   tabLabel: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
@@ -129,7 +131,8 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     fontFamily: theme.font.face.medium,
-    color: theme.color.textPrimary,
+    fontWeight: theme.font.weight.medium,
+    color: theme.color.onHighlight,
   },
   add: {
     width: BAR_HEIGHT,
@@ -137,17 +140,17 @@ const styles = StyleSheet.create({
     borderRadius: BAR_HEIGHT / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.color.accent,
-    shadowColor: '#0b1220',
+    backgroundColor: theme.color.primary,
+    shadowColor: '#111111',
     shadowOpacity: 0.18,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
   },
   addPressed: { opacity: 0.85 },
   addGlyph: {
     fontFamily: theme.font.face.light,
     fontSize: 30,
     lineHeight: 34,
-    color: theme.color.onAccent,
+    color: theme.color.onPrimary,
   },
 });

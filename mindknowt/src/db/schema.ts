@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -179,6 +179,14 @@ export const BACKFILLS: { to: number; sql: string }[] = [
     // it any more.
     sql: `UPDATE knowts SET mode = 'open' WHERE mode = 'soft';
           UPDATE knowts SET suggested_mode = 'open' WHERE suggested_mode = 'soft';`,
+  },
+  {
+    to: 7,
+    // The palette was brightened for the new visual direction. RECOLOR_SQL is
+    // generated from the current constant, so this paints the same values the
+    // v4 entry would; it exists because an install already past 4 never runs
+    // that one again. Custom colours are still excluded by is_custom = 0.
+    sql: RECOLOR_SQL,
   },
 ];
 

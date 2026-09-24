@@ -172,10 +172,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.xl,
     paddingLeft: theme.spacing.md,
     paddingRight: theme.spacing.md,
-    shadowColor: '#0b1220',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    ...theme.shadow.card,
   },
   pressed: { opacity: 0.7 },
   accent: {

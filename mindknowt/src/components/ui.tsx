@@ -37,7 +37,7 @@ export function Button({
 }: {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'quiet';
+  variant?: 'primary' | 'secondary' | 'quiet' | 'highlight';
   disabled?: boolean;
 }) {
   return (
@@ -50,6 +50,7 @@ export function Button({
         styles.button,
         variant === 'secondary' && styles.buttonSecondary,
         variant === 'quiet' && styles.buttonQuiet,
+        variant === 'highlight' && styles.buttonHighlight,
         pressed && styles.pressed,
         disabled && styles.buttonDisabled,
       ]}>
@@ -177,35 +178,46 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.md,
     color: theme.color.textSecondary,
   },
+  // No border. The white against the gray page and the shadow do that job, and
+  // a line drawn around a card reads as a line rather than as a card.
   card: {
     backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.color.border,
+    borderRadius: theme.radius.xl,
     padding: theme.spacing.lg,
     gap: theme.spacing.xs,
+    ...theme.shadow.card,
   },
   button: {
-    backgroundColor: theme.color.accent,
+    backgroundColor: theme.color.primary,
     borderRadius: theme.radius.md,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: theme.spacing.lg,
   },
-  buttonSecondary: { backgroundColor: theme.color.surfaceMuted },
+  // White on the gray page, so it reads as a raised control rather than as a
+  // hole. A gray fill would be indistinguishable from the page it sits on.
+  buttonSecondary: {
+    backgroundColor: theme.color.surface,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
   buttonQuiet: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: theme.color.border,
   },
-  buttonDisabled: { backgroundColor: theme.color.accentDisabled },
+  buttonHighlight: { backgroundColor: theme.color.highlight },
+  buttonDisabled: {
+    backgroundColor: theme.color.primaryDisabled,
+    borderWidth: 0,
+  },
   pressed: { opacity: 0.85 },
   buttonText: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
     fontWeight: theme.font.weight.semibold,
-    color: theme.color.onAccent,
+    color: theme.color.onPrimary,
   },
   buttonTextDark: { color: theme.color.textPrimary },
   empty: { gap: theme.spacing.sm, paddingVertical: theme.spacing.xl },
@@ -223,7 +235,7 @@ const styles = StyleSheet.create({
   pill: {
     borderWidth: 1,
     borderColor: theme.color.border,
-    borderRadius: theme.radius.sm,
+    borderRadius: theme.radius.pill,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 2,
     alignSelf: 'flex-start',
