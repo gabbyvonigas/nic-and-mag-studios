@@ -151,7 +151,7 @@ function CategoryBlock({
         accessibilityState={{ expanded }}
         onPress={onToggle}
         style={({ pressed }) => [styles.blockRow, pressed && styles.pressed]}>
-        <View style={[styles.blockDot, { backgroundColor: shades.color }]} />
+        <View style={[styles.blockDot, { backgroundColor: shades.mark }]} />
         <Text numberOfLines={1} style={[styles.blockName, { color: shades.ink }]}>
           {name}
         </Text>

@@ -24,6 +24,7 @@ import { MODE_CHOICES, modeChoice, modeLabel } from '../knowts/modes';
 import {
   archiveKnowt,
   attachTag,
+  deleteKnowt,
   detachTag,
   findKnowtByTagUid,
   reassignTag,
@@ -41,6 +42,7 @@ import {
   updateNotes,
   type KnowtMode,
 } from '../db';
+import { askToDelete, sayTagFreed } from '../knowts/deletePrompt';
 import { askToReassign, askToUnassign } from '../knowts/tagConflict';
 import { NfcScanError, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
@@ -415,6 +417,9 @@ export function KnowtDetailScreen() {
               onPress={() => void checkIn()}
             />
           ) : null}
+          {/* Two different promises, so two buttons. Archive pauses something
+              and keeps it whole. Delete is for something you are finished
+              with, and it still lands somewhere you can reach. */}
           <Button
             label="Archive"
             variant="quiet"
@@ -422,6 +427,18 @@ export function KnowtDetailScreen() {
               await archiveKnowt(knowt.id);
               // An archived knowt must stop ringing.
               await resyncAlarmsQuietly();
+              navigation.goBack();
+            }}
+          />
+          <Button
+            label="Delete"
+            variant="quiet"
+            onPress={async () => {
+              if (!(await askToDelete(knowt.name))) return;
+              const { tagFreed } = await deleteKnowt(knowt.id);
+              // A deleted knowt must stop ringing, the same as an archived one.
+              await resyncAlarmsQuietly();
+              if (tagFreed) sayTagFreed();
               navigation.goBack();
             }}
           />

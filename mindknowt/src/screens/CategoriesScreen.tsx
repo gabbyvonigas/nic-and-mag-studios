@@ -86,7 +86,7 @@ function CategoryRowView({
           setOpen((prev) => !prev);
         }}
         style={styles.rowTop}>
-        <View style={[styles.dot, { backgroundColor: shades.color }]} />
+        <View style={[styles.dot, { backgroundColor: shades.mark }]} />
         <Text style={styles.rowName}>{category.name}</Text>
         {!custom ? <Text style={styles.builtIn}>Built in</Text> : null}
       </Pressable>

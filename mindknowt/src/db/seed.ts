@@ -14,6 +14,15 @@ const CATEGORIES = [
   { key: 'ritual', name: 'Routine', color: theme.categoryPalette.ritual, icon: 'sparkle' },
   { key: 'go', name: 'Activity', color: theme.categoryPalette.go, icon: 'car' },
   { key: 'admin', name: 'Admin', color: theme.categoryPalette.admin, icon: 'tray' },
+  // Built to be archived. Decorations, wrapping and holiday shopping are real
+  // for six weeks and noise for the rest of the year, which is exactly the
+  // case Archive exists for.
+  {
+    key: 'seasonal',
+    name: 'Seasonal',
+    color: theme.categoryPalette.seasonal,
+    icon: 'gift',
+  },
 ] as const;
 
 // Fails to compile if the seeded categories ever drift from the canonical keys.

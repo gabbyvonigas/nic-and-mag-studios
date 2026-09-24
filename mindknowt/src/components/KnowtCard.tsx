@@ -111,7 +111,7 @@ export function KnowtCard({
       <View
         style={[
           styles.accent,
-          { backgroundColor: done ? shades.ink : shades.color },
+          { backgroundColor: done ? shades.ink : shades.mark },
         ]}
       />
 
@@ -153,7 +153,7 @@ export function KnowtCard({
           style={({ pressed }) => [styles.check, pressed && styles.pressed]}>
           <CheckIcon
             size={26}
-            color={done ? shades.color : theme.color.border}
+            color={done ? shades.mark : theme.color.border}
             filled={done}
           />
         </Pressable>

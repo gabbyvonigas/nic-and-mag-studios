@@ -20,7 +20,7 @@ import { TimeWheel } from '../components/TimeWheel';
 import { Button, SubScreenHeader } from '../components/ui';
 import {
   createKnowt,
-  deleteKnowt,
+  purgeKnowt,
   findKnowtByTagUid,
   formatTime,
   reassignTag,
@@ -187,7 +187,7 @@ export function SetupKnowtScreen() {
       if (takeFrom) await reassignTag(takeFrom.uid, created);
 
       // A draft only existed to hold this work until it was finished.
-      if (params.draftId) await deleteKnowt(params.draftId);
+      if (params.draftId) await purgeKnowt(params.draftId);
 
       await resyncAlarmsQuietly();
       navigation.navigate('Tabs', { screen: 'AllKnowts' });
@@ -244,7 +244,7 @@ export function SetupKnowtScreen() {
                       styles.chip,
                       selected && {
                         backgroundColor: shades.fill,
-                        borderColor: shades.color,
+                        borderColor: shades.mark,
                       },
                     ]}>
                     <Text

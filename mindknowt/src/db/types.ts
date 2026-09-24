@@ -69,6 +69,8 @@ export type KnowtRow = {
   archived: number;
   /** 1 when the knowt was started and never finished. */
   is_draft: number;
+  /** When it was deleted, or null. Deleted is recoverable; purged is not. */
+  deleted_at: number | null;
   created_at: number;
 };
 

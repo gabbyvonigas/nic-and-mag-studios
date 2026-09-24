@@ -100,7 +100,7 @@ function UpcomingRow({
       accessibilityLabel={`${entry.knowt.name}, ${weekLabel(entry.at, now)}`}
       onPress={onPress}
       style={({ pressed }) => [styles.upcomingRow, pressed && styles.pressed]}>
-      <View style={[styles.upcomingDot, { backgroundColor: shades.color }]} />
+      <View style={[styles.upcomingDot, { backgroundColor: shades.mark }]} />
       <Text numberOfLines={1} style={styles.upcomingName}>
         {entry.knowt.name}
       </Text>

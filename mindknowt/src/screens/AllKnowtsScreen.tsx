@@ -15,8 +15,14 @@ import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 import { AlarmIcon, ExpandSign, ScanIcon } from '../components/icons';
 import { EmptyState, ScreenHeader } from '../components/ui';
 import { requiresScan } from '../knowts/modes';
+import { SwipeToDelete } from '../components/SwipeToDelete';
+import { askToDelete, askToPurge, sayTagFreed } from '../knowts/deletePrompt';
 import {
+  deleteKnowt,
   listArchived,
+  listDeleted,
+  purgeKnowt,
+  undeleteKnowt,
   listCategories,
   listCategoryGroups,
   listDrafts,
@@ -150,12 +156,14 @@ function CategoryGroupView({
   expanded,
   onToggle,
   onOpenKnowt,
+  onDelete,
   now,
 }: {
   group: CategoryGroup;
   expanded: boolean;
   onToggle: () => void;
   onOpenKnowt: (id: string) => void;
+  onDelete: (knowt: KnowtWithDetail) => void;
   now: Date;
 }) {
   const shades = categoryShades(group.category);
@@ -178,13 +186,14 @@ function CategoryGroupView({
       {expanded ? (
         <View style={styles.groupRows}>
           {group.knowts.map((knowt) => (
-            <KnowtRow
-              key={knowt.id}
-              knowt={knowt}
-              shades={shades}
-              now={now}
-              onPress={() => onOpenKnowt(knowt.id)}
-            />
+            <SwipeToDelete key={knowt.id} onDelete={() => onDelete(knowt)}>
+              <KnowtRow
+                knowt={knowt}
+                shades={shades}
+                now={now}
+                onPress={() => onOpenKnowt(knowt.id)}
+              />
+            </SwipeToDelete>
           ))}
         </View>
       ) : null}
@@ -206,6 +215,7 @@ function Stash({
   expanded,
   onToggle,
   onOpenKnowt,
+  onHoldKnowt,
 }: {
   title: string;
   note: string;
@@ -213,6 +223,8 @@ function Stash({
   expanded: boolean;
   onToggle: () => void;
   onOpenKnowt: (id: string) => void;
+  /** Only Deleted uses this, for the permanent one. */
+  onHoldKnowt?: (id: string) => void;
 }) {
   if (knowts.length === 0) return null;
 
@@ -237,6 +249,9 @@ function Stash({
               key={knowt.id}
               accessibilityRole="button"
               onPress={() => onOpenKnowt(knowt.id)}
+              onLongPress={
+                onHoldKnowt ? () => onHoldKnowt(knowt.id) : undefined
+              }
               style={({ pressed }) => [
                 styles.stashRow,
                 pressed && styles.pressed,
@@ -244,7 +259,7 @@ function Stash({
               <View
                 style={[
                   styles.stashDot,
-                  { backgroundColor: categoryShades(knowt.category).color },
+                  { backgroundColor: categoryShades(knowt.category).mark },
                 ]}
               />
               <Text numberOfLines={1} style={styles.stashName}>
@@ -270,6 +285,7 @@ export function AllKnowtsScreen() {
     [],
   );
   const { data: tagged, reload: reloadTagged } = useQuery(() => listTagged(), []);
+  const { data: deleted, reload: reloadDeleted } = useQuery(() => listDeleted(), []);
   const { data: drafts, reload: reloadDrafts } = useQuery(() => listDrafts(), []);
   const { data: archived, reload: reloadArchived } = useQuery(
     () => listArchived(),
@@ -280,6 +296,33 @@ export function AllKnowtsScreen() {
   // Holds only what has been closed by hand, since open is the default.
   const [closed, setClosed] = useState<Record<string, boolean>>({});
 
+  const refreshAll = async () => {
+    await reload();
+    await reloadTagged();
+    await reloadDeleted();
+    await reloadArchived();
+  };
+
+  const remove = async (knowt: KnowtWithDetail) => {
+    if (!(await askToDelete(knowt.name))) return;
+    const { tagFreed } = await deleteKnowt(knowt.id);
+    await refreshAll();
+    // Said in words about the tag, because that is the part with a consequence
+    // outside the app: there is a sticker somewhere that now means nothing.
+    if (tagFreed) sayTagFreed();
+  };
+
+  const restore = async (knowt: KnowtWithDetail) => {
+    await undeleteKnowt(knowt.id);
+    await refreshAll();
+  };
+
+  const purge = async (knowt: KnowtWithDetail) => {
+    if (!(await askToPurge(knowt.name))) return;
+    await purgeKnowt(knowt.id);
+    await refreshAll();
+  };
+
   // A knowt renamed or archived elsewhere must not linger here as it was.
   useFocusEffect(
     useCallback(() => {
@@ -288,7 +331,15 @@ export function AllKnowtsScreen() {
       void reloadDrafts();
       void reloadArchived();
       void reloadTagged();
-    }, [reload, reloadCategories, reloadDrafts, reloadArchived, reloadTagged]),
+      void reloadDeleted();
+    }, [
+      reload,
+      reloadCategories,
+      reloadDrafts,
+      reloadArchived,
+      reloadTagged,
+      reloadDeleted,
+    ]),
   );
 
   return (
@@ -308,7 +359,7 @@ export function AllKnowtsScreen() {
                 key={category.id}
                 style={[
                   styles.categoryDot,
-                  { backgroundColor: categoryShades(category).color },
+                  { backgroundColor: categoryShades(category).mark },
                 ]}
               />
             ))}
@@ -342,6 +393,7 @@ export function AllKnowtsScreen() {
                     onOpenKnowt={(knowtId) =>
                       navigation.navigate('KnowtDetail', { knowtId })
                     }
+                    onDelete={remove}
                   />
                 );
               })
@@ -371,6 +423,24 @@ export function AllKnowtsScreen() {
               onOpenKnowt={(knowtId) =>
                 navigation.navigate('KnowtDetail', { knowtId })
               }
+            />
+
+            <Stash
+              title="Deleted"
+              note="Tap one to put it back, or hold to remove it for good."
+              knowts={deleted ?? []}
+              expanded={!!openStash.deleted}
+              onToggle={() =>
+                setOpenStash((prev) => ({ ...prev, deleted: !prev.deleted }))
+              }
+              onOpenKnowt={(knowtId) => {
+                const knowt = (deleted ?? []).find((k) => k.id === knowtId);
+                if (knowt) void restore(knowt);
+              }}
+              onHoldKnowt={(knowtId) => {
+                const knowt = (deleted ?? []).find((k) => k.id === knowtId);
+                if (knowt) void purge(knowt);
+              }}
             />
 
             <Stash

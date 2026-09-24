@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -145,6 +145,12 @@ export const ADDED_COLUMNS: { to: number; table: string; column: string; type: s
     column: 'is_draft',
     type: 'INTEGER NOT NULL DEFAULT 0',
   },
+  {
+    to: 11,
+    table: 'knowts',
+    column: 'deleted_at',
+    type: 'INTEGER',
+  },
 ];
 
 /**
@@ -166,6 +172,9 @@ export const RECOLOR_SQL = Object.entries(CATEGORY_COLORS)
  * on `key`, which never changes, and on `is_custom = 0`, so a category someone
  * renamed themselves is left alone. The colors are untouched.
  */
+/** Read once here so the inserted row cannot drift from the palette. */
+const SEASONAL_COLOR = CATEGORY_COLORS.seasonal;
+
 const RENAME_SQL = [
   ['ritual', 'Routine'],
   ['go', 'Activity'],
@@ -218,6 +227,19 @@ export const BACKFILLS: { to: number; sql: string }[] = [
     sql: RECOLOR_SQL,
   },
   { to: 10, sql: RENAME_SQL },
+  {
+    to: 11,
+    // Seasonal is new, so existing installs have never seeded it. OR IGNORE
+    // rather than a existence check: the unique index on key is what decides,
+    // and it decides correctly even if this somehow runs twice.
+    sql: `INSERT OR IGNORE INTO categories (id, name, key, color, icon, is_custom, sort)
+            VALUES ('cat_seasonal', 'Seasonal', 'seasonal', '${SEASONAL_COLOR}', 'gift', 0, 6);`,
+  },
+  {
+    to: 11,
+    // Every swatch moved, so the whole palette is repainted again.
+    sql: RECOLOR_SQL,
+  },
 ];
 
 /** Content tables, in dependency order for a reseed. Excludes app_meta. */

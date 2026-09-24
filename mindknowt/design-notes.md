@@ -60,35 +60,53 @@ enough, because saturation was the problem rather than lightness: care sat at
 0.31 saturation and admin at 0.17, which is gray with a hue attached. Next to
 near-black and neon they read as dirt.
 
-| Key | Name | Hex | Saturation | Ink | Fill |
-| --- | --- | --- | --- | --- | --- |
-| `home` | Coral | `#FF5A3C` | 0.76 | `#943423` | `#FFEBE8` |
-| `daily` | Gold | `#F5A623` | 0.86 | `#8E6014` | `#FEF4E5` |
-| `care` | Pink | `#FF4D9D` | 0.70 | `#942D5B` | `#FFEAF3` |
-| `ritual` | Green | `#2FBF71` | 0.75 | `#1B6F42` | `#E6F7EE` |
-| `go` | Blue | `#2E8BFF` | 0.82 | `#1B5194` | `#E6F1FF` |
-| `admin` | Violet | `#7B61FF` | 0.62 | `#473894` | `#EFECFF` |
+| Key | Name | Hex | What it is | Ink | Mark | Fill |
+| --- | --- | --- | --- | --- | --- | --- |
+| `home` | Home | `#F5E07A` | Butter yellow | `#7A703D` | `#BFAF5F` | `#FEFBEF` |
+| `daily` | Daily | `#D9FA3C` | The brand lime | `#64731C` | `#A1B92C` | `#FAFEE8` |
+| `care` | Wellness | `#24C2B5` | Turquoise | `#157169` | `#24C2B5` | `#E5F8F6` |
+| `ritual` | Routine | `#AFC0F0` | Icy periwinkle | `#666F8B` | `#9EADD8` | `#F5F7FD` |
+| `go` | Activity | `#C9901E` | Darker mustard | `#755411` | `#C9901E` | `#F9F2E4` |
+| `admin` | Admin | `#7B61FF` | Violet, unchanged | `#473894` | `#7B61FF` | `#EFECFF` |
+| `seasonal` | Seasonal | `#8A1F3D` | Burgundy | `#501223` | `#8A1F3D` | `#F3E9EC` |
 
-Two of the six changed identity rather than intensity, because there is no
-vivid version of them: mauve pink became a true pink, and warm taupe became
-violet. Coral and gold stay warm hues, because six categories need a spread of
-hue to stay apart and an all-cool set of six collapses into three. They are
-vivid rather than muted, which is the actual rule.
+Three of these are pale by design, which is not the same as the muted set they
+replaced: a pastel is light but clean, muted was gray with a hue attached.
+Measured as HSL saturation the set runs 0.63 to 1.00, where the old mauve and
+taupe sat at 0.24 and 0.14. HSV saturation cannot separate the two, so the
+check uses HSL.
 
-Ink is the swatch mixed 42 percent towards black, for label text and icons.
-Every ink value clears 5.0 against both white and the page, so it is legible at
-body size on either. Fill is the swatch mixed 88 percent towards white, and is
-what the Knowts rows are filled with.
+**Daily is the same value as the neon.** That is deliberate and it is the one
+thing to watch: everywhere else the neon means active or selected, so a Daily
+chip and a selected chip are the same color. If that reads as a bug on device,
+Daily is the one to move.
 
-The swatch itself runs between 1.9 and 3.9 against the page, which is why it is
-never used for text. Bars, dots, tiles and rules only.
+`mark` is the swatch as a small mark, for dots, thin rules and bars. A butter
+yellow dot on the page measures 1.22 against it and a lime one 1.09, which is
+invisible, so the pale three are darkened until a small mark reaches 2.0. For
+the other four it is the swatch unchanged. Large fills still use the swatch,
+where its lightness is the point.
+
+Neither derived mix is a constant any more. Ink is 42 percent towards black for
+most, 50 and 54 for butter and lime, because pale colors have to go further to
+stay legible; every value clears 4.5 against both white and the page. Fill is
+88 percent towards white, and 90 for burgundy, which is dark enough that the
+standard mix stops reading as a tint.
+
+Seasonal exists to be archived. Decorations, wrapping and holiday shopping are
+real for six weeks and noise for the rest of the year.
+
+The swatch is never used for text. Fills, bars, dots, tiles and rules only,
+and `mark` rather than the swatch wherever the mark is small.
 
 **These are stored, not styled.** `categories.color` holds the swatch, so
 changing this table means a migration back-fill matched on `is_custom = 0`. The
 repaint SQL is generated from the current constant, so every change needs its
 own back-fill entry stamped at the new version: an install already past the
-previous one never runs it again. There is a test that asserts the newest
-repaint is stamped at the current schema version, because forgetting is silent.
+previous one never runs it again. There is a test that migrates a database from
+every version predating the newest repaint and insists it lands on the current
+values, because forgetting is otherwise silent: the constant looks right and
+the device keeps the old colors.
 
 ## Corner radius
 

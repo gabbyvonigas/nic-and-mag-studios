@@ -130,7 +130,7 @@ export async function deleteCategory(id: string): Promise<void> {
 export async function countKnowtsInCategory(id: string): Promise<number> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ n: number }>(
-    'SELECT COUNT(*) AS n FROM knowts WHERE category_id = ? AND archived = 0 AND is_draft = 0',
+    'SELECT COUNT(*) AS n FROM knowts WHERE category_id = ? AND archived = 0 AND is_draft = 0 AND deleted_at IS NULL',
     id,
   );
   return row?.n ?? 0;
@@ -155,7 +155,7 @@ async function attachDetail(rows: KnowtRow[]): Promise<KnowtWithDetail[]> {
 export async function listKnowts(): Promise<KnowtWithDetail[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<KnowtRow>(
-    'SELECT * FROM knowts WHERE archived = 0 AND is_draft = 0 ORDER BY name',
+    'SELECT * FROM knowts WHERE archived = 0 AND is_draft = 0 AND deleted_at IS NULL ORDER BY name',
   );
   return attachDetail(rows);
 }
@@ -349,12 +349,49 @@ export async function detachTag(knowtId: string): Promise<void> {
   );
 }
 
+/**
+ * Deleting, which is not the same thing as archiving.
+ *
+ * Archive is for something paused: it keeps its tag, keeps its schedules, and
+ * comes back untouched. Delete is for something you are finished with, and it
+ * lands in Deleted rather than vanishing, so a wrong tap costs a tap back.
+ *
+ * The tag is freed on the way, because a tag held by something in the bin is a
+ * tag nobody can use and nothing can explain. The name of whatever held it is
+ * returned so the confirmation can say so.
+ */
+export async function deleteKnowt(knowtId: string): Promise<{ tagFreed: boolean }> {
+  const knowt = await getKnowt(knowtId);
+  const db = await getDatabase();
+  await db.runAsync(
+    "UPDATE knowts SET deleted_at = ?, tag_uid = NULL, mode = 'open' WHERE id = ?",
+    Date.now(),
+    knowtId,
+  );
+  return { tagFreed: !!knowt?.tag_uid };
+}
+
+export async function listDeleted(): Promise<KnowtWithDetail[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<KnowtRow>(
+    'SELECT * FROM knowts WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC',
+  );
+  return attachDetail(rows);
+}
+
+/** Back out of the bin. It does not get its old tag back; that has moved on. */
+export async function undeleteKnowt(knowtId: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('UPDATE knowts SET deleted_at = NULL WHERE id = ?', knowtId);
+}
+
 /** Every knowt currently holding a tag, for the tag overviews. */
 export async function listTagged(): Promise<KnowtWithDetail[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<KnowtRow>(
     `SELECT * FROM knowts
       WHERE tag_uid IS NOT NULL AND archived = 0 AND is_draft = 0
+        AND deleted_at IS NULL
       ORDER BY name`,
   );
   return attachDetail(rows);
@@ -575,7 +612,7 @@ export async function updateNotes(id: string, notes: string): Promise<void> {
 export async function listDrafts(): Promise<KnowtWithDetail[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<KnowtRow>(
-    'SELECT * FROM knowts WHERE is_draft = 1 AND archived = 0 ORDER BY created_at DESC',
+    'SELECT * FROM knowts WHERE is_draft = 1 AND archived = 0 AND deleted_at IS NULL ORDER BY created_at DESC',
   );
   return attachDetail(rows);
 }
@@ -583,7 +620,7 @@ export async function listDrafts(): Promise<KnowtWithDetail[]> {
 export async function listArchived(): Promise<KnowtWithDetail[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<KnowtRow>(
-    'SELECT * FROM knowts WHERE archived = 1 ORDER BY name',
+    'SELECT * FROM knowts WHERE archived = 1 AND deleted_at IS NULL ORDER BY name',
   );
   return attachDetail(rows);
 }
@@ -599,7 +636,11 @@ export async function restoreKnowt(id: string): Promise<void> {
   await db.runAsync('UPDATE knowts SET archived = 0 WHERE id = ?', id);
 }
 
-export async function deleteKnowt(id: string): Promise<void> {
+/**
+ * Gone for good, rows and history with it. Used by Delete forever, and by the
+ * setup flow to clear the draft it just replaced.
+ */
+export async function purgeKnowt(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM knowts WHERE id = ?', id);
 }
