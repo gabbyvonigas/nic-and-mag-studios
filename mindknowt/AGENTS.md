@@ -153,6 +153,34 @@ without it. It only sets the registered default, so a device that already has
 the preference stored keeps it: turn it off there under Tools button in the dev
 menu.
 
+## The Lock Screen is AlarmKit's, not ours
+
+`expo-alarm-kit` hands AlarmKit an `AlarmPresentation` and lets it draw the
+banner. What can be set from JavaScript is the title, the tint colour, and the
+two button labels and their text colours. Not fonts, not layout, not icons, not
+extra buttons.
+
+Three limits are in the module's own source, not in AlarmKit:
+
+- `tintColor` defaults to `Color.blue`. That blue was never chosen; it is what
+  you get by passing nothing.
+- The stop button's SF Symbol is hardcoded to `stop.circle`, so the only way
+  the banner can say a scan is needed is the button's label text.
+- Every scheduling function declares `struct Meta: AlarmMetadata {}` inline and
+  empty. A custom Live Activity needs a widget extension whose
+  `ActivityConfiguration` matches `AlarmAttributes<Meta>`, and a `Meta`
+  declared privately inside a function body cannot be referenced from another
+  target. So no custom view can be attached without patching the package.
+
+`AlarmPresentation` is built with `alert:` only. The countdown and paused
+presentations are never configured, which is why a snoozed alarm's banner
+carries no buttons: that state has no presentation to draw.
+
+Anything beyond text and colour therefore needs a patched or forked
+`expo-alarm-kit` plus a widget extension target, and this is a CNG project with
+no `ios/` directory, so the target needs a config plugin too. Do not promise
+Lock Screen layout work as part of an ordinary rebuild.
+
 ## Platform boundaries
 
 `react-native-nfc-manager` is imported in exactly one file, and

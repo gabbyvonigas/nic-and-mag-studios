@@ -13,6 +13,7 @@ import {
   type EventMethod,
   type KnowtWithDetail,
 } from '../db';
+import { requiresScan } from '../knowts/modes';
 import { NfcScanError, nfcReader } from '../nfc';
 
 export type RingingMessage = {
@@ -101,6 +102,7 @@ export function useRingingSession(
         title: current.name,
         minutes: current.refire_minutes,
         kind: 'refire',
+        requiresScan: requiresScan(current.mode),
       });
     } catch {
       // Losing the re-fire must not crash the screen; the alarm already rang.
@@ -203,6 +205,7 @@ export function useRingingSession(
       title: current.name,
       minutes,
       kind: 'snooze',
+      requiresScan: requiresScan(current.mode),
     });
   }, []);
 

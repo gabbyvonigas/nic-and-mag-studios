@@ -202,3 +202,24 @@ is generated from the current constant, so an install already past the previous
 entry never runs it again and would keep the old colours silently. There is a
 test that migrates a database from every version predating the newest repaint
 and insists it lands on the current values.
+
+## The Lock Screen
+
+AlarmKit draws it. This app supplies text and colour, not a layout.
+
+| What | Value |
+| --- | --- |
+| Tint | `#D9FA3C`, the same neon as the active tab and the primary action |
+| Button text | `#111111`, because white on neon is 1.19 and fails everywhere |
+| Stop label | "Scan to stop" when the knowt needs a tag, otherwise "Done" |
+| Snooze label | "Snooze" |
+
+The banner's background is the system's, not ours, so the near-black behind the
+neon is whatever iOS draws for an alarm. The Stop label is the only way that
+banner can say a scan is required, because the module hardcodes the button's SF
+Symbol and builds an empty metadata type that no widget extension can match.
+
+What that rules out without a patched `expo-alarm-kit` and a widget extension
+target: the app's typeface on the banner, a scan glyph rather than the word, a
+complete button next to dismiss, and any buttons at all while snoozed, since
+only the alert presentation is configured and the countdown one is not.

@@ -9,6 +9,7 @@ import {
   scheduleRepeatingAlarm,
 } from 'expo-alarm-kit';
 
+import { theme } from '../theme';
 import {
   AlarmError,
   APP_GROUP_ID,
@@ -27,6 +28,32 @@ import {
  * off until you're there" enforceable.
  */
 const LAUNCH_APP_ON_DISMISS = true;
+
+/**
+ * How the alarm looks on the Lock Screen.
+ *
+ * AlarmKit draws that banner; this app hands it text and colours, not a layout.
+ * What can be set is the tint, the two button labels and their text colours.
+ * Without a tint the module defaults to `Color.blue`, which is where the blue
+ * came from: it was never chosen.
+ *
+ * The Stop label is the only place the banner can say a scan is needed, since
+ * the button's SF Symbol is hardcoded in the module and the metadata type it
+ * builds is empty, so no custom Live Activity view can be attached. See
+ * design-notes.md for what that costs and what would lift it.
+ */
+function brand(requiresScan?: boolean) {
+  return {
+    tintColor: theme.color.highlight,
+    // Near-black on lime. White on lime is the one combination that fails:
+    // 1.19 against it, which is the same reason nothing in the app puts white
+    // on the neon either.
+    stopButtonColor: theme.color.onHighlight,
+    snoozeButtonColor: theme.color.onHighlight,
+    stopButtonLabel: requiresScan ? 'Scan to stop' : 'Done',
+    snoozeButtonLabel: 'Snooze',
+  };
+}
 
 function describe(err: unknown): string {
   if (err instanceof Error) {
@@ -70,7 +97,7 @@ export const alarmScheduler: AlarmScheduler = {
     }
   },
 
-  async scheduleAt({ title, firesAt, payload }: ScheduleRequest) {
+  async scheduleAt({ title, firesAt, payload, requiresScan }: ScheduleRequest) {
     const id = generateUUID();
     let accepted = false;
 
@@ -81,6 +108,7 @@ export const alarmScheduler: AlarmScheduler = {
         title,
         launchAppOnDismiss: LAUNCH_APP_ON_DISMISS,
         dismissPayload: payload ?? undefined,
+        ...brand(requiresScan),
       });
     } catch (err) {
       throw new AlarmError('schedule-rejected', describe(err));
@@ -103,6 +131,7 @@ export const alarmScheduler: AlarmScheduler = {
     weekdays,
     nextFiresAt,
     payload,
+    requiresScan,
   }: WeeklyScheduleRequest) {
     const id = generateUUID();
     let accepted = false;
@@ -118,6 +147,7 @@ export const alarmScheduler: AlarmScheduler = {
         title,
         launchAppOnDismiss: LAUNCH_APP_ON_DISMISS,
         dismissPayload: payload ?? undefined,
+        ...brand(requiresScan),
       });
     } catch (err) {
       throw new AlarmError('schedule-rejected', describe(err));

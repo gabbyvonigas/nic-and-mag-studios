@@ -62,6 +62,12 @@ export type AlarmLaunch = {
  */
 export type WeeklyScheduleRequest = {
   title: string;
+  /**
+   * Whether stopping this needs a tag scan. It changes the Stop button's label
+   * on the Lock Screen, which is the only way to say so there: AlarmKit draws
+   * that banner, and this app supplies text and colours to it, not a layout.
+   */
+  requiresScan?: boolean;
   /** 0 to 23, local wall clock. */
   hour: number;
   /** 0 to 59. */
@@ -76,6 +82,8 @@ export type WeeklyScheduleRequest = {
 export type ScheduleRequest = {
   title: string;
   firesAt: Date;
+  /** See WeeklyScheduleRequest. */
+  requiresScan?: boolean;
   /** Round-tripped back through `consumeLaunch()` when the user taps Stop. */
   payload?: string;
 };

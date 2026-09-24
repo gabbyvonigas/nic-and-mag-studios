@@ -11,6 +11,7 @@ import {
   syncScheduledAlarms,
 } from '../alarms';
 import { Button, Card, ScreenHeader } from '../components/ui';
+import { requiresScan } from '../knowts/modes';
 import {
   destroyDatabase,
   getAllAppMeta,
@@ -212,6 +213,9 @@ export function DevScreen() {
                       title: knowt.name,
                       firesAt: new Date(Date.now() + 60_000),
                       kind: 'test',
+                      // So the test alarm shows the same Lock Screen as a real
+                      // one, which is the whole point of being able to fire it.
+                      requiresScan: requiresScan(knowt.mode),
                     });
                     setAlarmNotice(
                       `${knowt.name} rings in one minute. Lock the phone.`,

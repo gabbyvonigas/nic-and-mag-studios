@@ -24,6 +24,8 @@ export async function armKnowtAlarm(args: {
   title: string;
   firesAt: Date;
   kind: PendingAlarmKind;
+  /** Whether stopping it needs a scan, which the Lock Screen says out loud. */
+  requiresScan?: boolean;
 }): Promise<ScheduledAlarm> {
   await cancelKnowtAlarms(args.knowtId, { scheduleId: args.scheduleId ?? null });
 
@@ -31,6 +33,7 @@ export async function armKnowtAlarm(args: {
     title: args.title,
     firesAt: args.firesAt,
     payload: args.knowtId,
+    requiresScan: args.requiresScan,
   });
 
   // Recording must not be able to lose the alarm itself, which is already
@@ -56,11 +59,13 @@ export async function rearmKnowtAlarm(args: {
   title: string;
   minutes: number;
   kind: Extract<PendingAlarmKind, 'refire' | 'snooze'>;
+  requiresScan?: boolean;
 }): Promise<ScheduledAlarm> {
   return armKnowtAlarm({
     knowtId: args.knowtId,
     scheduleId: null,
     title: args.title,
+    requiresScan: args.requiresScan,
     firesAt: new Date(Date.now() + args.minutes * 60_000),
     kind: args.kind,
   });

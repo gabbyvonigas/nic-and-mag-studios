@@ -4,6 +4,7 @@ import {
   recordPendingAlarm,
 } from '../db/pendingAlarms';
 import { listKnowts } from '../db/knowts';
+import { requiresScan } from '../knowts/modes';
 import { nextOccurrence, weeklyDaysFor } from '../db/scheduling';
 import type { KnowtWithDetail, PendingAlarmRow, ScheduleRow } from '../db/types';
 import { alarmScheduler } from './AlarmScheduler';
@@ -119,11 +120,13 @@ async function arm(
           weekdays: desired.weekdays,
           nextFiresAt: desired.nextAt,
           payload: knowt.id,
+          requiresScan: requiresScan(knowt.mode),
         })
       : await alarmScheduler.scheduleAt({
           title: knowt.name,
           firesAt: desired.nextAt,
           payload: knowt.id,
+          requiresScan: requiresScan(knowt.mode),
         });
 
   await recordPendingAlarm({
