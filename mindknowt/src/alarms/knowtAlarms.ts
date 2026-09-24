@@ -117,7 +117,7 @@ export async function pruneFiredAlarms(): Promise<number> {
  *
  * `clearAllAlarms` in the native module is not used here: its sibling
  * `removeAlarm` documents that it drops the App Group record without
- * cancelling the alarm, and a cancel that does not cancel is worse than none.
+ * canceling the alarm, and a cancel that does not cancel is worse than none.
  */
 export async function cancelAllAlarms(): Promise<number> {
   const ids = await alarmScheduler.listScheduled();

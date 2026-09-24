@@ -99,6 +99,27 @@ Check with a bare stem, not with `\b`:
 which must return nothing. It excludes this file on purpose, since the list
 above spells out the forms it is looking for.
 
+**This is enforced, not just documented.** `scripts/check-spelling.mjs` runs
+in two places:
+
+- `npm run verify` runs it first, over every tracked file. It is instant, and a
+  spelling failure should not wait behind a bundle.
+- `.githooks/pre-commit` runs it over staged files only, so an untouched file
+  cannot block an unrelated commit. Install it once per clone with
+  `npm run hooks:install`, which sets `core.hooksPath`. Git hooks live in
+  `.git/hooks`, which is not committed, so a hook nobody installs enforces
+  nothing.
+
+The checker carries its own self-test (`--self-test`), which `check:spelling`
+runs first. It asserts both halves: that the patterns catch real British
+spellings, and that they leave correct American English alone. That second half
+is the one that matters. Most words ending in -ise are correct American
+English, so a general rule for them would flag surprise, advertise, exercise,
+compromise, franchise, merchandise, supervise, promise and raise. The list is
+curated for that reason, `organism` is not `organise`, and `analyses` is the
+ordinary plural of `analysis`. A checker nobody has watched fire is
+indistinguishable from a broken one.
+
 **No em dashes. Anywhere, ever.** Not in user-facing copy, not in comments, not
 in JSON content. Use a comma, a colon, a full stop or brackets. Verify with
 `grep -rn "\u2014" src/ App.tsx`, which must return nothing.

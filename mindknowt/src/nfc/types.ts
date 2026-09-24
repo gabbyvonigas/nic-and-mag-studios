@@ -71,7 +71,7 @@ export interface NfcReader {
 
   /**
    * Open the platform's scan affordance and resolve with the first tag read.
-   * Rejects with `NfcScanError` for every failure, cancellation included, and
+   * Rejects with `NfcScanError` for every failure, cancelation included, and
    * with reason `wrong-tag` when `expectRawUid` is set and does not match.
    */
   scanTag(options?: ScanOptions): Promise<ScannedTag>;

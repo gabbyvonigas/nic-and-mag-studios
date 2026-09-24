@@ -68,7 +68,7 @@ export async function listScheduledAlarmRecords(): Promise<PendingAlarmRow[]> {
   );
 }
 
-/** Removes a single record. Cancelling with the platform is the caller's job. */
+/** Removes a single record. Canceling with the platform is the caller's job. */
 export async function deletePendingAlarm(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM pending_alarms WHERE id = ?', id);

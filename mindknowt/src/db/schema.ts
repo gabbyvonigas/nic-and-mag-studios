@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS pending_alarms (
   -- NULL for a re-fire, a snooze, or a test ring, none of which belong to a
   -- particular schedule.
   schedule_id TEXT REFERENCES schedules(id) ON DELETE SET NULL,
-  -- The id AlarmKit handed back, which is what cancelling needs.
+  -- The id AlarmKit handed back, which is what canceling needs.
   alarmkit_id TEXT NOT NULL,
   fires_at    INTEGER NOT NULL,
   kind        TEXT NOT NULL CHECK (kind IN ('scheduled', 'refire', 'snooze', 'test')),
