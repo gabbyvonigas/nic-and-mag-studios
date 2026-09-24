@@ -110,6 +110,21 @@ in two places:
   `.git/hooks`, which is not committed, so a hook nobody installs enforces
   nothing.
 
+- `.github/workflows/spelling.yml` runs it on every pull request and on every
+  push to main, in both repositories. The workflow file sits at the repository
+  root, which is a different place in each repo, so it is not mirrored by the
+  usual patch and has to be edited in both. Pushes to main are covered because
+  a web UI edit committed straight to main is not a pull request and would
+  otherwise never be checked.
+
+  The workflow has no install step. The checker uses only Node builtins, so
+  there is nothing to fetch and nothing that can break independently of it.
+
+  **A failing workflow reports; it does not block.** Blocking needs a branch
+  protection rule on main requiring the "American English" check, set in
+  Settings, Branches, in each repository. Without that rule a red check can be
+  merged past.
+
 The checker carries its own self-test (`--self-test`), which `check:spelling`
 runs first. It asserts both halves: that the patterns catch real British
 spellings, and that they leave correct American English alone. That second half
