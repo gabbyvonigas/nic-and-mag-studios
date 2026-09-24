@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { MonthSummary } from '../history/summary';
+import type { KnowtWithDetail } from '../db';
 import { categoryShades, METHOD_COLORS, theme } from '../theme';
 
 /**
@@ -89,7 +90,14 @@ function Key({
   );
 }
 
-export function SummaryPanel({ summary }: { summary: MonthSummary }) {
+export function SummaryPanel({
+  summary,
+  tagged,
+}: {
+  summary: MonthSummary;
+  /** Knowts currently holding a tag. Omitted where the panel is not the Log. */
+  tagged?: KnowtWithDetail[];
+}) {
   const { byMethod } = summary;
   const anyMethod = byMethod.scan + byMethod.tap + byMethod.override > 0;
   const busiest = Math.max(...summary.byWeekday, 1);
@@ -176,6 +184,36 @@ export function SummaryPanel({ summary }: { summary: MonthSummary }) {
               </View>
             );
           })}
+        </View>
+      ) : null}
+
+      {/* Deliberately the one dark block in a panel of white tiles. Tags are
+          the thing that makes this app work, so the section that counts them
+          should not look like another statistic. */}
+      {tagged && tagged.length > 0 ? (
+        <View style={styles.tags}>
+          <View style={styles.tagsHead}>
+            <Text style={styles.tagsCount}>{tagged.length}</Text>
+            <Text style={styles.tagsLabel}>
+              knowt{tagged.length === 1 ? '' : 's'} with a tag attached
+            </Text>
+          </View>
+          {tagged.map((knowt) => (
+            <View key={knowt.id} style={styles.tagRow}>
+              <View
+                style={[
+                  styles.tagDot,
+                  { backgroundColor: categoryShades(knowt.category).color },
+                ]}
+              />
+              <Text numberOfLines={1} style={styles.tagName}>
+                {knowt.name}
+              </Text>
+              <Text numberOfLines={1} style={styles.tagWhere}>
+                {knowt.location_note ?? 'no place noted'}
+              </Text>
+            </View>
+          ))}
         </View>
       ) : null}
 
@@ -280,6 +318,47 @@ export function SummaryPanel({ summary }: { summary: MonthSummary }) {
 }
 
 const styles = StyleSheet.create({
+  tags: {
+    backgroundColor: theme.color.primary,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  tagsHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: theme.spacing.sm,
+  },
+  tagsCount: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.display,
+    color: theme.color.highlight,
+  },
+  tagsLabel: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.onPrimary,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  tagDot: { width: 8, height: 8, borderRadius: 4 },
+  tagName: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.md,
+    color: theme.color.onPrimary,
+  },
+  tagWhere: {
+    flexShrink: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.border,
+  },
   panel: { gap: theme.spacing.md },
   empty: {
     backgroundColor: theme.color.surface,

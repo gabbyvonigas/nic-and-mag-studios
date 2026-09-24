@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -160,6 +160,23 @@ export const RECOLOR_SQL = Object.entries(CATEGORY_COLORS)
   )
   .join('\n');
 
+/**
+ * Renames the shipped categories. Names are stored in `categories.name`, so the
+ * seed constant alone leaves every existing install on the old words. Matched
+ * on `key`, which never changes, and on `is_custom = 0`, so a category someone
+ * renamed themselves is left alone. The colors are untouched.
+ */
+const RENAME_SQL = [
+  ['ritual', 'Routine'],
+  ['go', 'Activity'],
+  ['care', 'Wellness'],
+]
+  .map(
+    ([key, name]) =>
+      `UPDATE categories SET name = '${name}' WHERE key = '${key}' AND is_custom = 0;`,
+  )
+  .join('\n');
+
 /** Data fixes that run once, after the columns for that version exist. */
 export const BACKFILLS: { to: number; sql: string }[] = [
   {
@@ -200,6 +217,7 @@ export const BACKFILLS: { to: number; sql: string }[] = [
     // read as muted. Same mechanism as v7, same reason it needs its own entry.
     sql: RECOLOR_SQL,
   },
+  { to: 10, sql: RENAME_SQL },
 ];
 
 /** Content tables, in dependency order for a reseed. Excludes app_meta. */

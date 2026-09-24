@@ -23,12 +23,14 @@ import {
   deleteKnowt,
   findKnowtByTagUid,
   formatTime,
+  reassignTag,
   listCategories,
   toISODate,
   type KnowtMode,
 } from '../db';
 import { useQuery } from '../db/useQuery';
 import { REPEAT_PRESETS, shapeFor, type RepeatPresetId } from '../knowts/repeats';
+import { askToReassign } from '../knowts/tagConflict';
 import { NfcScanError, nfcReader } from '../nfc';
 import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -98,6 +100,10 @@ export function SetupKnowtScreen() {
 
   const [mode, setMode] = useState<KnowtMode>('open');
   const [tagUid, setTagUid] = useState<string | null>(null);
+  /** Set when the chosen tag has to be taken off another knowt on save. */
+  const [takeFrom, setTakeFrom] = useState<{ uid: string; owner: string } | null>(
+    null,
+  );
   const [scanning, setScanning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -129,8 +135,13 @@ export function SetupKnowtScreen() {
       const tag = await nfcReader.scanTag();
       const owner = await findKnowtByTagUid(tag.rawUid);
       if (owner) {
-        setNotice(`That tag is already ${owner.name}. Try a different one.`);
-        return;
+        // Interrupts here, at the scan. A banner at the top of this form is
+        // invisible from the bottom of it, which is where this button lives.
+        const move = await askToReassign(owner.name, name.trim() || 'this knowt');
+        if (!move) return;
+        // Held, not written: the knowt does not exist yet. Save does the move,
+        // so backing out now leaves the other knowt with its tag.
+        setTakeFrom({ uid: tag.rawUid, owner: owner.name });
       }
       setTagUid(tag.rawUid);
       setMode('strict');
@@ -150,12 +161,14 @@ export function SetupKnowtScreen() {
         days,
         count: Number(everyN) || 1,
       });
-      await createKnowt({
+      const created = await createKnowt({
         name: name.trim(),
         categoryId,
         notes: params.notes ?? null,
-        mode: tagUid ? mode : 'open',
-        tagUid,
+        mode: tagUid && !takeFrom ? mode : 'open',
+        // A tag still held by another knowt cannot be written here: tag_uid is
+        // unique. The row is created without it and the move runs below.
+        tagUid: takeFrom ? null : tagUid,
         schedule: scheduled
           ? {
               time,
@@ -170,6 +183,8 @@ export function SetupKnowtScreen() {
             }
           : undefined,
       });
+
+      if (takeFrom) await reassignTag(takeFrom.uid, created);
 
       // A draft only existed to hold this work until it was finished.
       if (params.draftId) await deleteKnowt(params.draftId);
@@ -400,7 +415,9 @@ export function SetupKnowtScreen() {
 
             {tagUid ? (
               <View style={styles.tagged}>
-                <Text style={styles.taggedText}>Tag attached.</Text>
+                <Text style={styles.taggedText}>
+                  {takeFrom ? `Tag moving from ${takeFrom.owner}.` : 'Tag attached.'}
+                </Text>
                 <Text style={styles.taggedUid} selectable>
                   {tagUid}
                 </Text>
@@ -408,6 +425,7 @@ export function SetupKnowtScreen() {
                   accessibilityRole="button"
                   onPress={() => {
                     setTagUid(null);
+                    setTakeFrom(null);
                     setMode('open');
                   }}>
                   <Text style={styles.link}>Remove it</Text>

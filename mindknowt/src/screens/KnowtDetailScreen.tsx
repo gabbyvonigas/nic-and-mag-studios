@@ -24,6 +24,9 @@ import { MODE_CHOICES, modeChoice, modeLabel } from '../knowts/modes';
 import {
   archiveKnowt,
   attachTag,
+  detachTag,
+  findKnowtByTagUid,
+  reassignTag,
   finishDraft,
   restoreKnowt,
   describeRepeat,
@@ -38,6 +41,7 @@ import {
   updateNotes,
   type KnowtMode,
 } from '../db';
+import { askToReassign, askToUnassign } from '../knowts/tagConflict';
 import { NfcScanError, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
 import { theme } from '../theme';
@@ -111,12 +115,21 @@ export function KnowtDetailScreen() {
     setBusy(true);
     try {
       const tag = await nfcReader.scanTag();
+      const owner = await findKnowtByTagUid(tag.rawUid);
+      if (owner && owner.id !== knowt.id) {
+        // Interrupts at the scan rather than reporting it somewhere the person
+        // is not looking. Tags are rewritable, so a conflict is a choice.
+        if (!(await askToReassign(owner.name, knowt.name))) return;
+        await reassignTag(tag.rawUid, knowt.id);
+        await reload();
+        return;
+      }
       await attachTag(knowt.id, tag.rawUid);
       await reload();
       setNotice(`Tag attached. ${knowt.name} is now strict.`);
     } catch (err) {
-      if (err instanceof TagInUseError) {
-        setNotice(`That tag is already ${err.knowtName}. Scan a different one.`);
+      if (err instanceof NfcScanError && err.reason === 'canceled') {
+        // Backing out is not a failure.
       } else if (err instanceof NfcScanError && err.reason === 'canceled') {
         // Backing out is not a failure.
       } else {
@@ -331,9 +344,26 @@ export function KnowtDetailScreen() {
           onPress={() => void scanToAttach()}
         />
         {knowt.tag_uid ? (
-          <Text style={styles.tagUid} selectable>
-            {knowt.tag_uid}
-          </Text>
+          <>
+            <Text style={styles.tagUid} selectable>
+              {knowt.tag_uid}
+            </Text>
+            {/* The tags are rewritable hardware, so one stuck on the wrong
+                thing is a label to peel off, not a permanent pairing. */}
+            <Button
+              label="Free this tag for something else"
+              variant="quiet"
+              disabled={busy}
+              onPress={async () => {
+                if (!(await askToUnassign(knowt.name))) return;
+                await detachTag(knowt.id);
+                await reload();
+                setNotice(
+                  `${knowt.name} is Alarm Only now. The tag is free to use.`,
+                );
+              }}
+            />
+          </>
         ) : null}
 
         <Text style={styles.sectionTitle}>Schedules</Text>

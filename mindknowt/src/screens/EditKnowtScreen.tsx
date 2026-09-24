@@ -26,6 +26,9 @@ import { Button, SubScreenHeader } from '../components/ui';
 import { MODE_CHOICES, modeChoice } from '../knowts/modes';
 import {
   attachTag,
+  detachTag,
+  findKnowtByTagUid,
+  reassignTag,
   describeRepeat,
   formatTime,
   getKnowt,
@@ -39,6 +42,7 @@ import {
   updateKnowt,
   type KnowtMode,
 } from '../db';
+import { askToReassign, askToUnassign } from '../knowts/tagConflict';
 import { NfcScanError, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
 import { categoryShades, theme } from '../theme';
@@ -109,11 +113,20 @@ export function EditKnowtScreen() {
     setScanning(true);
     try {
       const tag = await nfcReader.scanTag();
+      const owner = await findKnowtByTagUid(tag.rawUid);
+      if (owner && owner.id !== params.knowtId) {
+        // Interrupts at the scan rather than reporting it somewhere the person
+        // is not looking. Tags are rewritable, so a conflict is a choice.
+        if (!(await askToReassign(owner.name, name.trim()))) return;
+        await reassignTag(tag.rawUid, params.knowtId);
+        await reload();
+        return;
+      }
       await attachTag(params.knowtId, tag.rawUid);
       await reload();
     } catch (err) {
-      if (err instanceof TagInUseError) {
-        setError(`That tag is already ${err.knowtName}. Scan a different one.`);
+      if (err instanceof NfcScanError && err.reason === 'canceled') {
+        // Backing out is not a failure.
       } else if (err instanceof NfcScanError && err.reason === 'canceled') {
         // Backing out is not a failure.
       } else {

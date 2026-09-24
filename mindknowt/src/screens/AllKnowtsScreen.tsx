@@ -20,6 +20,7 @@ import {
   listCategories,
   listCategoryGroups,
   listDrafts,
+  listTagged,
   nextOccurrence,
   type CategoryGroup,
   type KnowtWithDetail,
@@ -268,6 +269,7 @@ export function AllKnowtsScreen() {
     () => listCategories(),
     [],
   );
+  const { data: tagged, reload: reloadTagged } = useQuery(() => listTagged(), []);
   const { data: drafts, reload: reloadDrafts } = useQuery(() => listDrafts(), []);
   const { data: archived, reload: reloadArchived } = useQuery(
     () => listArchived(),
@@ -285,7 +287,8 @@ export function AllKnowtsScreen() {
       void reloadCategories();
       void reloadDrafts();
       void reloadArchived();
-    }, [reload, reloadCategories, reloadDrafts, reloadArchived]),
+      void reloadTagged();
+    }, [reload, reloadCategories, reloadDrafts, reloadArchived, reloadTagged]),
   );
 
   return (
@@ -343,6 +346,19 @@ export function AllKnowtsScreen() {
                 );
               })
             )}
+
+            <Stash
+              title="Tags in use"
+              note="Every knowt with a tag attached. Open one to free its tag or swap it."
+              knowts={tagged ?? []}
+              expanded={!!openStash.tagged}
+              onToggle={() =>
+                setOpenStash((prev) => ({ ...prev, tagged: !prev.tagged }))
+              }
+              onOpenKnowt={(knowtId) =>
+                navigation.navigate('KnowtDetail', { knowtId })
+              }
+            />
 
             <Stash
               title="Drafts"
@@ -523,7 +539,14 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.md,
     color: theme.color.textPrimary,
   },
-  footer: { paddingTop: theme.spacing.md, alignItems: 'center' },
+  // Clears the floating tab bar rather than sitting on it. The container's
+  // bottom padding is the bar's own height, so anything drawn after the list
+  // needs its own room underneath as well as above.
+  footer: {
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.lg,
+    alignItems: 'center',
+  },
   // Inverted so it still reads as the way in, but sized as a control rather
   // than as the conclusion of the screen.
   presets: {

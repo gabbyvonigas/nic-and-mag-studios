@@ -303,6 +303,63 @@ export async function attachTag(
   );
 }
 
+/**
+ * Moves a tag from whatever holds it to this knowt.
+ *
+ * The tags are rewritable hardware with a rewrite budget in the hundreds of
+ * thousands, so a tag is a reusable label, not a one-time pairing. Treating a
+ * conflict as a dead end meant a tag stuck on the wrong jar stayed stuck.
+ *
+ * The knowt that loses the tag falls back to Alarm Only, because Scan Knowt
+ * with nothing to scan is a knowt that can never be stopped.
+ */
+export async function reassignTag(
+  tagUid: string,
+  toKnowtId: string,
+): Promise<{ takenFrom: string | null }> {
+  const owner = await findKnowtByTagUid(tagUid);
+  const db = await getDatabase();
+
+  await db.withTransactionAsync(async () => {
+    if (owner && owner.id !== toKnowtId) {
+      await db.runAsync(
+        "UPDATE knowts SET tag_uid = NULL, mode = 'open' WHERE id = ?",
+        owner.id,
+      );
+    }
+    await db.runAsync(
+      "UPDATE knowts SET tag_uid = ?, mode = 'strict' WHERE id = ?",
+      tagUid,
+      toKnowtId,
+    );
+  });
+
+  return { takenFrom: owner && owner.id !== toKnowtId ? owner.name : null };
+}
+
+/**
+ * Frees a tag without giving it to anything else. The knowt drops to Alarm
+ * Only for the same reason as above.
+ */
+export async function detachTag(knowtId: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    "UPDATE knowts SET tag_uid = NULL, mode = 'open' WHERE id = ?",
+    knowtId,
+  );
+}
+
+/** Every knowt currently holding a tag, for the tag overviews. */
+export async function listTagged(): Promise<KnowtWithDetail[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<KnowtRow>(
+    `SELECT * FROM knowts
+      WHERE tag_uid IS NOT NULL AND archived = 0 AND is_draft = 0
+      ORDER BY name`,
+  );
+  return attachDetail(rows);
+}
+
 /** Scan Knowt requires a tag. Alarm Only does not. */
 export async function setMode(knowtId: string, mode: KnowtMode): Promise<void> {
   const knowt = await getKnowt(knowtId);

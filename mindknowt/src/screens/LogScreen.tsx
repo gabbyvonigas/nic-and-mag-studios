@@ -21,6 +21,7 @@ import {
   type LogCategoryGroup,
   type LoggedCompletion,
 } from '../db';
+import { listTagged } from '../db';
 import { useQuery } from '../db/useQuery';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 import type { RootStackParamList } from '../navigation/types';
@@ -192,12 +193,16 @@ export function LogScreen() {
     () => loadMonthSummary(year, month),
     [year, month],
   );
+  // Not month scoped: a tag is attached now or it is not, whatever month is
+  // being read.
+  const { data: tagged, reload: reloadTagged } = useQuery(() => listTagged(), []);
 
   useFocusEffect(
     useCallback(() => {
       void reload();
       void reloadSummary();
-    }, [reload, reloadSummary]),
+      void reloadTagged();
+    }, [reload, reloadSummary, reloadTagged]),
   );
 
   const step = (delta: number) => {
@@ -304,7 +309,9 @@ export function LogScreen() {
           )}
 
           <Text style={styles.sectionTitle}>Summary</Text>
-          {summary ? <SummaryPanel summary={summary} /> : null}
+          {summary ? (
+            <SummaryPanel summary={summary} tagged={tagged ?? []} />
+          ) : null}
         </ScrollView>
       )}
     </SafeAreaView>

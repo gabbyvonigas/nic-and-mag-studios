@@ -322,7 +322,7 @@ export function RingingScreen() {
         <View style={styles.footer}>
           {scanRequired ? (
             <Button
-              label={scanning ? 'Scanning' : 'Scan to stop'}
+              label={scanning ? 'Scanning' : 'Scan Knowt'}
               disabled={scanning}
               onPress={() => void finish(scanToStop)}
             />
@@ -332,15 +332,17 @@ export function RingingScreen() {
 
           {!scanRequired && scanOffered ? (
             <Button
-              label={scanning ? 'Scanning' : 'Scan it instead'}
+              label={scanning ? 'Scanning' : 'Scan Knowt instead'}
               variant="secondary"
               disabled={scanning}
               onPress={() => void finish(scanToStop)}
             />
           ) : null}
 
+          {/* The duration is the whole question a person has about this
+              button, and it was the one thing the label did not say. */}
           <Button
-            label="Snooze"
+            label={`Snooze ${knowt.snooze_minutes} min`}
             variant="secondary"
             onPress={() => void finish(snooze)}
           />
@@ -369,7 +371,7 @@ export function RingingScreen() {
                   </Text>
 
                   <Button
-                    label="Snooze until I am there"
+                    label={`Snooze ${knowt.snooze_minutes} min until I am there`}
                     variant="secondary"
                     onPress={() => void finish(snooze)}
                   />

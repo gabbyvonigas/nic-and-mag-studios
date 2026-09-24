@@ -10,9 +10,9 @@ import type { KnowtMode, RepeatType } from './types';
 const CATEGORIES = [
   { key: 'home', name: 'Home', color: theme.categoryPalette.home, icon: 'house' },
   { key: 'daily', name: 'Daily', color: theme.categoryPalette.daily, icon: 'sun' },
-  { key: 'care', name: 'Care', color: theme.categoryPalette.care, icon: 'heart' },
-  { key: 'ritual', name: 'Ritual', color: theme.categoryPalette.ritual, icon: 'sparkle' },
-  { key: 'go', name: 'Go', color: theme.categoryPalette.go, icon: 'car' },
+  { key: 'care', name: 'Wellness', color: theme.categoryPalette.care, icon: 'heart' },
+  { key: 'ritual', name: 'Routine', color: theme.categoryPalette.ritual, icon: 'sparkle' },
+  { key: 'go', name: 'Activity', color: theme.categoryPalette.go, icon: 'car' },
   { key: 'admin', name: 'Admin', color: theme.categoryPalette.admin, icon: 'tray' },
 ] as const;
 
