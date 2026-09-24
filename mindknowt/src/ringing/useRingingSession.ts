@@ -121,11 +121,11 @@ export function useRingingSession(
   }, [rearmIfAbandoned]);
 
   const resolve = useCallback(
-    async (method: EventMethod) => {
+    async (method: EventMethod, completedAt?: number) => {
       resolvedRef.current = true;
       if (mounted.current) setResolved(true);
       if (eventIdRef.current) {
-        await completeRinging(eventIdRef.current, method);
+        await completeRinging(eventIdRef.current, method, null, completedAt);
       }
       // This firing is done, so nothing armed for it should still ring. Only
       // the one-shots go: a stale re-fire, a snooze, a leftover test alarm. The
@@ -214,7 +214,10 @@ export function useRingingSession(
   }, [remindIn]);
 
   const complete = useCallback(
-    (method: Extract<EventMethod, 'tap' | 'override'>) => resolve(method),
+    (
+      method: Extract<EventMethod, 'tap' | 'override'>,
+      completedAt?: number,
+    ) => resolve(method, completedAt),
     [resolve],
   );
 

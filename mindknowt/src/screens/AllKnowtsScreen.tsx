@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import { AlarmIcon, ExpandSign, ScanIcon } from '../components/icons';
-import { Button, EmptyState, ScreenHeader } from '../components/ui';
+import { EmptyState, ScreenHeader } from '../components/ui';
 import { requiresScan } from '../knowts/modes';
 import {
   listArchived,
@@ -375,10 +375,12 @@ export function AllKnowtsScreen() {
         {/* Add now lives in the navigation bar, reachable from every screen,
             so repeating it here would be two buttons for one action. */}
         <View style={styles.footer}>
-          <Button
-            label="Browse Presets"
+          <Pressable
+            accessibilityRole="button"
             onPress={() => navigation.navigate('BrowseSets')}
-          />
+            style={({ pressed }) => [styles.presets, pressed && styles.pressed]}>
+            <Text style={styles.presetsText}>Browse Presets</Text>
+          </Pressable>
         </View>
       </View>
     </SafeAreaView>
@@ -521,5 +523,18 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.md,
     color: theme.color.textPrimary,
   },
-  footer: { paddingTop: theme.spacing.md },
+  footer: { paddingTop: theme.spacing.md, alignItems: 'center' },
+  // Inverted so it still reads as the way in, but sized as a control rather
+  // than as the conclusion of the screen.
+  presets: {
+    backgroundColor: theme.color.primary,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.sm,
+  },
+  presetsText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.md,
+    color: theme.color.onPrimary,
+  },
 });

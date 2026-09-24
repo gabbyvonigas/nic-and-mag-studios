@@ -29,6 +29,7 @@ import {
   describeRepeat,
   formatTime,
   getKnowt,
+  isDueOn,
   listEvents,
   logCompletion,
   ModeUnavailableError,
@@ -142,6 +143,28 @@ export function KnowtDetailScreen() {
     }
   };
 
+  /**
+   * Whether there is anything to check in against yet.
+   *
+   * "I just did this" on a knowt that rings at eight, read at seven, is an
+   * invitation to log a thing that has not happened. It appears once the knowt
+   * has actually come due: a schedule whose time has passed today, an alarm
+   * that fired and was never closed, or no schedule at all, which is the
+   * untimed case where any moment is as good as another.
+   */
+  const dueYet = (() => {
+    if (knowt.schedules.length === 0) return true;
+    if ((events ?? []).some((e) => e.fired_at && !e.completed_at)) return true;
+
+    const now = new Date();
+    const minutesNow = now.getHours() * 60 + now.getMinutes();
+    return knowt.schedules.some((schedule) => {
+      if (!isDueOn(schedule, now)) return false;
+      const [hour, minute] = schedule.time.split(':').map(Number);
+      return (hour ?? 0) * 60 + (minute ?? 0) <= minutesNow;
+    });
+  })();
+
   const checkIn = async () => {
     // Spec section 3: a completion with no alarm pending is a valid check-in.
     await logCompletion({ knowtId: knowt.id, scheduleId: null, method: 'tap' });
@@ -196,9 +219,24 @@ export function KnowtDetailScreen() {
               This is a draft. It does not ring and it is not in your knowts
               yet.
             </Text>
+            {/* Into the same guided setup a new knowt gets, rather than just
+                flipping the flag: a draft has no time and no tag, which is
+                exactly what that screen asks for. */}
             <Button
-              label="Finish this knowt"
+              label="Finish setting it up"
               variant="highlight"
+              onPress={() =>
+                navigation.navigate('SetupKnowt', {
+                  name: knowt.name,
+                  categoryId: knowt.category_id,
+                  notes: knowt.notes,
+                  draftId: knowt.id,
+                })
+              }
+            />
+            <Button
+              label="Keep it as it is"
+              variant="quiet"
               onPress={async () => {
                 await finishDraft(knowt.id);
                 // It may already carry a schedule that nothing has armed.
@@ -340,7 +378,13 @@ export function KnowtDetailScreen() {
         ) : null}
 
         <View style={styles.actions}>
-          <Button label="I just did this" variant="secondary" onPress={() => void checkIn()} />
+          {dueYet ? (
+            <Button
+              label="I just did this"
+              variant="secondary"
+              onPress={() => void checkIn()}
+            />
+          ) : null}
           <Button
             label="Archive"
             variant="quiet"

@@ -19,6 +19,7 @@ import { ScanScreen } from '../screens/ScanScreen';
 import { CategoriesScreen } from '../screens/CategoriesScreen';
 import { ClaimTagsScreen } from '../screens/ClaimTagsScreen';
 import { HomeScreen } from '../screens/HomeScreen';
+import { SetupKnowtScreen } from '../screens/SetupKnowtScreen';
 import { CapsuleTabBar } from './CapsuleTabBar';
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -72,6 +73,7 @@ export function RootNavigator() {
         component={RingingScreen}
         options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
       />
+      <Stack.Screen name="SetupKnowt" component={SetupKnowtScreen} />
       <Stack.Screen name="BrowseSets" component={BrowseSetsScreen} />
       <Stack.Screen name="ApplySet" component={ApplySetScreen} />
       <Stack.Screen name="Categories" component={CategoriesScreen} />

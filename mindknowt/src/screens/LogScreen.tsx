@@ -13,7 +13,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SummaryPanel } from '../components/SummaryPanel';
-import { EmptyState } from '../components/ui';
+import { EmptyState, HeaderRule } from '../components/ui';
 import {
   loadMonthLog,
   loadMonthSummary,
@@ -235,6 +235,7 @@ export function LogScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
+        <HeaderRule />
         <Text style={styles.title}>Log</Text>
         <View style={styles.stepper}>
           <Pressable

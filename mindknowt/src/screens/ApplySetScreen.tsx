@@ -14,7 +14,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Pill, ScreenHeader } from '../components/ui';
-import { TimeWheel } from '../components/TimeWheel';
 import { describeRepeat, formatTime, type RepeatType } from '../db';
 import { resyncAlarmsQuietly } from '../alarms';
 import { applySet, previewSet, type SetPreview, type SetSelection } from '../sets';
@@ -25,26 +24,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'ApplySet'>;
 
 /** Offered when a set declares no schedule of its own for a knowt. */
-const REPEAT_CHOICES: { value: RepeatType; label: string }[] = [
-  { value: 'daily', label: 'Every day' },
-  { value: 'weekdays', label: 'Weekdays' },
-  { value: 'weekends', label: 'Weekends' },
-  { value: 'once', label: 'Once' },
-];
 
-/**
- * The optional schedule a preset does not declare. `on` is what makes it
- * optional: a wheel always reads some time, so absence has to be its own
- * state rather than an empty value.
- */
-type ExtraSchedule = { on: boolean; time: string; repeat: RepeatType | null };
-
-/**
- * Where each wheel starts. It is a starting position for a control the person
- * is about to turn, not a time chosen on their behalf: nothing is written
- * until Add is pressed, and the wheel is on screen the whole time.
- */
-const WHEEL_START = '08:00';
 
 /** `describeRepeat` reads a schedule row; set content only has the repeat type. */
 function describeShape(repeat: RepeatType): string {
@@ -72,8 +52,6 @@ export function ApplySetScreen() {
   const [preview, setPreview] = useState<SetPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [times, setTimes] = useState<Record<string, string[]>>({});
-  const [extras, setExtras] = useState<Record<string, ExtraSchedule>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -87,22 +65,6 @@ export function ApplySetScreen() {
         // Everything starts unchecked. A preset is a menu, not a bundle: it is
         // easier to add three of twelve than to notice and untick nine.
         setSelected({});
-        setTimes(
-          Object.fromEntries(
-            result.entries.map((e) => [
-              e.knowt.name,
-              e.knowt.schedules.map(() => WHEEL_START),
-            ]),
-          ),
-        );
-        setExtras(
-          Object.fromEntries(
-            result.entries.map((e) => [
-              e.knowt.name,
-              { on: false, time: WHEEL_START, repeat: null },
-            ]),
-          ),
-        );
       }
     })();
     return () => {
@@ -110,17 +72,9 @@ export function ApplySetScreen() {
     };
   }, [params.setId]);
 
-  const ready = useMemo(() => {
-    if (!preview) return false;
-    const chosen = preview.entries.filter((e) => selected[e.knowt.name]);
-    if (chosen.length === 0) return false;
-    // The wheels always read a valid time, so the only thing left to check is
-    // that an added schedule has been told how often to repeat.
-    return chosen.every((entry) => {
-      const extra = extras[entry.knowt.name];
-      return !extra?.on || extra.repeat !== null;
-    });
-  }, [preview, selected, extras]);
+  const ready = preview
+    ? preview.entries.some((e) => selected[e.knowt.name])
+    : false;
 
   if (loading) {
     return (
@@ -144,20 +98,11 @@ export function ApplySetScreen() {
   const apply = async () => {
     setSaving(true);
     try {
+      // Added together, so nothing here has a time yet. They land as drafts,
+      // which is what Drafts is for: started, not finished, and unable to ring.
       const selections: SetSelection[] = preview.entries
         .filter((e) => selected[e.knowt.name])
-        .map((e) => {
-          const extra = extras[e.knowt.name];
-          return {
-            name: e.knowt.name,
-            // The wheel deals only in 24 hour HH:MM, which is what is stored.
-            times: times[e.knowt.name] ?? [],
-            extraSchedule:
-              extra?.on && extra.repeat
-                ? { time: extra.time, repeat: extra.repeat }
-                : null,
-          };
-        });
+        .map((e) => ({ name: e.knowt.name, times: [], extraSchedule: null }));
       await applySet(params.setId, selections);
       // A set can add a dozen schedules at once, none of them armed yet.
       await resyncAlarmsQuietly();
@@ -217,8 +162,8 @@ export function ApplySetScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled">
           <Text style={styles.hint}>
-            Pick what you want. Adding a time is optional, and nothing is
-            scheduled until you set one.
+            Tap one to set it up now, or tick several and add them together.
+            Anything added together arrives as a draft, waiting for a time.
           </Text>
 
           {preview.entries.map((entry) => {
@@ -234,6 +179,14 @@ export function ApplySetScreen() {
                       [entry.knowt.name]: !prev[entry.knowt.name],
                     }))
                   }
+                  // Tapping the name sets this one up now; the box is still
+                  // there for adding several at once.
+                  onLongPress={() =>
+                    navigation.navigate('SetupKnowt', {
+                      name: entry.knowt.name,
+                      notes: entry.knowt.notes,
+                    })
+                  }
                   style={styles.entryHeader}>
                   <View style={[styles.box, isSelected && styles.boxChecked]}>
                     {isSelected ? <Text style={styles.tick}>✓</Text> : null}
@@ -248,113 +201,21 @@ export function ApplySetScreen() {
                     {entry.duplicateOf ? (
                       <Pill label="Already exists" />
                     ) : null}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Set up ${entry.knowt.name} now`}
+                      onPress={() =>
+                        navigation.navigate('SetupKnowt', {
+                          name: entry.knowt.name,
+                          notes: entry.knowt.notes,
+                        })
+                      }>
+                      <Text style={styles.setUpNow}>Set this one up</Text>
+                    </Pressable>
                   </View>
                 </Pressable>
 
-                {isSelected && entry.knowt.schedules.length === 0 ? (
-                  <View style={styles.scheduleRow}>
-                    <Pressable
-                      accessibilityRole="switch"
-                      accessibilityState={{
-                        checked: !!extras[entry.knowt.name]?.on,
-                      }}
-                      onPress={() =>
-                        setExtras((prev) => {
-                          const current = prev[entry.knowt.name];
-                          return {
-                            ...prev,
-                            [entry.knowt.name]: {
-                              on: !current?.on,
-                              time: current?.time ?? WHEEL_START,
-                              repeat: current?.repeat ?? null,
-                            },
-                          };
-                        })
-                      }>
-                      <Text style={styles.scheduleToggle}>
-                        {extras[entry.knowt.name]?.on
-                          ? 'Remove the time'
-                          : 'Add a time, optional'}
-                      </Text>
-                    </Pressable>
 
-                    {extras[entry.knowt.name]?.on ? (
-                      <TimeWheel
-                        compact
-                        value={extras[entry.knowt.name]?.time ?? WHEEL_START}
-                        onChange={(next) =>
-                          setExtras((prev) => ({
-                            ...prev,
-                            [entry.knowt.name]: {
-                              on: true,
-                              time: next,
-                              repeat: prev[entry.knowt.name]?.repeat ?? null,
-                            },
-                          }))
-                        }
-                      />
-                    ) : null}
-
-                    {extras[entry.knowt.name]?.on ? (
-                      <View style={styles.repeatRow}>
-                        {REPEAT_CHOICES.map((choice) => {
-                          const active =
-                            extras[entry.knowt.name]?.repeat === choice.value;
-                          return (
-                            <Pressable
-                              key={choice.value}
-                              accessibilityRole="button"
-                              accessibilityState={{ selected: active }}
-                              onPress={() =>
-                                setExtras((prev) => ({
-                                  ...prev,
-                                  [entry.knowt.name]: {
-                                    on: true,
-                                    time: prev[entry.knowt.name]?.time ?? WHEEL_START,
-                                    repeat: choice.value,
-                                  },
-                                }))
-                              }
-                              style={[styles.repeatChip, active && styles.repeatChipOn]}>
-                              <Text
-                                style={[
-                                  styles.repeatText,
-                                  active && styles.repeatTextOn,
-                                ]}>
-                                {choice.label}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    ) : null}
-                  </View>
-                ) : null}
-
-                {isSelected &&
-                  entry.knowt.schedules.map((schedule, index) => {
-                    const value = times[entry.knowt.name]?.[index] ?? WHEEL_START;
-                    return (
-                      <View key={index} style={styles.scheduleRow}>
-                        <Text style={styles.scheduleLabel}>
-                          {schedule.label ?? describeShape(schedule.repeat)}
-                          {schedule.label ? ` · ${describeShape(schedule.repeat)}` : ''}
-                          {`, ${formatTime(value)}`}
-                        </Text>
-                        <TimeWheel
-                          compact
-                          value={value}
-                          onChange={(next) =>
-                            setTimes((prev) => {
-                              const list = [...(prev[entry.knowt.name] ?? [])];
-                              list[index] = next;
-                              return { ...prev, [entry.knowt.name]: list };
-                            })
-                          }
-                        />
-                      </View>
-                    );
-                  })}
               </View>
             );
           })}
@@ -449,6 +310,12 @@ const styles = StyleSheet.create({
   entryName: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
+    color: theme.color.textPrimary,
+  },
+  setUpNow: {
+    marginTop: theme.spacing.xs,
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
     color: theme.color.textPrimary,
   },
   entryNotes: {

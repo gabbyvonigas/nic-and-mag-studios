@@ -315,6 +315,7 @@ export function EditScheduleScreen() {
         <View style={styles.footer}>
           <Button
             label={saving ? 'Saving' : 'Save schedule'}
+            variant="highlight"
             disabled={!canSave || saving}
             onPress={() => void save()}
           />

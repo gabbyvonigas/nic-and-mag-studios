@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../components/ui';
 import { HoldToConfirm } from '../components/HoldToConfirm';
+import { TimeWheel } from '../components/TimeWheel';
 import { describeRepeat, formatTime } from '../db';
 import { canScan, requiresScan } from '../knowts/modes';
 import { useRingingSession } from '../ringing/useRingingSession';
@@ -25,6 +26,26 @@ import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+/**
+ * An HH:MM on today's date, as a timestamp.
+ *
+ * Today, never yesterday: a time later than now means the clock was wound
+ * forward by mistake, not that the thing was done tomorrow, and clamping to now
+ * keeps a completion from being recorded in the future.
+ */
+function atToday(hhmm: string): number {
+  const [hour, minute] = hhmm.split(':').map(Number);
+  const now = new Date();
+  const at = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    hour ?? 0,
+    minute ?? 0,
+  );
+  return Math.min(at.getTime(), now.getTime());
+}
 type Route = RouteProp<RootStackParamList, 'Ringing'>;
 
 /**
@@ -111,6 +132,15 @@ export function RingingScreen() {
   const [eventNote, setEventNote] = useState('');
   const [showEventNote, setShowEventNote] = useState(false);
   const [overrideOpen, setOverrideOpen] = useState(false);
+  /**
+   * What time to record, when the override is taken away from the tag. Starts
+   * at now, which is the honest default when someone is doing it right now, and
+   * can be wound back to when they actually did the thing.
+   */
+  const [doneAt, setDoneAt] = useState(() => {
+    const at = new Date();
+    return `${`${at.getHours()}`.padStart(2, '0')}:${`${at.getMinutes()}`.padStart(2, '0')}`;
+  });
   const autoScanned = useRef(false);
 
   useEffect(() => {
@@ -333,13 +363,26 @@ export function RingingScreen() {
               {overrideOpen ? (
                 <View style={styles.overridePanel}>
                   <Text style={styles.overrideHint}>
-                    Stops the alarm without scanning, and is recorded as an
-                    override.
+                    Not near the tag? Snooze it until you are, or mark it done
+                    and say when. Either way it is recorded as an override, not
+                    as a scan.
                   </Text>
+
+                  <Button
+                    label="Snooze until I am there"
+                    variant="secondary"
+                    onPress={() => void finish(snooze)}
+                  />
+
+                  <Text style={styles.overrideLabel}>Done at</Text>
+                  <TimeWheel compact value={doneAt} onChange={setDoneAt} />
+
                   <HoldToConfirm
-                    label="Hold to override"
+                    label={`Hold to mark done at ${formatTime(doneAt)}`}
                     holdMs={OVERRIDE_HOLD_MS}
-                    onComplete={() => void finish(() => complete('override'))}
+                    onComplete={() =>
+                      void finish(() => complete('override', atToday(doneAt)))
+                    }
                   />
                   <Pressable
                     accessibilityRole="button"
@@ -504,6 +547,13 @@ const styles = StyleSheet.create({
     color: theme.color.textSecondary,
   },
   overrideArea: { marginTop: theme.spacing.md, gap: theme.spacing.sm },
+  overrideLabel: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   overridePanel: { gap: theme.spacing.sm },
   overrideHint: {
     fontFamily: theme.font.body,

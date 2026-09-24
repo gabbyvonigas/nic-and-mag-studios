@@ -26,6 +26,16 @@ export type RootStackParamList = {
    * exercised without waiting for a real alarm. See linking.ts.
    */
   Ringing: { knowtId: string; scheduleId?: string };
+  /**
+   * Setting up one knowt, from a preset or a typed name. `draftId` is the
+   * draft this replaces, deleted once the real row is written.
+   */
+  SetupKnowt: {
+    name: string;
+    categoryId?: string | null;
+    notes?: string | null;
+    draftId?: string;
+  };
   BrowseSets: undefined;
   ApplySet: { setId: string };
   /**

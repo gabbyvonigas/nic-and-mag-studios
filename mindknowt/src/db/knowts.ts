@@ -561,6 +561,15 @@ export async function logCompletion(args: {
   scheduleId?: string | null;
   method: EventMethod;
   note?: string | null;
+  /**
+   * When it was actually done, if that is not now.
+   *
+   * An override is someone saying they did the thing but were not at the tag.
+   * Recording that at the moment they pressed the button puts a lie in the log:
+   * the pills were taken at eight and the phone was answered at eleven. The
+   * history is only worth keeping if it can be corrected.
+   */
+  completedAt?: number;
 }): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
@@ -570,7 +579,7 @@ export async function logCompletion(args: {
     newId(),
     args.knowtId,
     args.scheduleId ?? null,
-    Date.now(),
+    args.completedAt ?? Date.now(),
     args.method,
     args.note ?? null,
   );

@@ -103,6 +103,9 @@ export async function applySet(
       name: knowt.name,
       icon: knowt.icon ?? undefined,
       mode: 'open',
+      // Added in a batch, so none of these has been given a time. A draft is
+      // exactly that state: started, not finished, and unable to ring.
+      isDraft: times.length === 0,
       suggestedMode: knowt.suggestedMode,
       categoryId: category?.id ?? null,
       locationNote: knowt.locationNote,

@@ -46,13 +46,19 @@ export async function completeRinging(
   eventId: string,
   method: EventMethod,
   note?: string | null,
+  /**
+   * When it was actually done, if that is not now. An override taken three
+   * hours after the fact should not claim the thing happened at the moment the
+   * button was pressed; the log is only useful if it can be told the truth.
+   */
+  completedAt?: number,
 ): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `UPDATE events
         SET completed_at = ?, method = ?, note = COALESCE(?, note)
       WHERE id = ?`,
-    Date.now(),
+    completedAt ?? Date.now(),
     method,
     note ?? null,
     eventId,

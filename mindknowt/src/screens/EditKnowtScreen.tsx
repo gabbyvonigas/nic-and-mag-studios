@@ -406,6 +406,7 @@ export function EditKnowtScreen() {
         <View style={styles.footer}>
           <Button
             label={saving ? 'Saving' : 'Save changes'}
+            variant="highlight"
             disabled={name.trim().length === 0 || saving}
             onPress={() => void save()}
           />
