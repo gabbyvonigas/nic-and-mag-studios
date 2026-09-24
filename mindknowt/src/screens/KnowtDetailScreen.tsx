@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Card, Pill, SubScreenHeader } from '../components/ui';
 import { resyncAlarmsQuietly } from '../alarms';
-import { AlarmIcon, ScanIcon } from '../components/icons';
+import { AlarmIcon, ExpandSign, ScanIcon } from '../components/icons';
 import { MODE_CHOICES, modeChoice, modeLabel } from '../knowts/modes';
 import {
   archiveKnowt,
@@ -50,6 +50,19 @@ import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+/**
+ * Just the clock, the way a person would say it.
+ *
+ * The full locale string carried a date, seconds and often a timezone, which
+ * is more than a history row needs to be read at a glance.
+ */
+function clockTime(at: number): string {
+  const date = new Date(at);
+  const hours = date.getHours();
+  const minutes = `${date.getMinutes()}`.padStart(2, '0');
+  return `${hours % 12 === 0 ? 12 : hours % 12}:${minutes} ${hours < 12 ? 'AM' : 'PM'}`;
+}
 type Route = RouteProp<RootStackParamList, 'KnowtDetail'>;
 
 export function KnowtDetailScreen() {
@@ -67,6 +80,9 @@ export function KnowtDetailScreen() {
   const [draftNotes, setDraftNotes] = useState('');
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Closed by default. History is the least urgent thing on this screen and it
+  // grows without limit, so it should not push everything else off the top.
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -395,17 +411,30 @@ export function KnowtDetailScreen() {
             "nothing recorded yet" is a divider around an absence. */}
         {(events ?? []).length > 0 ? (
           <>
-            <Text style={styles.sectionTitle}>History</Text>
-            {(events ?? []).map((event) => (
-              <View key={event.id} style={styles.eventRow}>
-                <Text style={styles.body}>
-                  {event.completed_at
-                    ? new Date(event.completed_at).toLocaleString()
-                    : 'Not completed'}
-                </Text>
-                <Text style={styles.meta}>{event.method ?? ''}</Text>
-              </View>
-            ))}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: historyOpen }}
+              accessibilityLabel={`History, ${(events ?? []).length} entries`}
+              onPress={() => setHistoryOpen((open) => !open)}
+              style={({ pressed }) => [
+                styles.historyHead,
+                pressed && styles.pressed,
+              ]}>
+              <Text style={styles.sectionTitle}>History</Text>
+              <ExpandSign expanded={historyOpen} size={14} />
+            </Pressable>
+
+            {historyOpen
+              ? (events ?? []).map((event) => (
+                  <View key={event.id} style={styles.eventRow}>
+                    <Text style={styles.body}>
+                      {event.completed_at
+                        ? clockTime(event.completed_at)
+                        : 'Not completed'}
+                    </Text>
+                  </View>
+                ))
+              : null}
           </>
         ) : null}
 
@@ -488,6 +517,11 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   pills: { flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' },
+  historyHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   sectionTitle: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,

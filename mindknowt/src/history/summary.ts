@@ -84,6 +84,11 @@ export type MonthSummary = {
   /** Completions per weekday, Sunday first, so a weekend collapse shows. */
   byWeekday: number[];
   /** What was missed, with names rather than just a count. */
+  /**
+   * Which knowts went by most often. Still computed and still tested, but
+   * nothing renders it: the "Went by" list was removed from the Log because a
+   * standing list of failures is not what that screen is for.
+   */
   missedKnowts: MissEntry[];
 };
 

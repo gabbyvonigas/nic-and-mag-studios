@@ -15,12 +15,21 @@ import { categoryShades, METHOD_COLORS, theme } from '../theme';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-/** Minutes read as minutes until they stop being readable that way. */
-function formatMinutes(minutes: number): string {
-  if (minutes < 1) return 'under a minute';
-  if (minutes < 90) return `${Math.round(minutes)} min`;
-  const hours = minutes / 60;
-  return `${hours < 10 ? hours.toFixed(1) : Math.round(hours)} hr`;
+/**
+ * When someone usually gets to a thing, said as a habit rather than a speed.
+ *
+ * This used to be a number of minutes under the words "typical time to
+ * answer", which reads as a stopwatch and invites treating a slow day as a bad
+ * one. The figure is about follow-through, not reaction time, so it is a
+ * phrase rather than a measurement. The buckets are wide on purpose: the
+ * difference between nine minutes and fourteen is not a thing worth knowing.
+ */
+function whenYouGetToIt(minutes: number): string {
+  if (minutes < 1) return 'Right away';
+  if (minutes < 15) return 'Within minutes';
+  if (minutes < 60) return 'Within the hour';
+  if (minutes < 360) return 'Later that day';
+  return 'When you got to it';
 }
 
 function percent(value: number): string {
@@ -218,24 +227,27 @@ export function SummaryPanel({
       ) : null}
 
       {summary.medianResponseMinutes !== null || summary.snoozes > 0 ? (
-        <View style={styles.pairRow}>
+        <>
+          <Text style={styles.listTitle}>Follow-through</Text>
+          <View style={styles.pairRow}>
           {summary.medianResponseMinutes !== null ? (
             <View style={styles.pair}>
               <Text style={styles.pairValue}>
-                {formatMinutes(summary.medianResponseMinutes)}
+                {whenYouGetToIt(summary.medianResponseMinutes)}
               </Text>
-              <Text style={styles.pairLabel}>typical time to answer</Text>
+              <Text style={styles.pairLabel}>when you usually get to it</Text>
             </View>
           ) : null}
           {summary.snoozes > 0 ? (
             <View style={styles.pair}>
               <Text style={styles.pairValue}>{summary.snoozes}</Text>
               <Text style={styles.pairLabel}>
-                snooze{summary.snoozes === 1 ? '' : 's'}
+                time{summary.snoozes === 1 ? '' : 's'} put off
               </Text>
             </View>
           ) : null}
-        </View>
+          </View>
+        </>
       ) : null}
 
       {anyWeekday ? (
@@ -286,27 +298,6 @@ export function SummaryPanel({
         </View>
       ) : null}
 
-      {summary.missedKnowts.length > 0 ? (
-        <View style={styles.list}>
-          <Text style={styles.listTitle}>Went by</Text>
-          {summary.missedKnowts.slice(0, 3).map((entry) => (
-            <View key={entry.knowtId} style={styles.listRow}>
-              <View
-                style={[
-                  styles.listDot,
-                  { backgroundColor: categoryShades(entry.category).color },
-                ]}
-              />
-              <Text numberOfLines={1} style={styles.listName}>
-                {entry.name}
-              </Text>
-              <Text style={styles.listValue}>
-                {entry.misses} time{entry.misses === 1 ? '' : 's'}
-              </Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
 
       {summary.missed > 0 ? (
         <Text style={styles.missed}>

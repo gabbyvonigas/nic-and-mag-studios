@@ -217,6 +217,7 @@ function Stash({
   onToggle,
   onOpenKnowt,
   onHoldKnowt,
+  countWhenClosed = true,
 }: {
   title: string;
   note: string;
@@ -226,6 +227,12 @@ function Stash({
   onOpenKnowt: (id: string) => void;
   /** Only Deleted uses this, for the permanent one. */
   onHoldKnowt?: (id: string) => void;
+  /**
+   * Whether the count shows while the section is shut. Tags in use hides it:
+   * a number sitting there invites reading something into it, and how many
+   * tags are in play is a thing to go and look at rather than a score.
+   */
+  countWhenClosed?: boolean;
 }) {
   if (knowts.length === 0) return null;
 
@@ -238,7 +245,9 @@ function Stash({
         onPress={onToggle}
         style={({ pressed }) => [styles.stashHeader, pressed && styles.pressed]}>
         <Text style={styles.stashTitle}>{title}</Text>
-        <Text style={styles.stashCount}>{knowts.length}</Text>
+        {countWhenClosed || expanded ? (
+          <Text style={styles.stashCount}>{knowts.length}</Text>
+        ) : null}
         <ExpandSign expanded={expanded} size={14} />
       </Pressable>
 
@@ -393,6 +402,7 @@ export function AllKnowtsScreen() {
               title="Tags in use"
               note="Every knowt with a tag attached. Open one to free its tag or swap it."
               knowts={tagged ?? []}
+              countWhenClosed={false}
               expanded={!!openStash.tagged}
               onToggle={() =>
                 setOpenStash((prev) => ({ ...prev, tagged: !prev.tagged }))
