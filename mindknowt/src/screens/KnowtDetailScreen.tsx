@@ -24,6 +24,8 @@ import { MODE_CHOICES, modeChoice, modeLabel } from '../knowts/modes';
 import {
   archiveKnowt,
   attachTag,
+  finishDraft,
+  restoreKnowt,
   describeRepeat,
   formatTime,
   getKnowt,
@@ -188,6 +190,42 @@ export function KnowtDetailScreen() {
         />
         {dirty ? <Button label="Save notes" onPress={() => void saveNotes()} /> : null}
 
+        {knowt.is_draft ? (
+          <View style={styles.draft}>
+            <Text style={styles.draftText}>
+              This is a draft. It does not ring and it is not in your knowts
+              yet.
+            </Text>
+            <Button
+              label="Finish this knowt"
+              variant="highlight"
+              onPress={async () => {
+                await finishDraft(knowt.id);
+                // It may already carry a schedule that nothing has armed.
+                await resyncAlarmsQuietly();
+                await reload();
+              }}
+            />
+          </View>
+        ) : null}
+
+        {knowt.archived ? (
+          <View style={styles.draft}>
+            <Text style={styles.draftText}>
+              Archived. Nothing here rings until it is back.
+            </Text>
+            <Button
+              label="Restore"
+              variant="secondary"
+              onPress={async () => {
+                await restoreKnowt(knowt.id);
+                await resyncAlarmsQuietly();
+                await reload();
+              }}
+            />
+          </View>
+        ) : null}
+
         {notice ? (
           <View style={styles.notice}>
             <Text style={styles.noticeText}>{notice}</Text>
@@ -199,13 +237,15 @@ export function KnowtDetailScreen() {
           {MODE_CHOICES.map((choice) => {
             const selected = modeChoice(knowt.mode) === choice.value;
             const blocked = choice.value === 'strict' && !knowt.tag_uid;
-            // One value for both. The icon used onAccent while the label used
-            // textPrimary, on a chip whose selected background is a light
-            // surface, so the two were never the same colour.
-            const tint =
-              blocked || !selected
-                ? theme.color.textMuted
-                : theme.color.textPrimary;
+            // One value for both, so the icon and its label always agree. The
+            // selected chip is lime, which is an active state and so is exactly
+            // what the neon is for, and near-black is the only thing that goes
+            // on top of it.
+            const tint = blocked
+              ? theme.color.textMuted
+              : selected
+                ? theme.color.onHighlight
+                : theme.color.textSecondary;
             return (
               <Pressable
                 key={choice.value}
@@ -281,21 +321,23 @@ export function KnowtDetailScreen() {
           ))
         )}
 
-        <Text style={styles.sectionTitle}>History</Text>
-        {(events ?? []).length === 0 ? (
-          <Text style={styles.body}>Nothing recorded yet.</Text>
-        ) : (
-          (events ?? []).map((event) => (
-            <View key={event.id} style={styles.eventRow}>
-              <Text style={styles.body}>
-                {event.completed_at
-                  ? new Date(event.completed_at).toLocaleString()
-                  : 'Not completed'}
-              </Text>
-              <Text style={styles.meta}>{event.method ?? ''}</Text>
-            </View>
-          ))
-        )}
+        {/* A brand new knowt has no history, and a heading over the words
+            "nothing recorded yet" is a divider around an absence. */}
+        {(events ?? []).length > 0 ? (
+          <>
+            <Text style={styles.sectionTitle}>History</Text>
+            {(events ?? []).map((event) => (
+              <View key={event.id} style={styles.eventRow}>
+                <Text style={styles.body}>
+                  {event.completed_at
+                    ? new Date(event.completed_at).toLocaleString()
+                    : 'Not completed'}
+                </Text>
+                <Text style={styles.meta}>{event.method ?? ''}</Text>
+              </View>
+            ))}
+          </>
+        ) : null}
 
         <View style={styles.actions}>
           <Button label="I just did this" variant="secondary" onPress={() => void checkIn()} />
@@ -317,6 +359,18 @@ export function KnowtDetailScreen() {
 
 const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
+  draft: {
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  draftText: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.md,
+    color: theme.color.textSecondary,
+  },
   addRow: {
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -346,7 +400,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -355,7 +408,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
-    fontWeight: theme.font.weight.medium,
     color: theme.color.textPrimary,
   },
   body: {
@@ -414,18 +466,15 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
   },
   modeChipSelected: {
-    borderColor: theme.color.accent,
-    backgroundColor: theme.color.surfaceMuted,
+    borderColor: theme.color.highlight,
+    backgroundColor: theme.color.highlight,
   },
   modeText: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.md,
-    color: theme.color.textMuted,
+    color: theme.color.textSecondary,
   },
-  modeTextSelected: {
-    color: theme.color.textPrimary,
-    fontWeight: theme.font.weight.semibold,
-  },
+  modeTextSelected: { color: theme.color.onHighlight },
   hint: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,

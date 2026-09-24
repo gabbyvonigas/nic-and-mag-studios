@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -139,6 +139,12 @@ export const ADDED_COLUMNS: { to: number; table: string; column: string; type: s
     type: 'INTEGER NOT NULL DEFAULT 1',
   },
   { to: 6, table: 'schedules', column: 'interval_months', type: 'INTEGER' },
+  {
+    to: 9,
+    table: 'knowts',
+    column: 'is_draft',
+    type: 'INTEGER NOT NULL DEFAULT 0',
+  },
 ];
 
 /**

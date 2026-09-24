@@ -91,6 +91,20 @@ export const theme = {
       display: 32,
       uid: 30,
     },
+    /**
+     * Do not use these with the rounded family, and there is no other family.
+     *
+     * RCTFont.mm resolves a private family name through `fontWithName:`, which
+     * only ever returns the regular face, then reassigns familyName to the
+     * font's real family, which is the plain system one. Whatever weight was
+     * asked for is matched against plain San Francisco faces from there. So
+     * fontWeight on rounded text either does nothing or silently drops the
+     * rounding, and which of the two depends on the iOS version.
+     *
+     * Weight comes back by bundling the real SF Pro Rounded faces through
+     * expo-font, which is native and costs a rebuild. Until then hierarchy is
+     * size and colour. Kept here only so the scale is written down.
+     */
     weight: {
       regular: '400',
       medium: '500',

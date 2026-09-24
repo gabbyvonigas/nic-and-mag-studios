@@ -51,6 +51,11 @@ export {
 export {
   addSchedule,
   archiveKnowt,
+  deleteKnowt,
+  finishDraft,
+  listArchived,
+  listDrafts,
+  restoreKnowt,
   attachTag,
   CategoryLockedError,
   countKnowtsInCategory,

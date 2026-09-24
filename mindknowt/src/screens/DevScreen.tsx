@@ -286,7 +286,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,

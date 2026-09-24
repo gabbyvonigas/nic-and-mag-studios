@@ -12,12 +12,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
-import { AlarmIcon, Chevron, ScanIcon } from '../components/icons';
+import { AlarmIcon, ExpandSign, ScanIcon } from '../components/icons';
 import { Button, EmptyState, ScreenHeader } from '../components/ui';
 import { requiresScan } from '../knowts/modes';
 import {
+  listArchived,
   listCategories,
   listCategoryGroups,
+  listDrafts,
   nextOccurrence,
   type CategoryGroup,
   type KnowtWithDetail,
@@ -169,7 +171,7 @@ function CategoryGroupView({
         style={({ pressed }) => [styles.groupHeader, pressed && styles.pressed]}>
         <Text style={[styles.groupName, { color: shades.ink }]}>{name}</Text>
         <Text style={styles.groupCount}>{count}</Text>
-        <Chevron direction={expanded ? 'up' : 'down'} />
+        <ExpandSign expanded={expanded} />
       </Pressable>
 
       {expanded ? (
@@ -189,6 +191,72 @@ function CategoryGroupView({
   );
 }
 
+/**
+ * Drafts and archived knowts, at the bottom.
+ *
+ * Small and closed by default, because neither is what the screen is for, but
+ * present, because a draft that cannot be found is the same as the lost work it
+ * was meant to prevent.
+ */
+function Stash({
+  title,
+  note,
+  knowts,
+  expanded,
+  onToggle,
+  onOpenKnowt,
+}: {
+  title: string;
+  note: string;
+  knowts: KnowtWithDetail[];
+  expanded: boolean;
+  onToggle: () => void;
+  onOpenKnowt: (id: string) => void;
+}) {
+  if (knowts.length === 0) return null;
+
+  return (
+    <View style={styles.stash}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`${title}, ${knowts.length}`}
+        onPress={onToggle}
+        style={({ pressed }) => [styles.stashHeader, pressed && styles.pressed]}>
+        <Text style={styles.stashTitle}>{title}</Text>
+        <Text style={styles.stashCount}>{knowts.length}</Text>
+        <ExpandSign expanded={expanded} size={14} />
+      </Pressable>
+
+      {expanded ? (
+        <View style={styles.stashRows}>
+          <Text style={styles.stashNote}>{note}</Text>
+          {knowts.map((knowt) => (
+            <Pressable
+              key={knowt.id}
+              accessibilityRole="button"
+              onPress={() => onOpenKnowt(knowt.id)}
+              style={({ pressed }) => [
+                styles.stashRow,
+                pressed && styles.pressed,
+              ]}>
+              <View
+                style={[
+                  styles.stashDot,
+                  { backgroundColor: categoryShades(knowt.category).color },
+                ]}
+              />
+              <Text numberOfLines={1} style={styles.stashName}>
+                {knowt.name}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export function AllKnowtsScreen() {
   const navigation = useNavigation<Nav>();
   const now = new Date();
@@ -200,6 +268,12 @@ export function AllKnowtsScreen() {
     () => listCategories(),
     [],
   );
+  const { data: drafts, reload: reloadDrafts } = useQuery(() => listDrafts(), []);
+  const { data: archived, reload: reloadArchived } = useQuery(
+    () => listArchived(),
+    [],
+  );
+  const [openStash, setOpenStash] = useState<Record<string, boolean>>({});
 
   // Holds only what has been closed by hand, since open is the default.
   const [closed, setClosed] = useState<Record<string, boolean>>({});
@@ -209,7 +283,9 @@ export function AllKnowtsScreen() {
     useCallback(() => {
       void reload();
       void reloadCategories();
-    }, [reload, reloadCategories]),
+      void reloadDrafts();
+      void reloadArchived();
+    }, [reload, reloadCategories, reloadDrafts, reloadArchived]),
   );
 
   return (
@@ -267,6 +343,32 @@ export function AllKnowtsScreen() {
                 );
               })
             )}
+
+            <Stash
+              title="Drafts"
+              note="Started and not finished. Opening one picks it back up."
+              knowts={drafts ?? []}
+              expanded={!!openStash.drafts}
+              onToggle={() =>
+                setOpenStash((prev) => ({ ...prev, drafts: !prev.drafts }))
+              }
+              onOpenKnowt={(knowtId) =>
+                navigation.navigate('KnowtDetail', { knowtId })
+              }
+            />
+
+            <Stash
+              title="Archived"
+              note="Kept, but not in the way. Nothing here rings."
+              knowts={archived ?? []}
+              expanded={!!openStash.archived}
+              onToggle={() =>
+                setOpenStash((prev) => ({ ...prev, archived: !prev.archived }))
+              }
+              onOpenKnowt={(knowtId) =>
+                navigation.navigate('KnowtDetail', { knowtId })
+              }
+            />
           </ScrollView>
         )}
 
@@ -374,5 +476,50 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
   },
   timeTextUrgent: { color: theme.color.onHighlight },
+  stash: { marginTop: theme.spacing.md },
+  stashHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.color.border,
+  },
+  stashTitle: {
+    flex: 1,
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  stashCount: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textMuted,
+  },
+  stashRows: { gap: theme.spacing.xs, paddingBottom: theme.spacing.sm },
+  stashNote: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textMuted,
+    marginBottom: theme.spacing.xs,
+  },
+  stashRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+  },
+  stashDot: { width: 8, height: 8, borderRadius: 4 },
+  stashName: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
   footer: { paddingTop: theme.spacing.md },
 });

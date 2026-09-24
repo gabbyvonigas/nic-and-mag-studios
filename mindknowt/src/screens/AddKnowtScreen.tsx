@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, ScreenHeader } from '../components/ui';
+import { Button, SubScreenHeader } from '../components/ui';
 import { TimeWheel } from '../components/TimeWheel';
 import { resyncAlarmsQuietly } from '../alarms';
 import {
@@ -24,19 +25,10 @@ import {
   type RepeatType,
 } from '../db';
 import { useQuery } from '../db/useQuery';
-import { listSets } from '../sets';
-import { theme } from '../theme';
+import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-/**
- * Spec section 5.5 is one decision per screen. Build-order step 3 is Open mode
- * only, so the tag question and the strictness question are both absent. They
- * arrive with steps 5 and 6.
- */
-const STEPS = ['name', 'category', 'notes', 'when'] as const;
-type Step = (typeof STEPS)[number];
 
 const REPEATS: { value: RepeatType; label: string }[] = [
   { value: 'daily', label: 'Every day' },
@@ -45,61 +37,69 @@ const REPEATS: { value: RepeatType; label: string }[] = [
   { value: 'once', label: 'Once' },
 ];
 
-const SUGGESTED = ['Vitamins', 'Water the plants', 'Take the bins out', 'Retinol'];
+const SUGGESTED = ['Vitamins', 'Water the plants', 'Take the garbage out', 'Retinol'];
 
 /**
- * The one set offered inside the add flow. Everything else stays behind
- * Browse Presets: a wall of twenty eight choices is not help when someone came
- * here to add one thing.
+ * Adding a knowt, on one page.
+ *
+ * It used to be four steps, one decision per screen, which is a good rule when
+ * the decisions are hard and a bad one when three of the four are optional.
+ * Stepping through three screens to skip them is work, not guidance. Everything
+ * is here at once, only the name is required, and the rest can be ignored.
+ *
+ * Backing out no longer throws the work away: anything with a name in it is
+ * kept as a draft, which is a real row carrying `is_draft = 1`. It cannot ring
+ * and it appears nowhere but the Drafts section on Knowts.
  */
-const FEATURED_SET_ID = 'morning-essentials';
-
-
 export function AddKnowtScreen() {
   const navigation = useNavigation<Nav>();
   const { data: categories } = useQuery(() => listCategories(), []);
-  const featured = listSets().find((set) => set.id === FEATURED_SET_ID) ?? null;
 
-  const [stepIndex, setStepIndex] = useState(0);
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [locationNote, setLocationNote] = useState('');
   const [notes, setNotes] = useState('');
   /**
-   * Off until asked for. Nothing here guesses a time on anyone's behalf: the
-   * wheel only appears once a schedule has been asked for, and the wheel's
-   * starting position is a control position, not a saved value.
+   * Off until asked for. Nothing here guesses a time: the wheel only appears
+   * once a schedule has been asked for, and its starting position is a control
+   * position rather than a saved value.
    */
   const [scheduled, setScheduled] = useState(false);
   const [time, setTime] = useState('08:00');
   const [repeatType, setRepeatType] = useState<RepeatType>('daily');
   const [saving, setSaving] = useState(false);
 
-  const step: Step = STEPS[stepIndex] ?? 'name';
-  // Only the name is required. The when step used to demand a parseable time
-  // before Save would enable, which meant a knowt with no schedule could not be
-  // created at all, and the hint below it promising exactly that was unreachable.
-  const canAdvance = step === 'name' ? name.trim().length > 0 : true;
+  // Set once the row exists, so leaving cannot write a second copy of it.
+  const settled = useRef(false);
 
-  const save = async () => {
+  const ready = name.trim().length > 0;
+
+  const write = async (asDraft: boolean) => {
+    const id = await createKnowt({
+      name: name.trim(),
+      categoryId,
+      locationNote: locationNote.trim() || null,
+      notes: notes.trim() || null,
+      mode: 'open',
+      isDraft: asDraft,
+      schedule: scheduled
+        ? {
+            // The wheel deals only in 24 hour HH:MM, which is what is stored.
+            time,
+            repeatType,
+            startDate: repeatType === 'once' ? toISODate(new Date()) : undefined,
+          }
+        : undefined,
+    });
+    settled.current = true;
+    return id;
+  };
+
+  const done = async () => {
+    if (!ready || saving) return;
     setSaving(true);
     try {
-      const id = await createKnowt({
-        name: name.trim(),
-        categoryId,
-        locationNote: locationNote.trim() || null,
-        notes: notes.trim() || null,
-        mode: 'open',
-        schedule: scheduled
-          ? {
-              // The wheel deals only in 24 hour HH:MM, which is what is stored.
-              time,
-              repeatType,
-              startDate:
-                repeatType === 'once' ? toISODate(new Date()) : undefined,
-            }
-          : undefined,
-      });
+      const id = await write(false);
       // The knowt may carry a schedule, which nothing has armed yet.
       await resyncAlarmsQuietly();
       navigation.replace('KnowtDetail', { knowtId: id });
@@ -108,9 +108,14 @@ export function AddKnowtScreen() {
     }
   };
 
-  const next = () => {
-    if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1);
-    else void save();
+  /**
+   * Leaving with something typed keeps it. An empty form is not a draft, it is
+   * someone who opened the wrong thing, and saving that would fill Drafts with
+   * rows nobody made.
+   */
+  const leave = () => {
+    if (ready && !settled.current) void write(true);
+    navigation.goBack();
   };
 
   return (
@@ -120,202 +125,179 @@ export function AddKnowtScreen() {
         style={styles.flex}>
         <ScrollView
           contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled">
-          <ScreenHeader
+          // Tapping the page puts the keyboard away, which was otherwise only
+          // possible by guessing at the return key.
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={Keyboard.dismiss}>
+          <SubScreenHeader
             title="Add a knowt"
-            subtitle={`Step ${stepIndex + 1} of ${STEPS.length}`}
+            subtitle="Only the name is needed. Everything else can wait."
+            onBack={leave}
+            backLabel="Close"
           />
 
-          {step === 'name' && (
-            <View style={styles.section}>
-              <Text style={styles.question}>What is it?</Text>
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Vitamins"
-                placeholderTextColor={theme.color.textMuted}
-                autoFocus
-                returnKeyType="next"
-              />
-              <View style={styles.chips}>
-                {SUGGESTED.map((suggestion) => (
-                  <Pressable
-                    key={suggestion}
-                    onPress={() => setName(suggestion)}
-                    style={styles.chip}>
-                    <Text style={styles.chipText}>{suggestion}</Text>
-                  </Pressable>
-                ))}
-              </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.replace('BrowseSets')}
+            style={({ pressed }) => [styles.presets, pressed && styles.pressed]}>
+            <Text style={styles.presetsText}>Browse Presets</Text>
+            <Text style={styles.presetsMeta}>
+              Ready-made knowts, add only what you want
+            </Text>
+          </Pressable>
 
-              {/* Someone adding their first knowt one at a time is the person
-                  a ready-made set helps most, and they would never have
-                  reached the sets browser to find one. */}
-              {featured ? (
+          <Pressable
+            accessibilityRole="none"
+            onPress={Keyboard.dismiss}
+            style={styles.sheet}>
+            <Text style={styles.question}>What is it?</Text>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="Vitamins"
+              placeholderTextColor={theme.color.textMuted}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+            />
+            <View style={styles.chips}>
+              {SUGGESTED.map((suggestion) => (
                 <Pressable
+                  key={suggestion}
                   accessibilityRole="button"
-                  accessibilityLabel={`Start from ${featured.name}`}
-                  onPress={() =>
-                    navigation.replace('ApplySet', { setId: featured.id })
-                  }
-                  style={({ pressed }) => [
-                    styles.featured,
-                    pressed && styles.featuredPressed,
-                  ]}>
-                  <Text style={styles.featuredTitle}>
-                    Or start from {featured.name}
-                  </Text>
-                  <Text style={styles.featuredBody}>
-                    {featured.description}
-                  </Text>
-                  <Text style={styles.featuredMeta}>
-                    {featured.knowts.length} to pick from, add only what you
-                    want
-                  </Text>
+                  onPress={() => setName(suggestion)}
+                  style={styles.chip}>
+                  <Text style={styles.chipText}>{suggestion}</Text>
                 </Pressable>
-              ) : null}
-
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => navigation.replace('BrowseSets')}>
-                <Text style={styles.link}>See all starter sets</Text>
-              </Pressable>
+              ))}
             </View>
-          )}
 
-          {step === 'category' && (
-            <View style={styles.section}>
-              <Text style={styles.question}>Where does it belong?</Text>
-              <View style={styles.chips}>
-                {(categories ?? []).map((category) => {
-                  const selected = categoryId === category.id;
-                  return (
-                    <Pressable
-                      key={category.id}
-                      onPress={() => setCategoryId(selected ? null : category.id)}
+            <Text style={styles.label}>Category</Text>
+            <View style={styles.chips}>
+              {(categories ?? []).map((category) => {
+                const selected = categoryId === category.id;
+                const shades = categoryShades(category);
+                return (
+                  <Pressable
+                    key={category.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => setCategoryId(selected ? null : category.id)}
+                    style={[
+                      styles.chip,
+                      selected && {
+                        backgroundColor: shades.fill,
+                        borderColor: shades.color,
+                      },
+                    ]}>
+                    <Text
                       style={[
-                        styles.chip,
-                        selected && { borderColor: category.color },
+                        styles.chipText,
+                        selected && { color: shades.ink },
                       ]}>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          selected && { color: category.color },
-                        ]}>
-                        {category.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <Text style={styles.label}>Where does it live?</Text>
-              <TextInput
-                style={styles.input}
-                value={locationNote}
-                onChangeText={setLocationNote}
-                placeholder="Kitchen · medicine shelf"
-                placeholderTextColor={theme.color.textMuted}
-              />
+                      {category.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-          )}
 
-          {step === 'notes' && (
-            <View style={styles.section}>
-              <Text style={styles.question}>
-                Anything you will want to know when this goes off?
-              </Text>
-              <Text style={styles.hint}>
-                Filter size, product name, dosage, phone number.
-              </Text>
-              <TextInput
-                style={[styles.input, styles.multiline]}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="20x25x1, MERV 11"
-                placeholderTextColor={theme.color.textMuted}
-                multiline
-                textAlignVertical="top"
-              />
-            </View>
-          )}
+            <Text style={styles.label}>Where it lives</Text>
+            <TextInput
+              style={styles.input}
+              value={locationNote}
+              onChangeText={setLocationNote}
+              placeholder="Kitchen, medicine shelf"
+              placeholderTextColor={theme.color.textMuted}
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+            />
 
-          {step === 'when' && (
-            <View style={styles.section}>
-              <Text style={styles.question}>When?</Text>
+            <Text style={styles.label}>Notes</Text>
+            <Text style={styles.hint}>
+              Filter size, product name, dosage, phone number.
+            </Text>
+            <TextInput
+              style={[styles.input, styles.multiline]}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Anything worth knowing when this goes off."
+              placeholderTextColor={theme.color.textMuted}
+              multiline
+              textAlignVertical="top"
+            />
 
-              <Pressable
-                accessibilityRole="switch"
-                accessibilityState={{ checked: scheduled }}
-                accessibilityLabel="Add a schedule"
-                onPress={() => setScheduled((on) => !on)}
-                style={({ pressed }) => [
-                  styles.scheduleToggle,
-                  scheduled && styles.scheduleToggleOn,
-                  pressed && styles.pressed,
+            <Text style={styles.label}>When</Text>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityState={{ checked: scheduled }}
+              accessibilityLabel="Add a schedule"
+              onPress={() => {
+                Keyboard.dismiss();
+                setScheduled((on) => !on);
+              }}
+              style={({ pressed }) => [
+                styles.scheduleToggle,
+                scheduled && styles.scheduleToggleOn,
+                pressed && styles.pressed,
+              ]}>
+              <Text
+                style={[
+                  styles.scheduleToggleText,
+                  scheduled && styles.scheduleToggleTextOn,
                 ]}>
-                <Text
-                  style={[
-                    styles.scheduleToggleText,
-                    scheduled && styles.scheduleToggleTextOn,
-                  ]}>
-                  {scheduled ? 'Remove the schedule' : 'Add a schedule'}
-                </Text>
-              </Pressable>
+                {scheduled ? 'Remove the schedule' : 'Add a schedule'}
+              </Text>
+            </Pressable>
 
-              {!scheduled ? (
+            {!scheduled ? (
+              <Text style={styles.hint}>
+                Without one this never rings on its own, and completes by
+                tapping done. You can add one later from the knowt itself.
+              </Text>
+            ) : (
+              <>
+                <TimeWheel value={time} onChange={setTime} />
+                <View style={styles.chips}>
+                  {REPEATS.map((repeat) => {
+                    const selected = repeatType === repeat.value;
+                    return (
+                      <Pressable
+                        key={repeat.value}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        onPress={() => setRepeatType(repeat.value)}
+                        style={[styles.chip, selected && styles.chipSelected]}>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            selected && styles.chipTextSelected,
+                          ]}>
+                          {repeat.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
                 <Text style={styles.hint}>
-                  Without one this never rings on its own, and completes by
-                  tapping done. You can add one later from the knowt itself.
+                  {formatTime(time)},{' '}
+                  {REPEATS.find((r) => r.value === repeatType)?.label.toLowerCase()}.
                 </Text>
-              ) : null}
-
-              {scheduled ? <TimeWheel value={time} onChange={setTime} /> : null}
-
-              <View style={scheduled ? styles.chips : styles.hidden}>
-                {REPEATS.map((repeat) => {
-                  const selected = repeatType === repeat.value;
-                  return (
-                    <Pressable
-                      key={repeat.value}
-                      onPress={() => setRepeatType(repeat.value)}
-                      style={[styles.chip, selected && styles.chipSelected]}>
-                      <Text
-                        style={[
-                          styles.chipText,
-                          selected && styles.chipTextSelected,
-                        ]}>
-                        {repeat.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              {scheduled ? (
-                <Text style={styles.hint}>
-                  {formatTime(time)}, {REPEATS.find((r) => r.value === repeatType)?.label.toLowerCase()}.
-                </Text>
-              ) : null}
-            </View>
-          )}
+              </>
+            )}
+          </Pressable>
         </ScrollView>
 
         <View style={styles.footer}>
-          {stepIndex > 0 ? (
-            <Button
-              label="Back"
-              variant="quiet"
-              onPress={() => setStepIndex(stepIndex - 1)}
-            />
-          ) : null}
-          <View style={styles.flex}>
-            <Button
-              label={stepIndex === STEPS.length - 1 ? 'Save' : 'Next'}
-              onPress={next}
-              disabled={!canAdvance || saving}
-            />
-          </View>
+          <Button
+            label={saving ? 'Saving' : 'Done'}
+            variant="highlight"
+            disabled={!ready || saving}
+            onPress={() => void done()}
+          />
+          <Button label="Cancel" variant="quiet" onPress={leave} />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -323,37 +305,6 @@ export function AddKnowtScreen() {
 }
 
 const styles = StyleSheet.create({
-  featured: {
-    marginTop: theme.spacing.lg,
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.xl,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    padding: theme.spacing.lg,
-    gap: theme.spacing.xs,
-  },
-  featuredPressed: { opacity: 0.7 },
-  featuredTitle: {
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.lg,
-    color: theme.color.textPrimary,
-  },
-  featuredBody: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
-  },
-  featuredMeta: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.xs,
-    color: theme.color.textMuted,
-  },
-  link: {
-    marginTop: theme.spacing.md,
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
-  },
   container: { flex: 1, backgroundColor: theme.color.background },
   flex: { flex: 1 },
   content: {
@@ -361,41 +312,59 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
   },
-  section: { gap: theme.spacing.md },
+  pressed: { opacity: 0.7 },
+  // Inverted, the same as on Knowts, so the way in to a preset looks the same
+  // wherever it is offered.
+  presets: {
+    backgroundColor: theme.color.primary,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    gap: 2,
+  },
+  presetsText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.lg,
+    color: theme.color.onPrimary,
+  },
+  presetsMeta: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.border,
+  },
+  sheet: { gap: theme.spacing.sm },
   question: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.xl,
-    fontWeight: theme.font.weight.medium,
     color: theme.color.textPrimary,
   },
   label: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginTop: theme.spacing.md,
+    marginTop: theme.spacing.lg,
   },
   hint: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
-    lineHeight: 19,
+    lineHeight: 20,
     color: theme.color.textMuted,
   },
   input: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
     color: theme.color.textPrimary,
+    backgroundColor: theme.color.surface,
     borderWidth: 1,
     borderColor: theme.color.border,
     borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
   },
-  multiline: { minHeight: 120 },
-  hidden: { display: 'none' },
-  pressed: { opacity: 0.7 },
+  multiline: { minHeight: 100 },
   scheduleToggle: {
     alignSelf: 'flex-start',
     borderWidth: 1,
@@ -416,23 +385,26 @@ const styles = StyleSheet.create({
   scheduleToggleTextOn: { color: theme.color.onHighlight },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
   chip: {
+    backgroundColor: theme.color.surface,
     borderWidth: 1,
     borderColor: theme.color.border,
-    borderRadius: theme.radius.sm,
+    borderRadius: theme.radius.pill,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
   },
-  chipSelected: { borderColor: theme.color.accent },
+  chipSelected: {
+    backgroundColor: theme.color.highlight,
+    borderColor: theme.color.highlight,
+  },
   chipText: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.md,
     color: theme.color.textSecondary,
   },
-  chipTextSelected: { color: theme.color.textPrimary },
+  chipTextSelected: { color: theme.color.onHighlight },
   footer: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.xl,
     paddingBottom: theme.spacing.sm,
+    gap: theme.spacing.sm,
   },
 });

@@ -232,7 +232,6 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.display,
-    fontWeight: theme.font.weight.bold,
     color: theme.color.textPrimary,
     letterSpacing: -0.5,
   },
@@ -258,14 +257,12 @@ const styles = StyleSheet.create({
   latestLabel: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.xs,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.successText,
     letterSpacing: 1,
   },
   latestUid: {
     fontFamily: theme.font.mono,
     fontSize: theme.font.size.uid,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.textPrimary,
   },
   latestMeta: {
@@ -293,7 +290,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
-    fontWeight: theme.font.weight.semibold,
   },
   cardDetail: {
     fontFamily: theme.font.body,
@@ -322,7 +318,6 @@ const styles = StyleSheet.create({
   historyTitle: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -330,7 +325,6 @@ const styles = StyleSheet.create({
   clear: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
-    fontWeight: theme.font.weight.medium,
     color: theme.color.textMuted,
   },
   row: {
@@ -385,7 +379,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.onAccent,
   },
 });

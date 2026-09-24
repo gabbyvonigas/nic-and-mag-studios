@@ -45,6 +45,12 @@ import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+/** Icon and label share one colour, and the chosen one sits on lime. */
+function optionTint(selected: boolean, blocked: boolean): string {
+  if (blocked) return theme.color.textMuted;
+  return selected ? theme.color.onHighlight : theme.color.textPrimary;
+}
 type Route = RouteProp<RootStackParamList, 'EditKnowt'>;
 
 export function EditKnowtScreen() {
@@ -253,15 +259,9 @@ export function EditKnowtScreen() {
                 ]}>
                 <View style={styles.optionHead}>
                   {option.value === 'strict' ? (
-                    <ScanIcon
-                      size={18}
-                      color={blocked ? theme.color.textMuted : theme.color.textPrimary}
-                    />
+                    <ScanIcon size={18} color={optionTint(on, blocked)} />
                   ) : (
-                    <AlarmIcon
-                      size={18}
-                      color={blocked ? theme.color.textMuted : theme.color.textPrimary}
-                    />
+                    <AlarmIcon size={18} color={optionTint(on, blocked)} />
                   )}
                   <Text
                     style={[
@@ -275,6 +275,7 @@ export function EditKnowtScreen() {
                 <Text
                   style={[
                     styles.optionDetail,
+                    on && styles.optionDetailOn,
                     blocked && styles.optionTextBlocked,
                   ]}>
                   {blocked ? 'Needs a tag attached first.' : option.detail}
@@ -527,19 +528,23 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.surface,
     gap: 2,
   },
-  optionOn: { borderColor: theme.color.accent, borderWidth: 2 },
+  optionOn: {
+    borderColor: theme.color.highlight,
+    backgroundColor: theme.color.highlight,
+  },
   optionBlocked: { backgroundColor: theme.color.surfaceMuted },
   optionLabel: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.md,
     color: theme.color.textPrimary,
   },
-  optionLabelOn: { fontFamily: theme.font.face.bold },
+  optionLabelOn: { color: theme.color.onHighlight },
   optionDetail: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
   },
+  optionDetailOn: { color: theme.color.onHighlight },
   optionTextBlocked: { color: theme.color.textMuted },
   addRow: {
     borderWidth: 1,

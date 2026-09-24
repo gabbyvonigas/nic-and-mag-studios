@@ -67,7 +67,6 @@ const styles = StyleSheet.create({
   rowName: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
-    fontWeight: theme.font.weight.medium,
     color: theme.color.textPrimary,
   },
   rowDescription: {

@@ -130,7 +130,7 @@ export async function deleteCategory(id: string): Promise<void> {
 export async function countKnowtsInCategory(id: string): Promise<number> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ n: number }>(
-    'SELECT COUNT(*) AS n FROM knowts WHERE category_id = ? AND archived = 0',
+    'SELECT COUNT(*) AS n FROM knowts WHERE category_id = ? AND archived = 0 AND is_draft = 0',
     id,
   );
   return row?.n ?? 0;
@@ -155,7 +155,7 @@ async function attachDetail(rows: KnowtRow[]): Promise<KnowtWithDetail[]> {
 export async function listKnowts(): Promise<KnowtWithDetail[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<KnowtRow>(
-    'SELECT * FROM knowts WHERE archived = 0 ORDER BY name',
+    'SELECT * FROM knowts WHERE archived = 0 AND is_draft = 0 ORDER BY name',
   );
   return attachDetail(rows);
 }
@@ -196,6 +196,8 @@ export type NewKnowt = {
   suggestedMode?: KnowtMode | null;
   /** 0 low, 1 normal, 2 high. Normal when unset. */
   priority?: number;
+  /** Started but not finished. Excluded from every list but Drafts. */
+  isDraft?: boolean;
   schedule?: {
     label?: string | null;
     time: string;
@@ -215,8 +217,8 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
       `INSERT INTO knowts
          (id, tag_uid, mode, name, icon, category_id, location_note, notes,
           link_url, suggested_mode, priority, refire_minutes, snooze_minutes,
-          archived, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 5, 5, 0, ?)`,
+          archived, is_draft, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 5, 5, 0, ?, ?)`,
       id,
       input.tagUid ?? null,
       input.mode ?? 'open',
@@ -227,6 +229,7 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
       input.notes ?? null,
       input.suggestedMode ?? null,
       input.priority ?? PRIORITY_NORMAL,
+      input.isDraft ? 1 : 0,
       Date.now(),
     );
 
@@ -501,6 +504,47 @@ export async function deleteSchedule(id: string): Promise<void> {
 export async function updateNotes(id: string, notes: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('UPDATE knowts SET notes = ? WHERE id = ?', notes, id);
+}
+
+/**
+ * Knowts that were started and never finished.
+ *
+ * Backing out of the add flow used to throw the work away. A draft is a real
+ * knowt row carrying `is_draft = 1`, which keeps every existing query honest:
+ * it is excluded from the board, from Knowts, from category counts and from
+ * alarm sync by the same clause that excludes archived ones, so a half-written
+ * knowt can never ring.
+ */
+export async function listDrafts(): Promise<KnowtWithDetail[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<KnowtRow>(
+    'SELECT * FROM knowts WHERE is_draft = 1 AND archived = 0 ORDER BY created_at DESC',
+  );
+  return attachDetail(rows);
+}
+
+export async function listArchived(): Promise<KnowtWithDetail[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<KnowtRow>(
+    'SELECT * FROM knowts WHERE archived = 1 ORDER BY name',
+  );
+  return attachDetail(rows);
+}
+
+/** Promotes a draft into a real knowt. Nothing else about it changes. */
+export async function finishDraft(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('UPDATE knowts SET is_draft = 0 WHERE id = ?', id);
+}
+
+export async function restoreKnowt(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('UPDATE knowts SET archived = 0 WHERE id = ?', id);
+}
+
+export async function deleteKnowt(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM knowts WHERE id = ?', id);
 }
 
 export async function archiveKnowt(id: string): Promise<void> {

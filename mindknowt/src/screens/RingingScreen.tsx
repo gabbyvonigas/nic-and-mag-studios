@@ -402,14 +402,12 @@ const styles = StyleSheet.create({
   ringLabel: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.xs,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.dangerText,
     letterSpacing: 1,
   },
   name: {
     fontFamily: theme.font.body,
     fontSize: 36,
-    fontWeight: theme.font.weight.bold,
     color: theme.color.textPrimary,
     letterSpacing: -0.5,
   },
@@ -445,7 +443,6 @@ const styles = StyleSheet.create({
   bannerText: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.md,
-    fontWeight: theme.font.weight.medium,
   },
   textWarn: { color: theme.color.warningText },
   textDanger: { color: theme.color.dangerText },
@@ -453,7 +450,6 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.lg,
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -482,7 +478,6 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     fontFamily: theme.font.body,
     fontSize: theme.font.size.md,
-    fontWeight: theme.font.weight.medium,
     color: theme.color.textSecondary,
   },
   footer: {
@@ -506,7 +501,6 @@ const styles = StyleSheet.create({
   remindOption: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
-    fontWeight: theme.font.weight.medium,
     color: theme.color.textSecondary,
   },
   overrideArea: { marginTop: theme.spacing.md, gap: theme.spacing.sm },

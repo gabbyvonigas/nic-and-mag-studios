@@ -217,7 +217,7 @@
     {
       "id": "trash-recycling",
       "name": "Trash and recycling",
-      "description": "The bins, on the days they actually need to go out.",
+      "description": "The garbage, on the days it actually needs to go out.",
       "knowts": [
         {
           "name": "Trash out",

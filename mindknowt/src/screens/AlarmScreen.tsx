@@ -191,7 +191,6 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.display,
-    fontWeight: theme.font.weight.bold,
     color: theme.color.textPrimary,
     letterSpacing: -0.5,
   },
@@ -217,14 +216,12 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.xs,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.successText,
     letterSpacing: 1,
   },
   cardTitle: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
-    fontWeight: theme.font.weight.semibold,
   },
   cardDetail: {
     fontFamily: theme.font.body,
@@ -246,7 +243,6 @@ const styles = StyleSheet.create({
   link: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
-    fontWeight: theme.font.weight.medium,
     color: theme.color.textSecondary,
   },
   row: {
@@ -288,20 +284,17 @@ const styles = StyleSheet.create({
   buttonText: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.onAccent,
   },
   buttonSecondaryText: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.textPrimary,
   },
   section: { gap: theme.spacing.sm },
   sectionTitle: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,

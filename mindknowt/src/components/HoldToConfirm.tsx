@@ -91,7 +91,6 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.md,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.dangerText,
   },
   labelDisabled: { color: theme.color.textMuted },

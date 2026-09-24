@@ -131,7 +131,6 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     fontFamily: theme.font.face.medium,
-    fontWeight: theme.font.weight.medium,
     color: theme.color.onHighlight,
   },
   add: {

@@ -67,6 +67,8 @@ export type KnowtRow = {
   refire_minutes: number;
   snooze_minutes: number;
   archived: number;
+  /** 1 when the knowt was started and never finished. */
+  is_draft: number;
   created_at: number;
 };
 

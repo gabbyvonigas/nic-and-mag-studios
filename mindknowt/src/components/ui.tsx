@@ -4,6 +4,18 @@ import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { ChevronLeft } from './icons';
 import { theme } from '../theme';
 
+/**
+ * A short lime rule above a screen title.
+ *
+ * The neon needed somewhere to live above the content without becoming the
+ * content. One small mark per screen, always the same size in the same place,
+ * reads as a masthead rule rather than as decoration, and it is the cheapest
+ * way to tie the colour through the whole app.
+ */
+export function HeaderRule() {
+  return <View style={styles.rule} />;
+}
+
 export function ScreenHeader({
   title,
   subtitle,
@@ -13,6 +25,7 @@ export function ScreenHeader({
 }) {
   return (
     <View style={styles.header}>
+      <HeaderRule />
       <Text style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
@@ -102,6 +115,7 @@ export function SubScreenHeader({
             long the back label or the action gets. */}
         {action ? <View style={styles.headerAction}>{action}</View> : null}
       </View>
+      {title ? <HeaderRule /> : null}
       {title ? <Text style={styles.title}>{title}</Text> : null}
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
@@ -140,6 +154,13 @@ export function Pill({ label, color }: { label: string; color?: string }) {
 
 const styles = StyleSheet.create({
   header: { gap: theme.spacing.xs, marginBottom: theme.spacing.lg },
+  rule: {
+    width: 34,
+    height: 5,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.color.highlight,
+    marginBottom: theme.spacing.sm,
+  },
   subHeader: { gap: theme.spacing.xs, marginBottom: theme.spacing.lg },
   subHeaderTop: {
     flexDirection: 'row',
@@ -169,7 +190,6 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.display,
-    fontWeight: theme.font.weight.bold,
     color: theme.color.textPrimary,
     letterSpacing: -0.5,
   },
@@ -216,7 +236,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
-    fontWeight: theme.font.weight.semibold,
     color: theme.color.onPrimary,
   },
   buttonTextDark: { color: theme.color.textPrimary },
@@ -229,7 +248,6 @@ const styles = StyleSheet.create({
   link: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.md,
-    fontWeight: theme.font.weight.medium,
     color: theme.color.textPrimary,
   },
   pill: {
@@ -243,7 +261,6 @@ const styles = StyleSheet.create({
   pillText: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.xs,
-    fontWeight: theme.font.weight.medium,
     color: theme.color.textSecondary,
   },
 });

@@ -119,10 +119,18 @@ SF Pro Rounded, reached through the private family `.AppleSystemUIFontRounded`.
 React Native does not expose it by family name and iOS does not install it as an
 ordinary font, so there is no supported route to it from JavaScript.
 
-**Confirmed working on device.** If it ever stops, the text falls back to San
-Francisco rather than breaking, and the tell is that it looks right but not
-rounded. The guaranteed alternative is bundling the files through `expo-font`,
-which is native and costs a rebuild.
+**Confirmed working on device, with one hard limit: never set `fontWeight`.**
+
+`RCTFont.mm` resolves a family it does not recognise by calling `fontWithName:`,
+which returns the regular face and nothing else, then reassigns the family to
+that font's real family, which is the plain system one. Any weight asked for is
+matched against plain San Francisco faces from there. So `fontWeight` on rounded
+text either does nothing or silently drops the rounding, depending on the iOS
+version, and headers and button labels were the styles that had it.
+
+There is therefore **one weight**. Hierarchy is size and colour. Real weights
+mean bundling the SF Pro Rounded faces through `expo-font` so they resolve by
+PostScript name through the ordinary path, which is native and costs a rebuild.
 
 | Token | Size | Used on |
 | --- | --- | --- |
@@ -157,14 +165,40 @@ A single 4 point scale. Nothing between steps.
 
 Gaps between cards are `md`. Screen side padding is `xl`.
 
+## Where the neon goes
+
+It is easy to ruin, so the places are fixed.
+
+- **A header rule.** A 34 by 5 rounded bar above every screen title. One mark
+  per screen, always the same size in the same place, which reads as a masthead
+  rather than as decoration.
+- **The active tab** in the capsule.
+- **The chosen mode**, Scan Knowt or Alarm Only, and the chosen repeat.
+- **The confirming action** on a screen that has exactly one, through the
+  `highlight` button variant. Never two on a screen.
+- **A high priority time pill** on Knowts, and the High flag in This week.
+
+Near-black is the only thing that ever goes on top of it.
+
 ## What this supersedes
 
 The flat Knowts row, no card and hairline dividers on a flat page, is gone. It
 went too far the other way: it gave the eye nothing to land on.
 
-Knowts rows are now tall rounded rows filled with their category's own tint,
-with a rounded tile for the mode icon and the next time in a pill on the right.
+Knowts rows are tall rounded rows filled with their category's own tint, with a
+rounded tile for the mode icon and the next time in a pill on the right.
 Definition comes from shape and fill rather than from a shadow, which is what
-keeps them distinct from Daily's raised white cards. Variation is by category,
-so a colour means something, with one exception: a high priority row puts the
-neon in its time pill.
+keeps them distinct from Daily's raised white cards.
+
+Expanding and collapsing is a plus and a minus, not a chevron. The horizontal
+bar stays put and only the upright comes and goes, so it reads as one control
+changing state.
+
+## Adding a palette colour
+
+`categories.color` is stored, so changing `CATEGORY_COLORS` means adding a new
+`RECOLOR_SQL` back-fill entry stamped at the new schema version. The repaint SQL
+is generated from the current constant, so an install already past the previous
+entry never runs it again and would keep the old colours silently. There is a
+test that migrates a database from every version predating the newest repaint
+and insists it lands on the current values.
