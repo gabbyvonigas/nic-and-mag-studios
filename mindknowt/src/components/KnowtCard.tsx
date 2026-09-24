@@ -32,6 +32,36 @@ import { theme, type CategoryShades } from '../theme';
 export const KNOWT_CARD_HEIGHT = 76;
 
 /**
+ * A category dot, drawn in the category's exact color.
+ *
+ * The ring is what makes a pale swatch visible instead of darkening it. The
+ * brand lime is 1.09 against the page and 1.19 against a card, so a plain lime
+ * dot is not there at all, and dimming it to fix that is what made the palette
+ * read washed out. The fill stays literal and a hairline of the same family
+ * gives it an edge.
+ */
+export function CategoryDot({
+  shades,
+  size = 8,
+}: {
+  shades: CategoryShades;
+  size?: number;
+}) {
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: shades.color,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: shades.ink,
+      }}
+    />
+  );
+}
+
+/**
  * Three bars, filled to the level. Always visible, unlike a marker that only
  * appears when something is urgent, so the absence of urgency is legible too.
  */
@@ -111,7 +141,7 @@ export function KnowtCard({
       <View
         style={[
           styles.accent,
-          { backgroundColor: done ? shades.ink : shades.mark },
+          { backgroundColor: done ? shades.ink : shades.color },
         ]}
       />
 
@@ -153,7 +183,7 @@ export function KnowtCard({
           style={({ pressed }) => [styles.check, pressed && styles.pressed]}>
           <CheckIcon
             size={26}
-            color={done ? shades.mark : theme.color.border}
+            color={done ? shades.color : theme.color.border}
             filled={done}
           />
         </Pressable>

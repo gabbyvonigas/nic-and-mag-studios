@@ -13,81 +13,54 @@
 /**
  * The swatch. One per category, and the value stored in `categories.color`.
  *
- * Three of these are pale by design (butter, lime, icy periwinkle), which is a
- * different thing from the muted set they replaced: a pastel is light but
- * clean, while muted meant gray with a hue attached. Measured as HSL
- * saturation the new set runs 0.63 to 1.00 and the old mauve and taupe sat at
- * 0.24 and 0.14. HSV saturation cannot tell those apart, which is why the
- * check uses HSL.
+ * Vivid, and used literally everywhere: fills, bars and dots all draw this
+ * exact value. An earlier version darkened pale swatches for small marks, and
+ * on device that read as washed out, which is the opposite of the point.
+ * Where a mark would otherwise be too faint to see, it gets a hairline ring
+ * rather than a different color.
+ *
+ * HSL saturation runs 0.63 to 1.00.
  */
 export const CATEGORY_COLORS = {
-  /** Butter yellow. */
-  home: '#F5E07A',
-  /** The brand lime, the same value as the accent. */
+  /** Coral red. */
+  home: '#FF4D3D',
+  /** The brand lime, the exact value the buttons use. */
   daily: '#D9FA3C',
   /** Turquoise. */
   care: '#24C2B5',
-  /** Icy periwinkle. */
-  ritual: '#AFC0F0',
-  /** Darker mustard, a deeper version of the gold Daily used to carry. */
-  go: '#C9901E',
-  /** Violet, unchanged. */
-  admin: '#7B61FF',
+  /** Bright purple. */
+  ritual: '#A435F0',
+  /** Hot pink. */
+  go: '#FF2D8A',
+  /** Cobalt blue. */
+  admin: '#1F5FD8',
   /** Burgundy. */
   seasonal: '#8A1F3D',
 } as const;
 
 /**
- * Darkened for label text and icons.
- *
- * No longer a single mix. The pale swatches need to go further to stay legible:
- * butter and lime are darkened 50 and 54 percent, the rest 42. Every value
- * clears 4.5 against both white and the page, so it is legible at body size on
- * either.
+ * Darkened only as far as text needs, and not at all where the swatch already
+ * carries itself: cobalt and burgundy are their own ink. Every value clears
+ * 4.5 against both white and the page.
  */
 export const CATEGORY_INK = {
-  home: '#7A703D',
+  home: '#C73C30',
   daily: '#64731C',
-  care: '#157169',
-  ritual: '#666F8B',
-  go: '#755411',
-  admin: '#473894',
-  seasonal: '#501223',
-} as const;
-
-/**
- * The swatch as a small mark: a dot, a thin rule, a priority bar.
- *
- * A butter yellow dot on the page is 1.22 against it and a lime one is 1.09,
- * which is invisible. This is the same color darkened only as far as it takes
- * a small mark to reach 2.0 against the page, which is nothing at all for four
- * of the seven. Large fills still use the swatch itself, where its lightness is
- * the point rather than a problem.
- */
-export const CATEGORY_MARK = {
-  home: '#BFAF5F',
-  daily: '#A1B92C',
-  care: '#24C2B5',
-  ritual: '#9EADD8',
-  go: '#C9901E',
-  admin: '#7B61FF',
+  care: '#177C74',
+  ritual: '#A134EB',
+  go: '#D12571',
+  admin: '#1F5FD8',
   seasonal: '#8A1F3D',
 } as const;
 
-/**
- * Barely-there fill for chips and finished cards.
- *
- * Mostly 88 percent towards white, but burgundy needs 90: it is dark enough
- * that the standard mix lands heavier than the rest and stops reading as a
- * tint. The mix is not a constant, for the same reason the ink mix is not.
- */
+/** Barely-there fill for chips and finished cards, kept under 1.2 on white. */
 export const CATEGORY_FILL = {
-  home: '#FEFBEF',
-  daily: '#FAFEE8',
-  care: '#E5F8F6',
-  ritual: '#F5F7FD',
-  go: '#F9F2E4',
-  admin: '#EFECFF',
+  home: '#FFE6E4',
+  daily: '#FAFEE4',
+  care: '#E0F6F5',
+  ritual: '#F4E7FD',
+  go: '#FFE4F0',
+  admin: '#E4ECFA',
   seasonal: '#F3E9EC',
 } as const;
 
@@ -109,7 +82,6 @@ export const METHOD_COLORS = {
 export const CATEGORY_FALLBACK = {
   color: '#8A93A0',
   ink: '#4E555F',
-  mark: '#8A93A0',
   fill: '#F1F3F5',
 } as const;
 
@@ -132,12 +104,10 @@ export const CUSTOM_PALETTE = [
 ] as const;
 
 export type CategoryShades = {
-  /** The swatch itself, for fills and anything large. */
+  /** The swatch itself. Everything that is not text draws this. */
   color: string;
   /** Darkened, for label text and icons. */
   ink: string;
-  /** The swatch as a small mark: dots, thin rules, bars. */
-  mark: string;
   /** Barely-there fill, for chips and completed cards. */
   fill: string;
 };
@@ -182,9 +152,6 @@ export function shadesFromHex(hex: string): CategoryShades {
   return {
     color: toHex(rgb),
     ink: mix(rgb, [0, 0, 0], 0.42),
-    // A custom color gets a light touch of the same darkening a pale shipped
-    // one needs, which is enough for a dot without changing what it looks like.
-    mark: mix(rgb, [0, 0, 0], 0.12),
     fill: mix(rgb, [255, 255, 255], 0.88),
   };
 }
@@ -205,7 +172,6 @@ export function categoryShades(
     return {
       color: CATEGORY_COLORS[k],
       ink: CATEGORY_INK[k],
-      mark: CATEGORY_MARK[k],
       fill: CATEGORY_FILL[k],
     };
   }

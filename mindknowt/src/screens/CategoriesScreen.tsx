@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CategoryDot } from '../components/KnowtCard';
 import { Button, SubScreenHeader } from '../components/ui';
 import {
   CategoryLockedError,
@@ -86,7 +87,7 @@ function CategoryRowView({
           setOpen((prev) => !prev);
         }}
         style={styles.rowTop}>
-        <View style={[styles.dot, { backgroundColor: shades.mark }]} />
+        <CategoryDot shades={shades} size={12} />
         <Text style={styles.rowName}>{category.name}</Text>
         {!custom ? <Text style={styles.builtIn}>Built in</Text> : null}
       </Pressable>
@@ -272,7 +273,6 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
     minHeight: 28,
   },
-  dot: { width: 12, height: 12, borderRadius: 6 },
   rowName: {
     flex: 1,
     fontFamily: theme.font.face.medium,

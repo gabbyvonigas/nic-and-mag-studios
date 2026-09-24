@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
+import { CategoryDot } from '../components/KnowtCard';
 import { AlarmIcon, ExpandSign, ScanIcon } from '../components/icons';
 import { EmptyState, ScreenHeader } from '../components/ui';
 import { requiresScan } from '../knowts/modes';
@@ -256,12 +257,7 @@ function Stash({
                 styles.stashRow,
                 pressed && styles.pressed,
               ]}>
-              <View
-                style={[
-                  styles.stashDot,
-                  { backgroundColor: categoryShades(knowt.category).mark },
-                ]}
-              />
+              <CategoryDot shades={categoryShades(knowt.category)} />
               <Text numberOfLines={1} style={styles.stashName}>
                 {knowt.name}
               </Text>
@@ -355,13 +351,7 @@ export function AllKnowtsScreen() {
           style={({ pressed }) => [styles.categoryBar, pressed && styles.pressed]}>
           <View style={styles.categoryDots}>
             {(categories ?? []).slice(0, 8).map((category) => (
-              <View
-                key={category.id}
-                style={[
-                  styles.categoryDot,
-                  { backgroundColor: categoryShades(category).mark },
-                ]}
-              />
+              <CategoryDot key={category.id} shades={categoryShades(category)} />
             ))}
           </View>
           <Text style={styles.categoryLabel}>Categories</Text>
@@ -491,7 +481,6 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.6 },
   categoryDots: { flexDirection: 'row', gap: 4 },
-  categoryDot: { width: 8, height: 8, borderRadius: 4 },
   categoryLabel: {
     flex: 1,
     fontFamily: theme.font.face.regular,
@@ -602,7 +591,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
   },
-  stashDot: { width: 8, height: 8, borderRadius: 4 },
   stashName: {
     flex: 1,
     fontFamily: theme.font.face.regular,

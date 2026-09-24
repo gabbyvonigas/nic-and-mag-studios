@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CategoryDot } from '../components/KnowtCard';
 import { SummaryPanel } from '../components/SummaryPanel';
 import { EmptyState, HeaderRule } from '../components/ui';
 import {
@@ -151,7 +152,7 @@ function CategoryBlock({
         accessibilityState={{ expanded }}
         onPress={onToggle}
         style={({ pressed }) => [styles.blockRow, pressed && styles.pressed]}>
-        <View style={[styles.blockDot, { backgroundColor: shades.mark }]} />
+        <CategoryDot shades={shades} size={10} />
         <Text numberOfLines={1} style={[styles.blockName, { color: shades.ink }]}>
           {name}
         </Text>
@@ -369,7 +370,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
   },
-  blockDot: { width: 10, height: 10, borderRadius: 5 },
   blockName: {
     flex: 1,
     fontFamily: theme.font.face.medium,

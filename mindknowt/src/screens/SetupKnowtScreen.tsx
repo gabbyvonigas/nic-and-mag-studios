@@ -244,7 +244,7 @@ export function SetupKnowtScreen() {
                       styles.chip,
                       selected && {
                         backgroundColor: shades.fill,
-                        borderColor: shades.mark,
+                        borderColor: shades.color,
                       },
                     ]}>
                     <Text

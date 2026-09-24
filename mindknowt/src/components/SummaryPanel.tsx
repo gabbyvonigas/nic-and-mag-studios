@@ -175,7 +175,7 @@ export function SummaryPanel({
                       styles.catFill,
                       {
                         width: `${Math.max(3, tally.share * 100)}%`,
-                        backgroundColor: shades.mark,
+                        backgroundColor: shades.color,
                       },
                     ]}
                   />
@@ -269,7 +269,7 @@ export function SummaryPanel({
               <View
                 style={[
                   styles.listDot,
-                  { backgroundColor: categoryShades(entry.category).mark },
+                  { backgroundColor: categoryShades(entry.category).color },
                 ]}
               />
               <Text numberOfLines={1} style={styles.listName}>

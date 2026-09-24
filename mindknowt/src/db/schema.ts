@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -238,6 +238,12 @@ export const BACKFILLS: { to: number; sql: string }[] = [
   {
     to: 11,
     // Every swatch moved, so the whole palette is repainted again.
+    sql: RECOLOR_SQL,
+  },
+  {
+    to: 12,
+    // And again: the softened set read washed out on a real screen, so it was
+    // replaced with fully saturated colors.
     sql: RECOLOR_SQL,
   },
 ];

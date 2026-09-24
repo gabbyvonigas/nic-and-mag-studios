@@ -60,44 +60,43 @@ enough, because saturation was the problem rather than lightness: care sat at
 0.31 saturation and admin at 0.17, which is gray with a hue attached. Next to
 near-black and neon they read as dirt.
 
-| Key | Name | Hex | What it is | Ink | Mark | Fill |
-| --- | --- | --- | --- | --- | --- | --- |
-| `home` | Home | `#F5E07A` | Butter yellow | `#7A703D` | `#BFAF5F` | `#FEFBEF` |
-| `daily` | Daily | `#D9FA3C` | The brand lime | `#64731C` | `#A1B92C` | `#FAFEE8` |
-| `care` | Wellness | `#24C2B5` | Turquoise | `#157169` | `#24C2B5` | `#E5F8F6` |
-| `ritual` | Routine | `#AFC0F0` | Icy periwinkle | `#666F8B` | `#9EADD8` | `#F5F7FD` |
-| `go` | Activity | `#C9901E` | Darker mustard | `#755411` | `#C9901E` | `#F9F2E4` |
-| `admin` | Admin | `#7B61FF` | Violet, unchanged | `#473894` | `#7B61FF` | `#EFECFF` |
-| `seasonal` | Seasonal | `#8A1F3D` | Burgundy | `#501223` | `#8A1F3D` | `#F3E9EC` |
+| Key | Name | Hex | What it is | Ink | Fill |
+| --- | --- | --- | --- | --- | --- |
+| `home` | Home | `#FF4D3D` | Coral red | `#C73C30` | `#FFE6E4` |
+| `daily` | Daily | `#D9FA3C` | The brand lime, exactly | `#64731C` | `#FAFEE4` |
+| `care` | Wellness | `#24C2B5` | Turquoise | `#177C74` | `#E0F6F5` |
+| `ritual` | Routine | `#A435F0` | Bright purple | `#A134EB` | `#F4E7FD` |
+| `go` | Activity | `#FF2D8A` | Hot pink | `#D12571` | `#FFE4F0` |
+| `admin` | Admin | `#1F5FD8` | Cobalt blue | `#1F5FD8` | `#E4ECFA` |
+| `seasonal` | Seasonal | `#8A1F3D` | Burgundy | `#8A1F3D` | `#F3E9EC` |
 
-Three of these are pale by design, which is not the same as the muted set they
-replaced: a pastel is light but clean, muted was gray with a hue attached.
-Measured as HSL saturation the set runs 0.63 to 1.00, where the old mauve and
-taupe sat at 0.24 and 0.14. HSV saturation cannot separate the two, so the
-check uses HSL.
+Vivid, and drawn literally. Fills, bars and dots all use the exact swatch.
 
-**Daily is the same value as the neon.** That is deliberate and it is the one
-thing to watch: everywhere else the neon means active or selected, so a Daily
-chip and a selected chip are the same color. If that reads as a bug on device,
-Daily is the one to move.
+**Daily is the neon.** Not a near match, the same value the buttons and active
+states use, chosen deliberately. It means a Daily chip and a selected chip are
+the same color, so if that ever reads as a bug, Daily is the one to move, not
+the accent.
 
-`mark` is the swatch as a small mark, for dots, thin rules and bars. A butter
-yellow dot on the page measures 1.22 against it and a lime one 1.09, which is
-invisible, so the pale three are darkened until a small mark reaches 2.0. For
-the other four it is the swatch unchanged. Large fills still use the swatch,
-where its lightness is the point.
+There was briefly a `mark` shade that darkened pale swatches so small marks
+would show. On device that read as washed out, which is the opposite of the
+point, and it is gone. **Where a mark would be too faint, it gets a hairline
+ring, not a different color.** That is `CategoryDot`, and the only swatch that
+needs it is the lime: 1.09 against the page and 1.19 against a card, so a plain
+lime dot is not there at all. The ring is the category's ink, so the fill stays
+exactly the brand value.
 
-Neither derived mix is a constant any more. Ink is 42 percent towards black for
-most, 50 and 54 for butter and lime, because pale colors have to go further to
-stay legible; every value clears 4.5 against both white and the page. Fill is
-88 percent towards white, and 90 for burgundy, which is dark enough that the
-standard mix stops reading as a tint.
+Ink is darkened only as far as text needs, and not at all for cobalt and
+burgundy, which carry themselves. Every ink value clears 4.5 against both white
+and the page. Fill stays under 1.2 against white, which takes 90 percent
+towards white for burgundy against 86 to 88 for the rest.
+
+HSL saturation runs 0.63 to 1.00, measured that way because HSV cannot tell a
+clean pastel from a muted gray.
 
 Seasonal exists to be archived. Decorations, wrapping and holiday shopping are
 real for six weeks and noise for the rest of the year.
 
-The swatch is never used for text. Fills, bars, dots, tiles and rules only,
-and `mark` rather than the swatch wherever the mark is small.
+The swatch is never used for text.
 
 **These are stored, not styled.** `categories.color` holds the swatch, so
 changing this table means a migration back-fill matched on `is_custom = 0`. The

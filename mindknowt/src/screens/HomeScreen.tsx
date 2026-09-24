@@ -12,7 +12,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GearIcon } from '../components/icons';
-import { KnowtCard } from '../components/KnowtCard';
+import { CategoryDot, KnowtCard } from '../components/KnowtCard';
 import { EmptyState, HeaderRule } from '../components/ui';
 import {
   describeRepeat,
@@ -100,7 +100,7 @@ function UpcomingRow({
       accessibilityLabel={`${entry.knowt.name}, ${weekLabel(entry.at, now)}`}
       onPress={onPress}
       style={({ pressed }) => [styles.upcomingRow, pressed && styles.pressed]}>
-      <View style={[styles.upcomingDot, { backgroundColor: shades.mark }]} />
+      <CategoryDot shades={shades} />
       <Text numberOfLines={1} style={styles.upcomingName}>
         {entry.knowt.name}
       </Text>
@@ -339,7 +339,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
   },
-  upcomingDot: { width: 8, height: 8, borderRadius: 4 },
   upcomingName: {
     flex: 1,
     fontFamily: theme.font.face.regular,
