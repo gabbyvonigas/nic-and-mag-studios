@@ -11,19 +11,28 @@
  */
 
 /**
- * The swatch. Same six hues, brightened to hold their own against the higher
- * contrast palette: the muted originals went flat next to near-black and neon.
+ * The swatch. Vivid, and deliberately no longer muted.
  *
- * Between 2.1 and 3.2 against white, which is why these are never text. Bars,
- * dots and rules only. See design-notes.md.
+ * Brightening the muted originals was not enough: saturation was the problem,
+ * not lightness. Care sat at 0.31 saturation and admin at 0.17, which is a
+ * greyish colour with a hue attached, and next to neon and near-black they read
+ * as dirt. These run 0.62 to 0.86.
+ *
+ * Two of the six changed identity rather than just intensity, because there is
+ * no vivid version of them: mauve pink became a true pink, and warm taupe
+ * became violet. Terracotta and gold stay warm, because six categories need a
+ * spread of hue to stay apart and an all-cool set of six collapses into three.
+ *
+ * Between 1.9 and 3.9 against the page, which is why these are never text.
+ * Bars, dots, fills and rules only. See design-notes.md.
  */
 export const CATEGORY_COLORS = {
-  home: '#D9744F',
-  daily: '#E0A92B',
-  care: '#C98BA6',
-  ritual: '#8FA254',
-  go: '#6BA3CF',
-  admin: '#A89A8B',
+  home: '#FF5A3C',
+  daily: '#F5A623',
+  care: '#FF4D9D',
+  ritual: '#2FBF71',
+  go: '#2E8BFF',
+  admin: '#7B61FF',
 } as const;
 
 /**
@@ -33,22 +42,22 @@ export const CATEGORY_COLORS = {
  * white, so it is legible at body size.
  */
 export const CATEGORY_INK = {
-  home: '#7E432E',
-  daily: '#826219',
-  care: '#755160',
-  ritual: '#535E31',
-  go: '#3E5F78',
-  admin: '#615951',
+  home: '#943423',
+  daily: '#8E6014',
+  care: '#942D5B',
+  ritual: '#1B6F42',
+  go: '#1B5194',
+  admin: '#473894',
 } as const;
 
 /** Barely-there fill for chips and completed cards: 88 percent towards white. */
 export const CATEGORY_FILL = {
-  home: '#FAEEEA',
-  daily: '#FBF5E6',
-  care: '#F9F1F4',
-  ritual: '#F2F4EA',
-  go: '#EDF4F9',
-  admin: '#F5F3F1',
+  home: '#FFEBE8',
+  daily: '#FEF4E5',
+  care: '#FFEAF3',
+  ritual: '#E6F7EE',
+  go: '#E6F1FF',
+  admin: '#EFECFF',
 } as const;
 
 /**
@@ -60,34 +69,34 @@ export const CATEGORY_FILL = {
  * worth noticing if it climbs.
  */
 export const METHOD_COLORS = {
-  scan: '#5E8F6E',
-  tap: '#5F7FB4',
-  override: '#C08A3E',
+  scan: '#2FBF71',
+  tap: '#2E8BFF',
+  override: '#F5A623',
 } as const;
 
 /** Used for custom categories, which have no key and so no shipped shades. */
 export const CATEGORY_FALLBACK = {
-  color: '#8A8F98',
-  ink: '#5A6069',
-  fill: '#F1F2F4',
+  color: '#8A93A0',
+  ink: '#4E555F',
+  fill: '#F1F3F5',
 } as const;
 
 /**
- * Swatches offered when someone makes their own category. Same muted register
- * as the shipped six so a custom category does not shout next to them, but
- * deliberately different hues so it stays distinguishable.
+ * Swatches offered when someone makes their own category. The same vivid
+ * register as the shipped six, so a custom category sits beside them rather
+ * than looking like a faded copy, in hues the shipped six do not use.
  */
 export const CUSTOM_PALETTE = [
-  '#C0674A',
-  '#B5793A',
-  '#8C8F3F',
-  '#5E8F6E',
-  '#4F8A93',
-  '#5F7FB4',
-  '#7A6FA8',
-  '#A96A8C',
-  '#8C7F72',
-  '#6B7280',
+  '#FF3B5C',
+  '#FF7A1A',
+  '#FFD028',
+  '#8BD934',
+  '#12C7B4',
+  '#22A7F0',
+  '#5C6BFF',
+  '#A855F7',
+  '#EC4899',
+  '#64748B',
 ] as const;
 
 export type CategoryShades = {

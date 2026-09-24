@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -147,7 +147,7 @@ export const ADDED_COLUMNS: { to: number; table: string; column: string; type: s
  * the old colors. Custom categories are matched by `is_custom = 0` and never
  * touched, because their color is the user's choice.
  */
-const RECOLOR_SQL = Object.entries(CATEGORY_COLORS)
+export const RECOLOR_SQL = Object.entries(CATEGORY_COLORS)
   .map(
     ([key, color]) =>
       `UPDATE categories SET color = '${color}' WHERE key = '${key}' AND is_custom = 0;`,
@@ -186,6 +186,12 @@ export const BACKFILLS: { to: number; sql: string }[] = [
     // generated from the current constant, so this paints the same values the
     // v4 entry would; it exists because an install already past 4 never runs
     // that one again. Custom colours are still excluded by is_custom = 0.
+    sql: RECOLOR_SQL,
+  },
+  {
+    to: 8,
+    // Brightening was not enough: the swatches were desaturated, so they still
+    // read as muted. Same mechanism as v7, same reason it needs its own entry.
     sql: RECOLOR_SQL,
   },
 ];

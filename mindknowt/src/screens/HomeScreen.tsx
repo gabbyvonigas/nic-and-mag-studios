@@ -18,8 +18,10 @@ import {
   describeRepeat,
   formatTime,
   listDashboard,
+  listWeeklyUpcoming,
   logCompletion,
   type DashboardCard,
+  type UpcomingEntry,
 } from '../db';
 import { useQuery } from '../db/useQuery';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
@@ -66,6 +68,52 @@ function clock(at: number | Date): string {
   return `${hours % 12 === 0 ? 12 : hours % 12}:${minutes} ${suffix}`;
 }
 
+/** When something later this week happens, said the way a person would. */
+function weekLabel(at: Date, now: Date): string {
+  const day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((day.getTime() - today.getTime()) / 86_400_000);
+  const when = days === 1 ? 'Tomorrow' : (DAYS[at.getDay()] ?? '');
+  return `${when}, ${clock(at)}`;
+}
+
+/**
+ * The week ahead, under today.
+ *
+ * Deliberately smaller than the cards above it. Today is the screen; this is a
+ * glance at what is coming, and if it competed visually it would blunt the part
+ * that actually needs doing now.
+ */
+function UpcomingRow({
+  entry,
+  now,
+  onPress,
+}: {
+  entry: UpcomingEntry;
+  now: Date;
+  onPress: () => void;
+}) {
+  const shades = categoryShades(entry.knowt.category);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${entry.knowt.name}, ${weekLabel(entry.at, now)}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.upcomingRow, pressed && styles.pressed]}>
+      <View style={[styles.upcomingDot, { backgroundColor: shades.color }]} />
+      <Text numberOfLines={1} style={styles.upcomingName}>
+        {entry.knowt.name}
+      </Text>
+      {entry.knowt.priority >= 2 ? (
+        <View style={styles.upcomingFlag}>
+          <Text style={styles.upcomingFlagText}>High</Text>
+        </View>
+      ) : null}
+      <Text style={styles.upcomingWhen}>{weekLabel(entry.at, now)}</Text>
+    </Pressable>
+  );
+}
+
 /** The live thing to say about a card, if there is one. */
 function statusOf(card: DashboardCard): string | null {
   if (card.completedAt) return `Done at ${clock(card.completedAt)}`;
@@ -98,11 +146,16 @@ export function HomeScreen() {
   const now = new Date();
 
   const { data: board, loading, reload } = useQuery(() => listDashboard(), []);
+  const { data: upcoming, reload: reloadUpcoming } = useQuery(
+    () => listWeeklyUpcoming(),
+    [],
+  );
 
   useFocusEffect(
     useCallback(() => {
       void reload();
-    }, [reload]),
+      void reloadUpcoming();
+    }, [reload, reloadUpcoming]),
   );
 
   // The free tags are offered once, on the first Daily screen someone sees.
@@ -129,6 +182,7 @@ export function HomeScreen() {
       method: 'tap',
     });
     await reload();
+    await reloadUpcoming();
   };
 
   const openKnowt = (knowtId: string) =>
@@ -202,6 +256,20 @@ export function HomeScreen() {
               />
             ))
           )}
+
+          {(upcoming ?? []).length > 0 ? (
+            <View style={styles.upcoming}>
+              <Text style={styles.sectionTitle}>This week</Text>
+              {(upcoming ?? []).map((entry) => (
+                <UpcomingRow
+                  key={`${entry.knowt.id}:${entry.schedule.id}`}
+                  entry={entry}
+                  now={now}
+                  onPress={() => openKnowt(entry.knowt.id)}
+                />
+              ))}
+            </View>
+          ) : null}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -251,4 +319,46 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   pressed: { opacity: 0.7 },
+  // Sits in the lower third, above the tab bar, and stays quieter than today.
+  upcoming: { marginTop: theme.spacing.xl, gap: theme.spacing.xs },
+  sectionTitle: {
+    marginBottom: theme.spacing.xs,
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  upcomingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+  },
+  upcomingDot: { width: 8, height: 8, borderRadius: 4 },
+  upcomingName: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
+  upcomingFlag: {
+    backgroundColor: theme.color.highlight,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+  },
+  upcomingFlagText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.xs,
+    color: theme.color.onHighlight,
+  },
+  upcomingWhen: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
 });

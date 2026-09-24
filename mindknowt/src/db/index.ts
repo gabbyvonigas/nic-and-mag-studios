@@ -18,9 +18,11 @@ export {
 export {
   listCategoryGroups,
   listDashboard,
+  listWeeklyUpcoming,
   type CategoryGroup,
   type Dashboard,
   type DashboardCard,
+  type UpcomingEntry,
   type DashboardSection,
 } from './dashboard';
 export {

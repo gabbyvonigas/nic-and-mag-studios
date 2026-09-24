@@ -14,11 +14,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, ScreenHeader } from '../components/ui';
+import { TimeWheel } from '../components/TimeWheel';
 import { resyncAlarmsQuietly } from '../alarms';
 import {
   createKnowt,
   listCategories,
-  parseTimeInput,
+  formatTime,
   toISODate,
   type RepeatType,
 } from '../db';
@@ -64,19 +65,21 @@ export function AddKnowtScreen() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [locationNote, setLocationNote] = useState('');
   const [notes, setNotes] = useState('');
-  // Deliberately empty. A guessed time is a time nobody chose, and it would be
-  // wrong more often than it is right.
-  const [time, setTime] = useState('');
+  /**
+   * Off until asked for. Nothing here guesses a time on anyone's behalf: the
+   * wheel only appears once a schedule has been asked for, and the wheel's
+   * starting position is a control position, not a saved value.
+   */
+  const [scheduled, setScheduled] = useState(false);
+  const [time, setTime] = useState('08:00');
   const [repeatType, setRepeatType] = useState<RepeatType>('daily');
   const [saving, setSaving] = useState(false);
 
   const step: Step = STEPS[stepIndex] ?? 'name';
-  const canAdvance =
-    step === 'name'
-      ? name.trim().length > 0
-      : step === 'when'
-        ? parseTimeInput(time) !== null
-        : true;
+  // Only the name is required. The when step used to demand a parseable time
+  // before Save would enable, which meant a knowt with no schedule could not be
+  // created at all, and the hint below it promising exactly that was unreachable.
+  const canAdvance = step === 'name' ? name.trim().length > 0 : true;
 
   const save = async () => {
     setSaving(true);
@@ -87,12 +90,15 @@ export function AddKnowtScreen() {
         locationNote: locationNote.trim() || null,
         notes: notes.trim() || null,
         mode: 'open',
-        schedule: {
-          // Stored as 24 hour regardless of how it was typed.
-          time: parseTimeInput(time) ?? '',
-          repeatType,
-          startDate: repeatType === 'once' ? toISODate(new Date()) : undefined,
-        },
+        schedule: scheduled
+          ? {
+              // The wheel deals only in 24 hour HH:MM, which is what is stored.
+              time,
+              repeatType,
+              startDate:
+                repeatType === 'once' ? toISODate(new Date()) : undefined,
+            }
+          : undefined,
       });
       // The knowt may carry a schedule, which nothing has armed yet.
       await resyncAlarmsQuietly();
@@ -238,22 +244,36 @@ export function AddKnowtScreen() {
           {step === 'when' && (
             <View style={styles.section}>
               <Text style={styles.question}>When?</Text>
-              <TextInput
-                style={styles.input}
-                value={time}
-                onChangeText={setTime}
-                placeholder="8:00 am"
-                placeholderTextColor={theme.color.textMuted}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoFocus
-              />
-              {time.trim() && parseTimeInput(time) === null ? (
+
+              <Pressable
+                accessibilityRole="switch"
+                accessibilityState={{ checked: scheduled }}
+                accessibilityLabel="Add a schedule"
+                onPress={() => setScheduled((on) => !on)}
+                style={({ pressed }) => [
+                  styles.scheduleToggle,
+                  scheduled && styles.scheduleToggleOn,
+                  pressed && styles.pressed,
+                ]}>
+                <Text
+                  style={[
+                    styles.scheduleToggleText,
+                    scheduled && styles.scheduleToggleTextOn,
+                  ]}>
+                  {scheduled ? 'Remove the schedule' : 'Add a schedule'}
+                </Text>
+              </Pressable>
+
+              {!scheduled ? (
                 <Text style={styles.hint}>
-                  Try something like 8:00 am, 7pm, or 19:30.
+                  Without one this never rings on its own, and completes by
+                  tapping done. You can add one later from the knowt itself.
                 </Text>
               ) : null}
-              <View style={styles.chips}>
+
+              {scheduled ? <TimeWheel value={time} onChange={setTime} /> : null}
+
+              <View style={scheduled ? styles.chips : styles.hidden}>
                 {REPEATS.map((repeat) => {
                   const selected = repeatType === repeat.value;
                   return (
@@ -272,9 +292,11 @@ export function AddKnowtScreen() {
                   );
                 })}
               </View>
-              <Text style={styles.hint}>
-                No alarm is scheduled yet. This knowt completes by tapping done.
-              </Text>
+              {scheduled ? (
+                <Text style={styles.hint}>
+                  {formatTime(time)}, {REPEATS.find((r) => r.value === repeatType)?.label.toLowerCase()}.
+                </Text>
+              ) : null}
             </View>
           )}
         </ScrollView>
@@ -372,6 +394,26 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
   },
   multiline: { minHeight: 120 },
+  hidden: { display: 'none' },
+  pressed: { opacity: 0.7 },
+  scheduleToggle: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+  },
+  scheduleToggleOn: {
+    backgroundColor: theme.color.highlight,
+    borderColor: theme.color.highlight,
+  },
+  scheduleToggleText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
+  scheduleToggleTextOn: { color: theme.color.onHighlight },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
   chip: {
     borderWidth: 1,

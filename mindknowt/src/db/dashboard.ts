@@ -191,6 +191,58 @@ function soonestFor(knowt: KnowtWithDetail, now: Date): Date | null {
   return soonest;
 }
 
+/** One knowt coming up later this week, with when it next fires. */
+export type UpcomingEntry = {
+  knowt: KnowtWithDetail;
+  schedule: ScheduleRow;
+  at: Date;
+};
+
+/**
+ * The week ahead, for the lower third of Daily.
+ *
+ * Today is excluded on purpose: it is already the whole top of that screen, and
+ * repeating it here would make the section a second copy rather than a look
+ * forward. One row per knowt, not per schedule, because this is a glance and a
+ * knowt that fires three times on Thursday is still one thing to expect.
+ *
+ * Sorted by priority first, which is what was asked for, then by when. Two
+ * things at the same priority are in the order they will happen.
+ */
+export async function listWeeklyUpcoming(
+  now = new Date(),
+  days = 7,
+): Promise<UpcomingEntry[]> {
+  const knowts = await listKnowts();
+  const tomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+  const horizon = new Date(tomorrow.getTime() + days * 86_400_000);
+
+  const entries: UpcomingEntry[] = [];
+  for (const knowt of knowts) {
+    let soonest: UpcomingEntry | null = null;
+    for (const schedule of knowt.schedules) {
+      const at = nextOccurrence(schedule, tomorrow);
+      if (!at || at >= horizon) continue;
+      if (!soonest || at < soonest.at) soonest = { knowt, schedule, at };
+    }
+    if (soonest) entries.push(soonest);
+  }
+
+  return entries.sort((a, b) => {
+    if (a.knowt.priority !== b.knowt.priority) {
+      return b.knowt.priority - a.knowt.priority;
+    }
+    if (a.at.getTime() !== b.at.getTime()) {
+      return a.at.getTime() - b.at.getTime();
+    }
+    return a.knowt.name.localeCompare(b.knowt.name);
+  });
+}
+
 /**
  * Every category with its knowts, for the collapsible groups on Knowts.
  *

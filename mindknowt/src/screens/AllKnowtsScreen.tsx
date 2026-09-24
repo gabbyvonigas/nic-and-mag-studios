@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import { AlarmIcon, Chevron, ScanIcon } from '../components/icons';
-import { PriorityBars } from '../components/KnowtCard';
 import { Button, EmptyState, ScreenHeader } from '../components/ui';
 import { requiresScan } from '../knowts/modes';
 import {
@@ -24,21 +23,25 @@ import {
   type KnowtWithDetail,
 } from '../db';
 import { useQuery } from '../db/useQuery';
-import { categoryShades, theme } from '../theme';
+import { categoryShades, theme, type CategoryShades } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 /**
- * Knowts does not use the card.
+ * Knowts does not use the Daily card, and it is not a flat row either.
  *
- * Daily and Knowts were the same card in the same stack, so the two screens
- * read as one screen shown twice. They answer different questions: Daily is
- * when, and gets the raised cards laid out as a sequence; Knowts is what you
- * have, and gets a dense list under a category rule. Rows are a uniform height
- * within this screen, which is what the shared-height rule was ever for.
+ * The flat version stripped out too much: hairline dividers on a flat page gave
+ * the eye nothing to land on. This is the middle: a tall rounded row carrying
+ * the category's own tint, a rounded tile for the mode icon, and the next time
+ * in a pill on the right. Definition comes from the shape and the fill rather
+ * than from a shadow, which keeps it distinct from Daily's raised white cards.
+ *
+ * Variation is by category, not by position, so a colour means something. The
+ * one exception is priority: a high priority row puts the neon in its time
+ * pill, which is the sort of key state the neon is for.
  */
-const ROW_HEIGHT = 52;
+const ROW_HEIGHT = 72;
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -77,17 +80,17 @@ function nextLabel(at: Date | null, now: Date): string {
 
 function KnowtRow({
   knowt,
-  ink,
+  shades,
   now,
   onPress,
-  last,
 }: {
   knowt: KnowtWithDetail;
-  ink: string;
+  shades: CategoryShades;
   now: Date;
   onPress: () => void;
-  last: boolean;
 }) {
+  const urgent = knowt.priority >= 2;
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -95,19 +98,40 @@ function KnowtRow({
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
-        !last && styles.rowDivided,
+        { backgroundColor: shades.fill },
         pressed && styles.pressed,
       ]}>
-      {requiresScan(knowt.mode) ? (
-        <ScanIcon size={13} color={ink} thickness={1.5} />
-      ) : (
-        <AlarmIcon size={13} color={theme.color.textMuted} thickness={1.5} />
-      )}
-      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.rowName}>
-        {knowt.name}
-      </Text>
-      <PriorityBars priority={knowt.priority} color={ink} size={10} />
-      <Text style={styles.rowNext}>{nextLabel(soonestFor(knowt, now), now)}</Text>
+      <View style={styles.iconTile}>
+        {requiresScan(knowt.mode) ? (
+          <ScanIcon size={16} color={shades.ink} thickness={1.5} />
+        ) : (
+          <AlarmIcon size={16} color={shades.ink} thickness={1.5} />
+        )}
+      </View>
+
+      <View style={styles.rowText}>
+        <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={[styles.rowName, { color: shades.ink }]}>
+          {knowt.name}
+        </Text>
+        {knowt.location_note ? (
+          <Text numberOfLines={1} style={styles.rowWhere}>
+            {knowt.location_note}
+          </Text>
+        ) : null}
+      </View>
+
+      <View style={[styles.timePill, urgent && styles.timePillUrgent]}>
+        <Text
+          style={[
+            styles.timeText,
+            urgent ? styles.timeTextUrgent : { color: shades.ink },
+          ]}>
+          {nextLabel(soonestFor(knowt, now), now)}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -149,16 +173,13 @@ function CategoryGroupView({
       </Pressable>
 
       {expanded ? (
-        // One rule down the whole group, rather than an accent per row. The
-        // colour says which category these belong to once, not eight times.
-        <View style={[styles.groupRows, { borderLeftColor: shades.color }]}>
-          {group.knowts.map((knowt, index) => (
+        <View style={styles.groupRows}>
+          {group.knowts.map((knowt) => (
             <KnowtRow
               key={knowt.id}
               knowt={knowt}
-              ink={shades.ink}
+              shades={shades}
               now={now}
-              last={index === group.knowts.length - 1}
               onPress={() => onOpenKnowt(knowt.id)}
             />
           ))}
@@ -312,27 +333,46 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     color: theme.color.textMuted,
   },
-  groupRows: { borderLeftWidth: 2, paddingLeft: theme.spacing.md },
+  groupRows: { gap: theme.spacing.sm },
   row: {
     height: ROW_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
+    gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.xl,
   },
-  rowDivided: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.color.border,
+  // A rounded tile rather than a bare glyph, so the left edge of every row has
+  // the same shape to land on.
+  iconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.color.surface,
   },
+  rowText: { flex: 1, gap: 2 },
   rowName: {
-    flex: 1,
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.md,
-    color: theme.color.textPrimary,
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.lg,
   },
-  rowNext: {
+  rowWhere: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
+    color: theme.color.textMuted,
   },
+  timePill: {
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+    backgroundColor: theme.color.surface,
+  },
+  timePillUrgent: { backgroundColor: theme.color.highlight },
+  timeText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+  },
+  timeTextUrgent: { color: theme.color.onHighlight },
   footer: { paddingTop: theme.spacing.md },
 });

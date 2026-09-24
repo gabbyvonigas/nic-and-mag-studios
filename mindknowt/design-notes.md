@@ -16,25 +16,30 @@ values that are live in the app.
 
 | Token | Hex | What it is for |
 | --- | --- | --- |
-| `background` | `#F0F0EE` | The page. Light warm gray, never white, so cards read as cards. |
+| `background` | `#F4F5F6` | The page. Light cool gray, never white, so cards read as cards. |
 | `surface` | `#FFFFFF` | Cards. The only white in the app. |
 | `primary` | `#111111` | Primary buttons, icons, headings, body text. Near black, not pure black. |
 | `highlight` | `#D9FA3C` | Neon yellow green. Highlights, active states, key numbers. Nothing else. |
 | `charcoal` | `#3A3A3A` | Secondary text. Where `primary` would be too heavy. |
-| `lightGray` | `#D8D8D6` | Dividers, borders, disabled and inactive states. Distinct from `background`. |
+| `gray` | `#6E7479` | Third level text, where charcoal is still too heavy. |
+| `lightGray` | `#DCDFE3` | Dividers, borders, disabled and inactive states. Distinct from `background`. |
+
+Every neutral is cool or exactly neutral, measured as red minus blue. The first
+set was `+2` warm across the page, the border and the muted text, which is what
+made white cards look faintly yellow sitting on it.
 
 Contrast, measured, so these are not guesses:
 
 | Pair | Ratio | Verdict |
 | --- | --- | --- |
 | `primary` on `surface` | 18.88 | Any size. |
-| `primary` on `background` | 16.55 | Any size. |
+| `primary` on `background` | 16.30 | Any size. |
 | `primary` on `highlight` | 15.91 | Any size. This is the only text allowed on neon. |
 | `surface` on `primary` | 18.88 | Any size. Primary button text. |
 | `charcoal` on `surface` | 11.37 | Any size. |
-| `charcoal` on `background` | 9.97 | Any size. |
+| `charcoal` on `background` | 10.18 | Any size. |
 | `highlight` on `surface` | 1.19 | Not text. Not a thin line. Fill only. |
-| `lightGray` on `surface` | 1.43 | Not text. Dividers and disabled only. |
+| `lightGray` on `surface` | 1.38 | Not text. Dividers and disabled only. |
 
 Two hard rules follow from that table:
 
@@ -47,31 +52,40 @@ Two hard rules follow from that table:
 
 ## Category colors
 
-Brightened to hold up against the higher contrast palette. Same six hues, same
-names, pushed up in saturation and value.
+Vivid, and deliberately not muted. Brightening the original muted set was not
+enough, because saturation was the problem rather than lightness: care sat at
+0.31 saturation and admin at 0.17, which is gray with a hue attached. Next to
+near-black and neon they read as dirt.
 
-| Key | Name | Was | Now | Ink | Fill |
+| Key | Name | Hex | Saturation | Ink | Fill |
 | --- | --- | --- | --- | --- | --- |
-| `home` | Terracotta | `#C06A4C` | `#D9744F` | `#7E432E` | `#FAEEEA` |
-| `daily` | Mustard gold | `#C4972C` | `#E0A92B` | `#826219` | `#FBF5E6` |
-| `care` | Mauve pink | `#AE7B92` | `#C98BA6` | `#755160` | `#F9F1F4` |
-| `ritual` | Olive green | `#7C8A4E` | `#8FA254` | `#535E31` | `#F2F4EA` |
-| `go` | Sky blue | `#5F8FB4` | `#6BA3CF` | `#3E5F78` | `#EDF4F9` |
-| `admin` | Warm taupe | `#96897C` | `#A89A8B` | `#615951` | `#F5F3F1` |
+| `home` | Coral | `#FF5A3C` | 0.76 | `#943423` | `#FFEBE8` |
+| `daily` | Gold | `#F5A623` | 0.86 | `#8E6014` | `#FEF4E5` |
+| `care` | Pink | `#FF4D9D` | 0.70 | `#942D5B` | `#FFEAF3` |
+| `ritual` | Green | `#2FBF71` | 0.75 | `#1B6F42` | `#E6F7EE` |
+| `go` | Blue | `#2E8BFF` | 0.82 | `#1B5194` | `#E6F1FF` |
+| `admin` | Violet | `#7B61FF` | 0.62 | `#473894` | `#EFECFF` |
 
-Ink is the swatch mixed 42 percent towards black, for label text and icons on a
-white card. Every ink value clears 5.6 against white, so it is legible at body
-size. Fill is the swatch mixed 88 percent towards white, for chips and finished
-cards.
+Two of the six changed identity rather than intensity, because there is no
+vivid version of them: mauve pink became a true pink, and warm taupe became
+violet. Coral and gold stay warm hues, because six categories need a spread of
+hue to stay apart and an all-cool set of six collapses into three. They are
+vivid rather than muted, which is the actual rule.
 
-The swatch itself runs between 2.1 and 3.2 against white, which is why it is
-never used for text. Bars, dots and rules only.
+Ink is the swatch mixed 42 percent towards black, for label text and icons.
+Every ink value clears 5.0 against both white and the page, so it is legible at
+body size on either. Fill is the swatch mixed 88 percent towards white, and is
+what the Knowts rows are filled with.
+
+The swatch itself runs between 1.9 and 3.9 against the page, which is why it is
+never used for text. Bars, dots, tiles and rules only.
 
 **These are stored, not styled.** `categories.color` holds the swatch, so
-changing this table means a migration back-fill for anyone who already has the
-old values, matched on `is_custom = 0` so a color someone chose themselves is
-never overwritten. Custom categories derive their own ink and fill from the same
-two mixes.
+changing this table means a migration back-fill matched on `is_custom = 0`. The
+repaint SQL is generated from the current constant, so every change needs its
+own back-fill entry stamped at the new version: an install already past the
+previous one never runs it again. There is a test that asserts the newest
+repaint is stamped at the current schema version, because forgetting is silent.
 
 ## Corner radius
 
@@ -101,25 +115,27 @@ card. Borders stay for inputs, dividers and anything inactive, in `lightGray`.
 
 ## Type
 
-SF Pro Rounded. This one comes with a caveat worth writing down: React Native
-does not expose SF Pro Rounded by family name, and iOS does not install it as an
-ordinary font. It is reached through the private family `.AppleSystemUIFontRounded`,
-which is undocumented but has worked on iOS for years. If it ever stops working
-the text falls back to San Francisco rather than breaking, so it is safe to
-rely on and cheap to be wrong about.
+SF Pro Rounded, reached through the private family `.AppleSystemUIFontRounded`.
+React Native does not expose it by family name and iOS does not install it as an
+ordinary font, so there is no supported route to it from JavaScript.
 
-The guaranteed alternative is bundling the font files through `expo-font`, which
-is a native module and costs a rebuild. Not worth it until the private name is
-shown to fail on a device.
+**Confirmed working on device.** If it ever stops, the text falls back to San
+Francisco rather than breaking, and the tell is that it looks right but not
+rounded. The guaranteed alternative is bundling the files through `expo-font`,
+which is native and costs a rebuild.
 
 | Token | Size | Used on |
 | --- | --- | --- |
-| `xs` | 12 | Timestamps, tag UIDs, the smallest labels. |
-| `sm` | 13 | Secondary lines, meta, hints. |
-| `md` | 15 | Body, row names, button labels. |
-| `lg` | 17 | Card titles, inputs. |
+| `xs` | 13 | Timestamps, tag UIDs, the smallest labels. |
+| `sm` | 14 | Secondary lines, meta, hints. |
+| `md` | 16 | Body, row names, button labels. |
+| `lg` | 18 | Card titles, inputs. |
 | `xl` | 22 | Section headings. |
 | `display` | 32 | Screen titles. |
+
+Everything below the two header steps went up one notch from the first pass.
+Rounded runs optically smaller than Helvetica at the same point size, so
+carrying the old scale across made the whole app read as fine print.
 
 Weights: `regular` 400, `medium` 500, `semibold` 600, `bold` 700. Rounded
 carries weight well, so `medium` does most of the work that `bold` used to.
@@ -143,11 +159,12 @@ Gaps between cards are `md`. Screen side padding is `xl`.
 
 ## What this supersedes
 
-The flat Knowts row, added one update earlier, is gone: no card, no shadow,
-hairline dividers, one color rule down the left of each category. It existed to
-stop Knowts reading as a copy of Daily. In this direction every list is cards,
-so Knowts becomes cards too, and the two screens are told apart by what they
-say rather than by having different furniture.
+The flat Knowts row, no card and hairline dividers on a flat page, is gone. It
+went too far the other way: it gave the eye nothing to land on.
 
-That leaves the original problem open. It is a real one and it needs a different
-answer: content, density or layout, not a second card style.
+Knowts rows are now tall rounded rows filled with their category's own tint,
+with a rounded tile for the mode icon and the next time in a pill on the right.
+Definition comes from shape and fill rather than from a shadow, which is what
+keeps them distinct from Daily's raised white cards. Variation is by category,
+so a colour means something, with one exception: a high priority row puts the
+neon in its time pill.
