@@ -23,8 +23,8 @@ keeps it crisp at any size, lets it use the app's own rounded face, and avoids
 the format problem entirely. It is the same reasoning as every other icon in
 this project.
 
-## What still needs a real file
+## The app icon
 
-The home screen app icon. Export the lime square at 1024 by 1024 as PNG and it
-replaces `assets/icon.png`. That one cannot be drawn, because iOS reads it from
-the bundle rather than from the app.
+Supplied and installed: `assets/icon.png` is the lime square with the tag,
+check and signal arcs, 1024 by 1024 PNG. That one has to be a real file,
+because iOS reads it from the bundle rather than from the app.

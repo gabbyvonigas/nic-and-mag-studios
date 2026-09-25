@@ -1,7 +1,8 @@
 import { getDatabase } from './database';
 import { listKnowts } from './knowts';
 import { listPendingAlarms } from './pendingAlarms';
-import { isDueOn, minutesOf, nextOccurrence } from './scheduling';
+import { isDueOn, minutesOf, nextOccurrence, toISODate } from './scheduling';
+import { categoryShades } from '../theme/categoryColors';
 import type {
   CategoryRow,
   EventRow,
@@ -191,56 +192,54 @@ function soonestFor(knowt: KnowtWithDetail, now: Date): Date | null {
   return soonest;
 }
 
-/** One knowt coming up later this week, with when it next fires. */
-export type UpcomingEntry = {
-  knowt: KnowtWithDetail;
-  schedule: ScheduleRow;
-  at: Date;
+/** One day in the date strip. */
+export type DayMark = {
+  date: Date;
+  /** Local YYYY-MM-DD, which is what the strip keys and compares on. */
+  iso: string;
+  /** How many knowts are due that day. */
+  count: number;
+  /** Up to three category colors, for the dots under the day. */
+  colors: string[];
 };
 
 /**
- * The week ahead, for the lower third of Daily.
+ * Seven days centered on the one being looked at, with what is due on each.
  *
- * Today is excluded on purpose: it is already the whole top of that screen, and
- * repeating it here would make the section a second copy rather than a look
- * forward. One row per knowt, not per schedule, because this is a glance and a
- * knowt that fires three times on Thursday is still one thing to expect.
- *
- * Sorted by priority first, which is what was asked for, then by when. Two
- * things at the same priority are in the order they will happen.
+ * Centered rather than a fixed week, so stepping to a neighboring day shifts
+ * the window and there is always somewhere further to go in both directions.
+ * That is what replaces the week ahead list: Daily is one day at a time now,
+ * and the strip is how you reach the others.
  */
-export async function listWeeklyUpcoming(
-  now = new Date(),
+export async function listWeekMarks(
+  anchor = new Date(),
   days = 7,
-): Promise<UpcomingEntry[]> {
+): Promise<DayMark[]> {
   const knowts = await listKnowts();
-  const tomorrow = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + 1,
-  );
-  const horizon = new Date(tomorrow.getTime() + days * 86_400_000);
+  const half = Math.floor(days / 2);
+  const marks: DayMark[] = [];
 
-  const entries: UpcomingEntry[] = [];
-  for (const knowt of knowts) {
-    let soonest: UpcomingEntry | null = null;
-    for (const schedule of knowt.schedules) {
-      const at = nextOccurrence(schedule, tomorrow);
-      if (!at || at >= horizon) continue;
-      if (!soonest || at < soonest.at) soonest = { knowt, schedule, at };
+  for (let offset = -half; offset <= days - half - 1; offset += 1) {
+    const date = new Date(
+      anchor.getFullYear(),
+      anchor.getMonth(),
+      anchor.getDate() + offset,
+    );
+
+    let count = 0;
+    const colors: string[] = [];
+    for (const knowt of knowts) {
+      const due = knowt.schedules.filter((schedule) => isDueOn(schedule, date));
+      if (due.length === 0) continue;
+      count += due.length;
+      const color = categoryShades(knowt.category).color;
+      if (!colors.includes(color)) colors.push(color);
     }
-    if (soonest) entries.push(soonest);
+
+    marks.push({ date, iso: toISODate(date), count, colors: colors.slice(0, 3) });
   }
 
-  return entries.sort((a, b) => {
-    if (a.knowt.priority !== b.knowt.priority) {
-      return b.knowt.priority - a.knowt.priority;
-    }
-    if (a.at.getTime() !== b.at.getTime()) {
-      return a.at.getTime() - b.at.getTime();
-    }
-    return a.knowt.name.localeCompare(b.knowt.name);
-  });
+  return marks;
 }
 
 /**

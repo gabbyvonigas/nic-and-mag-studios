@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -12,18 +12,25 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GearIcon } from '../components/icons';
-import { CategoryDot, KnowtCard } from '../components/KnowtCard';
+import { KnowtCard } from '../components/KnowtCard';
+import { ProgressRing } from '../components/ProgressRing';
 import { EmptyState, HeaderLockup } from '../components/ui';
 import {
   describeRepeat,
   formatTime,
   listDashboard,
-  listWeeklyUpcoming,
+  listWeekMarks,
   logCompletion,
+  toISODate,
   type DashboardCard,
-  type UpcomingEntry,
+  type DayMark,
 } from '../db';
 import { useQuery } from '../db/useQuery';
+import {
+  progressCount,
+  progressLine,
+  stanceFor,
+} from '../knowts/dayProgress';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 import { isClaimConfigured } from '../tags/claim';
 import { shouldOfferTags } from '../tags/offer';
@@ -32,7 +39,7 @@ import { categoryShades, theme } from '../theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const DAYS = [
+const DAY_NAMES = [
   'Sunday',
   'Monday',
   'Tuesday',
@@ -41,6 +48,7 @@ const DAYS = [
   'Friday',
   'Saturday',
 ];
+const DAY_INITIALS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTHS = [
   'January',
   'February',
@@ -56,62 +64,26 @@ const MONTHS = [
   'December',
 ];
 
-function todayLabel(now: Date): string {
-  return `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`;
+function midnight(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+/** Whole days from today, negative for the past. */
+function offsetFromToday(date: Date, now: Date): number {
+  return Math.round(
+    (midnight(date).getTime() - midnight(now).getTime()) / 86_400_000,
+  );
+}
+
+function longDate(date: Date): string {
+  return `${DAY_NAMES[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`;
 }
 
 function clock(at: number | Date): string {
   const date = at instanceof Date ? at : new Date(at);
   const hours = date.getHours();
   const minutes = `${date.getMinutes()}`.padStart(2, '0');
-  const suffix = hours < 12 ? 'am' : 'pm';
-  return `${hours % 12 === 0 ? 12 : hours % 12}:${minutes} ${suffix}`;
-}
-
-/** When something later this week happens, said the way a person would. */
-function weekLabel(at: Date, now: Date): string {
-  const day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const days = Math.round((day.getTime() - today.getTime()) / 86_400_000);
-  const when = days === 1 ? 'Tomorrow' : (DAYS[at.getDay()] ?? '');
-  return `${when}, ${clock(at)}`;
-}
-
-/**
- * The week ahead, under today.
- *
- * Deliberately smaller than the cards above it. Today is the screen; this is a
- * glance at what is coming, and if it competed visually it would blunt the part
- * that actually needs doing now.
- */
-function UpcomingRow({
-  entry,
-  now,
-  onPress,
-}: {
-  entry: UpcomingEntry;
-  now: Date;
-  onPress: () => void;
-}) {
-  const shades = categoryShades(entry.knowt.category);
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${entry.knowt.name}, ${weekLabel(entry.at, now)}`}
-      onPress={onPress}
-      style={({ pressed }) => [styles.upcomingRow, pressed && styles.pressed]}>
-      <CategoryDot shades={shades} />
-      <Text numberOfLines={1} style={styles.upcomingName}>
-        {entry.knowt.name}
-      </Text>
-      {entry.knowt.priority >= 2 ? (
-        <View style={styles.upcomingFlag}>
-          <Text style={styles.upcomingFlagText}>High</Text>
-        </View>
-      ) : null}
-      <Text style={styles.upcomingWhen}>{weekLabel(entry.at, now)}</Text>
-    </Pressable>
-  );
+  return `${hours % 12 === 0 ? 12 : hours % 12}:${minutes} ${hours < 12 ? 'am' : 'pm'}`;
 }
 
 /** The live thing to say about a card, if there is one. */
@@ -135,33 +107,97 @@ function statusOf(card: DashboardCard): string | null {
 function metaOf(card: DashboardCard): string {
   const { schedule } = card;
   if (!schedule) return 'Any time today';
-  return `${formatTime(schedule.time)}${
-    schedule.label ? `, ${schedule.label}` : ''
-  }, ${describeRepeat(schedule)}`;
+  return `${formatTime(schedule.time)}, ${describeRepeat(schedule)}`;
+}
+
+/**
+ * Seven days, the one being read highlighted, with a dot per category that has
+ * something due. The dots are what make an empty looking day distinguishable
+ * from one nobody has scrolled to yet.
+ */
+function DateStrip({
+  marks,
+  selectedIso,
+  todayIso,
+  onPick,
+}: {
+  marks: DayMark[];
+  selectedIso: string;
+  todayIso: string;
+  onPick: (date: Date) => void;
+}) {
+  return (
+    <View style={styles.strip}>
+      {marks.map((mark) => {
+        const selected = mark.iso === selectedIso;
+        const isToday = mark.iso === todayIso;
+        return (
+          <Pressable
+            key={mark.iso}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            accessibilityLabel={longDate(mark.date)}
+            onPress={() => onPick(mark.date)}
+            style={styles.stripCell}>
+            <Text style={styles.stripInitial}>
+              {DAY_INITIALS[mark.date.getDay()]}
+            </Text>
+            <View style={[styles.stripDay, selected && styles.stripDayOn]}>
+              <Text
+                style={[
+                  styles.stripNumber,
+                  selected && styles.stripNumberOn,
+                  !selected && isToday && styles.stripNumberToday,
+                ]}>
+                {mark.date.getDate()}
+              </Text>
+            </View>
+            {/* Rendered even when empty so the row never changes height. */}
+            <View style={styles.stripDots}>
+              {mark.colors.map((color) => (
+                <View
+                  key={color}
+                  style={[styles.stripDot, { backgroundColor: color }]}
+                />
+              ))}
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 }
 
 export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const now = new Date();
+  const todayIso = toISODate(now);
 
-  const { data: board, loading, reload } = useQuery(() => listDashboard(), []);
-  const { data: upcoming, reload: reloadUpcoming } = useQuery(
-    () => listWeeklyUpcoming(),
-    [],
+  // Which day is being read. Daily is one day at a time, and the strip is how
+  // you reach the others, which is what replaced the week ahead list.
+  const [selected, setSelected] = useState<Date>(() => midnight(new Date()));
+  const selectedIso = toISODate(selected);
+  const offset = offsetFromToday(selected, now);
+  const stance = stanceFor(offset);
+
+  const { data: board, loading, reload } = useQuery(
+    () => listDashboard(selected),
+    [selectedIso],
+  );
+  const { data: marks, reload: reloadMarks } = useQuery(
+    () => listWeekMarks(selected),
+    [selectedIso],
   );
 
   useFocusEffect(
     useCallback(() => {
       void reload();
-      void reloadUpcoming();
-    }, [reload, reloadUpcoming]),
+      void reloadMarks();
+    }, [reload, reloadMarks]),
   );
 
   // The free tags are offered once, on the first Daily screen someone sees.
-  // The ref keeps it to one attempt per run: shouldOfferTags only turns false
-  // once the offer has been answered, and coming back here in between should
-  // not reopen it.
   const offered = useRef(false);
   useFocusEffect(
     useCallback(() => {
@@ -182,25 +218,29 @@ export function HomeScreen() {
       method: 'tap',
     });
     await reload();
-    await reloadUpcoming();
+    await reloadMarks();
   };
 
   const openKnowt = (knowtId: string) =>
     navigation.navigate('KnowtDetail', { knowtId });
 
-  // Completing is what sends a knowt to Log, so it leaves Daily. The query
-  // still returns everything, which is what keeps the counter above honest
-  // and gives Log the full picture.
-  const remaining = (board?.today ?? []).filter((c) => c.completedAt === null);
+  const cards = board?.today ?? [];
+  // Completing sends a knowt to Log, so it leaves the list. The counts above
+  // still come from the full board, which is what keeps them honest.
+  const remaining = cards.filter((card) => card.completedAt === null);
+  const total = board?.total ?? 0;
+  const done = board?.done ?? 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerText}>
-                        <Text style={styles.title}>Daily</Text>
+            <Text style={styles.title}>
+              {stance === 'today' ? 'Today' : DAY_NAMES[selected.getDay()]}
+            </Text>
+            <Text style={styles.date}>{longDate(selected)}</Text>
             <HeaderLockup />
-            <Text style={styles.date}>{todayLabel(now)}</Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -211,12 +251,14 @@ export function HomeScreen() {
             <GearIcon />
           </Pressable>
         </View>
-        {board && board.total > 0 ? (
-          <Text style={styles.progress}>
-            {board.done} of {board.total} done
-          </Text>
-        ) : null}
       </View>
+
+      <DateStrip
+        marks={marks ?? []}
+        selectedIso={selectedIso}
+        todayIso={todayIso}
+        onPick={(date) => setSelected(midnight(date))}
+      />
 
       {loading ? (
         <ActivityIndicator color={theme.color.textSecondary} />
@@ -227,18 +269,31 @@ export function HomeScreen() {
             { paddingBottom: TAB_BAR_CLEARANCE + insets.bottom },
           ]}
           showsVerticalScrollIndicator={false}>
+          {/* On the page, not inside a colored card. */}
+          <View style={styles.progress}>
+            <ProgressRing value={total === 0 ? 0 : done / total} size={62}>
+              <Text style={styles.ringText}>{total === 0 ? '0' : done}</Text>
+            </ProgressRing>
+            <View style={styles.progressText}>
+              <Text style={styles.progressCount}>
+                {progressCount(done, total)}
+              </Text>
+              <Text style={styles.progressLine}>
+                {progressLine(done, total, stance)}
+              </Text>
+            </View>
+          </View>
+
           {remaining.length === 0 ? (
             <EmptyState
               message={
-                board && board.total > 0
-                  ? 'Everything due today is done. It is all in Log.'
-                  : 'Nothing due today.'
+                total > 0
+                  ? 'Everything on this day is done. It is all in Log.'
+                  : 'Nothing scheduled.'
               }
-              actionLabel={board && board.total > 0 ? undefined : 'Add a knowt'}
+              actionLabel={total > 0 ? undefined : 'Add a knowt'}
               onAction={
-                board && board.total > 0
-                  ? undefined
-                  : () => navigation.navigate('AddKnowt')
+                total > 0 ? undefined : () => navigation.navigate('AddKnowt')
               }
             />
           ) : (
@@ -253,24 +308,15 @@ export function HomeScreen() {
                 priority={card.knowt.priority}
                 shades={categoryShades(card.knowt.category)}
                 onPress={() => openKnowt(card.knowt.id)}
-                onComplete={() => void complete(card)}
+                // Only today can be checked off. Completing while reading
+                // Thursday would write the completion at the moment of the tap,
+                // which is a different day and a lie in the log.
+                onComplete={
+                  stance === 'today' ? () => void complete(card) : undefined
+                }
               />
             ))
           )}
-
-          {(upcoming ?? []).length > 0 ? (
-            <View style={styles.upcoming}>
-              <Text style={styles.sectionTitle}>This week</Text>
-              {(upcoming ?? []).map((entry) => (
-                <UpcomingRow
-                  key={`${entry.knowt.id}:${entry.schedule.id}`}
-                  entry={entry}
-                  now={now}
-                  onPress={() => openKnowt(entry.knowt.id)}
-                />
-              ))}
-            </View>
-          ) : null}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -282,7 +328,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
     gap: 2,
   },
   headerTop: {
@@ -307,56 +353,61 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.md,
     color: theme.color.textSecondary,
   },
-  progress: {
-    marginTop: theme.spacing.xs,
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.sm,
+  pressed: { opacity: 0.7 },
+
+  strip: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+  },
+  stripCell: { alignItems: 'center', gap: 4, flex: 1 },
+  stripInitial: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.xs,
     color: theme.color.textMuted,
   },
-  content: {
-    paddingHorizontal: theme.spacing.xl,
-    // Matches Knowts. The cards got shorter, so the breathing room between
-    // them had to grow or the list would read as one block.
-    gap: theme.spacing.md,
-  },
-  pressed: { opacity: 0.7 },
-  // Sits in the lower third, above the tab bar, and stays quieter than today.
-  upcoming: { marginTop: theme.spacing.xl, gap: theme.spacing.xs },
-  sectionTitle: {
-    marginBottom: theme.spacing.xs,
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  upcomingRow: {
-    flexDirection: 'row',
+  stripDay: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
-    gap: theme.spacing.md,
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.lg,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
+    justifyContent: 'center',
   },
-  upcomingName: {
-    flex: 1,
+  stripDayOn: { backgroundColor: theme.color.highlight },
+  stripNumber: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.md,
     color: theme.color.textPrimary,
   },
-  upcomingFlag: {
-    backgroundColor: theme.color.highlight,
-    borderRadius: theme.radius.pill,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 2,
+  stripNumberOn: { color: theme.color.onHighlight },
+  // Today, when you are reading some other day, so it can be found again.
+  stripNumberToday: { fontFamily: theme.font.face.medium },
+  stripDots: { flexDirection: 'row', gap: 3, height: 5 },
+  stripDot: { width: 5, height: 5, borderRadius: 2.5 },
+
+  content: {
+    paddingHorizontal: theme.spacing.xl,
+    gap: theme.spacing.md,
   },
-  upcomingFlagText: {
+  progress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  ringText: {
     fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.xs,
-    color: theme.color.onHighlight,
+    fontSize: theme.font.size.lg,
+    color: theme.color.textPrimary,
   },
-  upcomingWhen: {
+  progressText: { flex: 1, gap: 2 },
+  progressCount: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.lg,
+    color: theme.color.textPrimary,
+  },
+  progressLine: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,

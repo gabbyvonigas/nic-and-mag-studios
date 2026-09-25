@@ -125,8 +125,9 @@ export function KnowtCard({
   onPress,
   onComplete,
 }: KnowtCardProps) {
-  // One slot, not two. Status is the news; where it lives is the fallback.
-  const third = status ?? location ?? null;
+  // Two things on one line rather than one winning. Where a knowt lives is
+  // what ties the reminder to a real place, so it should not disappear the
+  // moment something transient has news; the news sits beside it instead.
 
   return (
     <Pressable
@@ -166,12 +167,16 @@ export function KnowtCard({
         </Text>
 
         {/* Rendered even when empty, so the card keeps its height. */}
-        <Text
-          numberOfLines={1}
-          ellipsizeMode="tail"
-          style={[styles.third, status ? { color: shades.ink } : null]}>
-          {third ?? ' '}
-        </Text>
+        <View style={styles.thirdRow}>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.third}>
+            {location ?? ' '}
+          </Text>
+          {status ? (
+            <Text numberOfLines={1} style={[styles.status, { color: shades.ink }]}>
+              {status}
+            </Text>
+          ) : null}
+        </View>
       </View>
 
       {onComplete ? (
@@ -231,10 +236,21 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
   },
+  thirdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
   third: {
+    flex: 1,
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
     color: theme.color.textMuted,
+  },
+  status: {
+    flexShrink: 0,
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
   },
   check: { alignItems: 'center', justifyContent: 'center' },
   bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
