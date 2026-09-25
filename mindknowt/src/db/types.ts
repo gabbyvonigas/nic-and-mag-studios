@@ -71,6 +71,8 @@ export type KnowtRow = {
   is_draft: number;
   /** When it was deleted, or null. Deleted is recoverable; purged is not. */
   deleted_at: number | null;
+  /** 1 when pinned. A flag, not an order: pinned knowts sort first, no more. */
+  is_pinned: number;
   created_at: number;
 };
 

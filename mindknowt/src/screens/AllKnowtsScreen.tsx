@@ -13,9 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import { CategoryDot } from '../components/KnowtCard';
-import { AlarmIcon, ExpandSign, ScanIcon } from '../components/icons';
+import { ExpandSign, NfcIcon, PinIcon } from '../components/icons';
 import { EmptyState, ScreenHeader } from '../components/ui';
-import { requiresScan } from '../knowts/modes';
 import { SwipeToDelete } from '../components/SwipeToDelete';
 import { askToDelete, askToPurge, sayTagFreed } from '../knowts/deletePrompt';
 import {
@@ -25,7 +24,10 @@ import {
   purgeKnowt,
   undeleteKnowt,
   listCategories,
-  listCategoryGroups,
+  describeRepeat,
+  formatTime,
+  listKnowts,
+  setPinned,
   listDrafts,
   listTagged,
   nextOccurrence,
@@ -38,20 +40,55 @@ import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+/** One category filter. Rendered in a horizontal strip, so it never wraps. */
+function FilterChip({
+  label,
+  active,
+  onPress,
+  shades,
+  quiet = false,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  shades?: CategoryShades;
+  quiet?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        active && styles.chipOn,
+        quiet && styles.chipQuiet,
+        pressed && styles.pressed,
+      ]}>
+      {shades && !active ? (
+        <View style={[styles.chipDot, { backgroundColor: shades.color }]} />
+      ) : null}
+      <Text
+        style={[
+          styles.chipText,
+          active && styles.chipTextOn,
+          quiet && styles.chipTextQuiet,
+        ]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 /**
- * Knowts does not use the Daily card, and it is not a flat row either.
+ * The Knowts row: a white card with a narrow accent, not a tinted block.
  *
- * The flat version stripped out too much: hairline dividers on a flat page gave
- * the eye nothing to land on. This is the middle: a tall rounded row carrying
- * the category's own tint, a rounded tile for the mode icon, and the next time
- * in a pill on the right. Definition comes from the shape and the fill rather
- * than from a shadow, which keeps it distinct from Daily's raised white cards.
- *
- * Variation is by category, not by position, so a color means something. The
- * one exception is priority: a high priority row puts the neon in its time
- * pill, which is the sort of key state the neon is for.
+ * The tinted version filled each row with its category color, which made a
+ * list of seven categories read as seven blocks of paint. The color is a bar
+ * down the left edge now and the card is white, so the eye reads names first
+ * and color second.
  */
-const ROW_HEIGHT = 72;
+const ROW_HEIGHT = 76;
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -93,38 +130,40 @@ function KnowtRow({
   shades,
   now,
   onPress,
+  onTogglePin,
 }: {
   knowt: KnowtWithDetail;
   shades: CategoryShades;
   now: Date;
   onPress: () => void;
+  onTogglePin: () => void;
 }) {
-  const urgent = knowt.priority >= 2;
+  const pinned = knowt.is_pinned === 1;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={knowt.name}
+      accessibilityLabel={`${knowt.name}${pinned ? ', pinned' : ''}`}
+      accessibilityHint="Hold to pin or unpin"
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { backgroundColor: shades.fill },
-        pressed && styles.pressed,
-      ]}>
-      <View style={styles.iconTile}>
-        {requiresScan(knowt.mode) ? (
-          <ScanIcon size={16} color={shades.ink} thickness={1.5} />
-        ) : (
-          <AlarmIcon size={16} color={shades.ink} thickness={1.5} />
-        )}
-      </View>
+      onLongPress={onTogglePin}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+      <View style={[styles.accent, { backgroundColor: shades.color }]} />
 
       <View style={styles.rowText}>
-        <Text
-          numberOfLines={1}
-          ellipsizeMode="tail"
-          style={[styles.rowName, { color: shades.ink }]}>
-          {knowt.name}
+        <View style={styles.rowTitle}>
+          {pinned ? <PinIcon size={12} color={shades.ink} /> : null}
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.rowName}>
+            {knowt.name}
+          </Text>
+          {/* Whether a tag is attached, which is not the same question as
+              whether the knowt is in Scan mode. */}
+          {knowt.tag_uid ? <NfcIcon size={13} color={shades.ink} /> : null}
+        </View>
+        <Text numberOfLines={1} style={styles.rowMeta}>
+          {knowt.schedules.length > 0
+            ? `${formatTime(knowt.schedules[0]!.time)}, ${describeRepeat(knowt.schedules[0]!)}`
+            : 'No schedule'}
         </Text>
         {knowt.location_note ? (
           <Text numberOfLines={1} style={styles.rowWhere}>
@@ -133,72 +172,8 @@ function KnowtRow({
         ) : null}
       </View>
 
-      <View style={[styles.timePill, urgent && styles.timePillUrgent]}>
-        <Text
-          style={[
-            styles.timeText,
-            urgent ? styles.timeTextUrgent : { color: shades.ink },
-          ]}>
-          {nextLabel(soonestFor(knowt, now), now)}
-        </Text>
-      </View>
+      <Text style={styles.rowNext}>{nextLabel(soonestFor(knowt, now), now)}</Text>
     </Pressable>
-  );
-}
-
-/**
- * A category and everything under it, opening and closing as one.
- *
- * Expanded is the default here, unlike Daily. This screen is the inventory:
- * opening it to six closed doors would hide the only thing it is for.
- */
-function CategoryGroupView({
-  group,
-  expanded,
-  onToggle,
-  onOpenKnowt,
-  onDelete,
-  now,
-}: {
-  group: CategoryGroup;
-  expanded: boolean;
-  onToggle: () => void;
-  onOpenKnowt: (id: string) => void;
-  onDelete: (knowt: KnowtWithDetail) => void;
-  now: Date;
-}) {
-  const shades = categoryShades(group.category);
-  const name = group.category?.name ?? 'Uncategorized';
-  const count = group.knowts.length;
-
-  return (
-    <View style={styles.group}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${name}, ${count} knowt${count === 1 ? '' : 's'}`}
-        accessibilityState={{ expanded }}
-        onPress={onToggle}
-        style={({ pressed }) => [styles.groupHeader, pressed && styles.pressed]}>
-        <Text style={[styles.groupName, { color: shades.ink }]}>{name}</Text>
-        <Text style={styles.groupCount}>{count}</Text>
-        <ExpandSign expanded={expanded} />
-      </Pressable>
-
-      {expanded ? (
-        <View style={styles.groupRows}>
-          {group.knowts.map((knowt) => (
-            <SwipeToDelete key={knowt.id} onDelete={() => onDelete(knowt)}>
-              <KnowtRow
-                knowt={knowt}
-                shades={shades}
-                now={now}
-                onPress={() => onOpenKnowt(knowt.id)}
-              />
-            </SwipeToDelete>
-          ))}
-        </View>
-      ) : null}
-    </View>
   );
 }
 
@@ -281,10 +256,7 @@ function Stash({
 export function AllKnowtsScreen() {
   const navigation = useNavigation<Nav>();
   const now = new Date();
-  const { data: groups, loading, reload } = useQuery(
-    () => listCategoryGroups(),
-    [],
-  );
+  const { data: knowts, loading, reload } = useQuery(() => listKnowts(), []);
   const { data: categories, reload: reloadCategories } = useQuery(
     () => listCategories(),
     [],
@@ -297,9 +269,18 @@ export function AllKnowtsScreen() {
     [],
   );
   const [openStash, setOpenStash] = useState<Record<string, boolean>>({});
+  /** Null is All. Filters rather than groups, so the list stays one list. */
+  const [filter, setFilter] = useState<string | null>(null);
 
-  // Holds only what has been closed by hand, since open is the default.
-  const [closed, setClosed] = useState<Record<string, boolean>>({});
+  // Pinned first is already the query's order, so filtering preserves it.
+  const visible = (knowts ?? []).filter(
+    (knowt) => filter === null || knowt.category?.id === filter,
+  );
+
+  const togglePin = async (knowt: KnowtWithDetail) => {
+    await setPinned(knowt.id, knowt.is_pinned !== 1);
+    await reload();
+  };
 
   const refreshAll = async () => {
     await reload();
@@ -350,52 +331,73 @@ export function AllKnowtsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.content}>
-        <ScreenHeader title="All knowts" />
+        <ScreenHeader title="Knowts" />
 
-        {/* Visible without being loud: one line, the colors as the signal. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Categories"
-          onPress={() => navigation.navigate('Categories')}
-          style={({ pressed }) => [styles.categoryBar, pressed && styles.pressed]}>
-          <View style={styles.categoryDots}>
-            {(categories ?? []).slice(0, 8).map((category) => (
-              <CategoryDot key={category.id} shades={categoryShades(category)} />
+        {/* Horizontal, because seven categories plus All never fit on one
+            line at phone width, and a wrapped row of chips pushes the list
+            off the screen before anyone has read anything. */}
+        <View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filters}>
+            <FilterChip
+              label="All"
+              active={filter === null}
+              onPress={() => setFilter(null)}
+            />
+            {(categories ?? []).map((category) => (
+              <FilterChip
+                key={category.id}
+                label={category.name}
+                shades={categoryShades(category)}
+                active={filter === category.id}
+                onPress={() =>
+                  setFilter(filter === category.id ? null : category.id)
+                }
+              />
             ))}
-          </View>
-          <Text style={styles.categoryLabel}>Categories</Text>
-          <Text style={styles.categoryChevron}>›</Text>
-        </Pressable>
+            <FilterChip
+              label="Manage"
+              quiet
+              active={false}
+              onPress={() => navigation.navigate('Categories')}
+            />
+          </ScrollView>
+        </View>
 
         {loading ? (
           <ActivityIndicator color={theme.color.textSecondary} />
         ) : (
           <ScrollView showsVerticalScrollIndicator={false} style={styles.list}>
-            {(groups ?? []).length === 0 ? (
+            {visible.length === 0 ? (
               <EmptyState
-                message="No knowts yet."
-                actionLabel="Add a knowt"
-                onAction={() => navigation.navigate('AddKnowt')}
+                message={
+                  filter === null
+                    ? 'No knowts yet.'
+                    : 'Nothing in this category yet.'
+                }
+                actionLabel={filter === null ? 'Add a knowt' : undefined}
+                onAction={
+                  filter === null
+                    ? () => navigation.navigate('AddKnowt')
+                    : undefined
+                }
               />
             ) : (
-              (groups ?? []).map((group) => {
-                const key = group.category?.id ?? 'none';
-                return (
-                  <CategoryGroupView
-                    key={key}
-                    group={group}
+              visible.map((knowt) => (
+                <SwipeToDelete key={knowt.id} onDelete={() => void remove(knowt)}>
+                  <KnowtRow
+                    knowt={knowt}
+                    shades={categoryShades(knowt.category)}
                     now={now}
-                    expanded={!closed[key]}
-                    onToggle={() =>
-                      setClosed((prev) => ({ ...prev, [key]: !prev[key] }))
+                    onPress={() =>
+                      navigation.navigate('KnowtDetail', { knowtId: knowt.id })
                     }
-                    onOpenKnowt={(knowtId) =>
-                      navigation.navigate('KnowtDetail', { knowtId })
-                    }
-                    onDelete={remove}
+                    onTogglePin={() => void togglePin(knowt)}
                   />
-                );
-              })
+                </SwipeToDelete>
+              ))
             )}
 
             <Stash
@@ -483,86 +485,82 @@ const styles = StyleSheet.create({
     paddingBottom: TAB_BAR_CLEARANCE,
     gap: theme.spacing.md,
   },
-  categoryBar: {
+  pressed: { opacity: 0.6 },
+  list: { flex: 1 },
+
+  filters: { flexDirection: 'row', gap: theme.spacing.sm, paddingVertical: 2 },
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
+    backgroundColor: theme.color.surface,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
   },
-  pressed: { opacity: 0.6 },
-  categoryDots: { flexDirection: 'row', gap: 4 },
-  categoryLabel: {
-    flex: 1,
-    fontFamily: theme.font.face.regular,
+  chipOn: {
+    backgroundColor: theme.color.highlight,
+    borderColor: theme.color.highlight,
+  },
+  chipQuiet: { backgroundColor: 'transparent' },
+  chipDot: { width: 7, height: 7, borderRadius: 3.5 },
+  chipText: {
+    fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
   },
-  categoryChevron: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.lg,
-    color: theme.color.textMuted,
-  },
-  list: { flex: 1 },
-  group: { marginBottom: theme.spacing.lg },
-  groupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-  },
-  groupName: {
-    flex: 1,
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.md,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  groupCount: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textMuted,
-  },
-  groupRows: { gap: theme.spacing.sm },
+  chipTextOn: { color: theme.color.onHighlight },
+  chipTextQuiet: { color: theme.color.textMuted },
+
   row: {
     height: ROW_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    paddingRight: theme.spacing.lg,
     borderRadius: theme.radius.xl,
-  },
-  // A rounded tile rather than a bare glyph, so the left edge of every row has
-  // the same shape to land on.
-  iconTile: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: theme.color.surface,
+    ...theme.shadow.card,
   },
-  rowText: { flex: 1, gap: 2 },
+  // The whole of the color on a Knowts card, and the reason it reads white.
+  accent: {
+    width: 5,
+    height: ROW_HEIGHT - theme.spacing.lg * 2,
+    marginLeft: theme.spacing.md,
+    borderRadius: 3,
+  },
+  rowText: { flex: 1, gap: 1 },
+  rowTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
   rowName: {
+    flexShrink: 1,
     fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.lg,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
+  rowMeta: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
   },
   rowWhere: {
     fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.sm,
+    fontSize: theme.font.size.xs,
     color: theme.color.textMuted,
   },
-  timePill: {
-    borderRadius: theme.radius.pill,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 6,
-    backgroundColor: theme.color.surface,
-  },
-  timePillUrgent: { backgroundColor: theme.color.highlight },
-  timeText: {
-    fontFamily: theme.font.face.medium,
+  rowNext: {
+    fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
   },
-  timeTextUrgent: { color: theme.color.onHighlight },
+  // A rounded tile rather than a bare glyph, so the left edge of every row has
+  // the same shape to land on.
   stash: { marginTop: theme.spacing.md },
   stashHeader: {
     flexDirection: 'row',

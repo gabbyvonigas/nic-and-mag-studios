@@ -85,6 +85,87 @@ export function ExpandSign({
 }
 
 /**
+ * NFC arcs, the same shape as the app icon's.
+ *
+ * Three quarter circles of increasing size, each a ring with only one corner
+ * of its border painted, so they nest as radiating arcs. It marks a knowt that
+ * has a physical tag attached, which is a different question from whether it
+ * is in Scan mode: a tagged knowt can still be Alarm Only.
+ */
+export function NfcIcon({
+  size = 14,
+  color = theme.color.textSecondary,
+  thickness = 1.6,
+}: {
+  size?: number;
+  color?: string;
+  thickness?: number;
+}) {
+  return (
+    <View style={[styles.iconBox, { width: size, height: size }]}>
+      {[0.42, 0.72, 1].map((scale) => {
+        const arc = size * scale;
+        return (
+          <View
+            key={scale}
+            style={{
+              position: 'absolute',
+              left: 0,
+              bottom: 0,
+              width: arc,
+              height: arc,
+              borderRadius: arc,
+              borderWidth: thickness,
+              borderColor: 'transparent',
+              borderTopColor: color,
+              borderRightColor: color,
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+/**
+ * A pin. A round head over a tapering stem, which is enough shape to read at
+ * twelve points without becoming a drawing.
+ */
+export function PinIcon({
+  size = 13,
+  color = theme.color.textPrimary,
+}: {
+  size?: number;
+  color?: string;
+}) {
+  const head = size * 0.62;
+  return (
+    <View style={[styles.iconBox, { width: size, height: size }]}>
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          width: head,
+          height: head,
+          borderRadius: head / 2,
+          backgroundColor: color,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          width: Math.max(1.5, size * 0.14),
+          height: size * 0.46,
+          borderRadius: 1,
+          backgroundColor: color,
+        }}
+      />
+    </View>
+  );
+}
+
+/**
  * Gear. Four bars crossed at 45 degree steps make eight teeth, with a ring laid
  * over the middle to cut them back to the rim and leave the hole.
  *

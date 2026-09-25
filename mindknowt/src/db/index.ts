@@ -79,6 +79,7 @@ export {
   logCompletion,
   ModeUnavailableError,
   setMode,
+  setPinned,
   TagInUseError,
   todayCompletionCount,
   updateCategory,

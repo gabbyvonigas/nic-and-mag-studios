@@ -155,7 +155,9 @@ async function attachDetail(rows: KnowtRow[]): Promise<KnowtWithDetail[]> {
 export async function listKnowts(): Promise<KnowtWithDetail[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<KnowtRow>(
-    'SELECT * FROM knowts WHERE archived = 0 AND is_draft = 0 AND deleted_at IS NULL ORDER BY name',
+    `SELECT * FROM knowts
+      WHERE archived = 0 AND is_draft = 0 AND deleted_at IS NULL
+      ORDER BY is_pinned DESC, name`,
   );
   return attachDetail(rows);
 }
@@ -383,6 +385,22 @@ export async function listDeleted(): Promise<KnowtWithDetail[]> {
 export async function undeleteKnowt(knowtId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('UPDATE knowts SET deleted_at = NULL WHERE id = ?', knowtId);
+}
+
+/**
+ * Pinning, which is a flag rather than a list.
+ *
+ * There is no pin order and no pinned section: a pinned knowt sorts to the top
+ * of whatever list it was already in and is otherwise an ordinary knowt. That
+ * keeps one list to read instead of two, and means nothing has to be dragged.
+ */
+export async function setPinned(knowtId: string, pinned: boolean): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE knowts SET is_pinned = ? WHERE id = ?',
+    pinned ? 1 : 0,
+    knowtId,
+  );
 }
 
 /** Every knowt currently holding a tag, for the tag overviews. */

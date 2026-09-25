@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -150,6 +150,12 @@ export const ADDED_COLUMNS: { to: number; table: string; column: string; type: s
     table: 'knowts',
     column: 'deleted_at',
     type: 'INTEGER',
+  },
+  {
+    to: 13,
+    table: 'knowts',
+    column: 'is_pinned',
+    type: 'INTEGER NOT NULL DEFAULT 0',
   },
 ];
 

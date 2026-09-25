@@ -38,6 +38,7 @@ import {
   logCompletion,
   ModeUnavailableError,
   setMode,
+  setPinned,
   TagInUseError,
   updateNotes,
   type KnowtMode,
@@ -446,6 +447,17 @@ export function KnowtDetailScreen() {
               onPress={() => void checkIn()}
             />
           ) : null}
+          {/* The list's long press is a shortcut, not an affordance, so the
+              control has to exist somewhere it can be found. */}
+          <Button
+            label={knowt.is_pinned === 1 ? 'Unpin' : 'Pin to the top'}
+            variant="secondary"
+            onPress={async () => {
+              await setPinned(knowt.id, knowt.is_pinned !== 1);
+              await reload();
+            }}
+          />
+
           {/* Two different promises, so two buttons. Archive pauses something
               and keeps it whole. Delete is for something you are finished
               with, and it still lands somewhere you can reach. */}
