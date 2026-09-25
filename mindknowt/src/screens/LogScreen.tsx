@@ -13,6 +13,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CategoryDot } from '../components/KnowtCard';
+import { PeriodPanel, PeriodToggle } from '../components/PeriodPanel';
 import { SummaryPanel } from '../components/SummaryPanel';
 import { EmptyState, HeaderLockup } from '../components/ui';
 import {
@@ -22,7 +23,8 @@ import {
   type LogCategoryGroup,
   type LoggedCompletion,
 } from '../db';
-import { listTagged } from '../db';
+import { listTagged, loadInsight, loadPeriodSummary } from '../db';
+import { rangeFor, shiftRange, type PeriodKind } from '../history/period';
 import { useQuery } from '../db/useQuery';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 import type { RootStackParamList } from '../navigation/types';
@@ -198,12 +200,29 @@ export function LogScreen() {
   // being read.
   const { data: tagged, reload: reloadTagged } = useQuery(() => listTagged(), []);
 
+  /** Month is the default, because that is the span the Log grew up around. */
+  const [periodKind, setPeriodKind] = useState<PeriodKind>('month');
+  const [anchor, setAnchor] = useState<Date>(() => new Date());
+  const range = rangeFor(periodKind, anchor);
+  const rangeKey = `${periodKind}:${range.from.getTime()}`;
+
+  const { data: period, reload: reloadPeriod } = useQuery(
+    () => loadPeriodSummary(range),
+    [rangeKey],
+  );
+  const { data: insight, reload: reloadInsight } = useQuery(
+    () => loadInsight(),
+    [],
+  );
+
   useFocusEffect(
     useCallback(() => {
       void reload();
       void reloadSummary();
       void reloadTagged();
-    }, [reload, reloadSummary, reloadTagged]),
+      void reloadPeriod();
+      void reloadInsight();
+    }, [reload, reloadSummary, reloadTagged, reloadPeriod, reloadInsight]),
   );
 
   const step = (delta: number) => {
@@ -213,6 +232,9 @@ export function LogScreen() {
   };
 
   // Nothing has happened in the future, so there is nowhere forward to go.
+  // The next arrow stops at the period containing today, whatever its span.
+  const atLatest = range.to.getTime() > Date.now();
+
   const atCurrentMonth =
     year === today.getFullYear() && month === today.getMonth();
 
@@ -243,26 +265,33 @@ export function LogScreen() {
       <View style={styles.header}>
                 <Text style={styles.title}>Log</Text>
         <HeaderLockup />
+        <PeriodToggle
+          value={periodKind}
+          onChange={(kind) => {
+            setPeriodKind(kind);
+            // Stepping back through months then switching to Day should not
+            // land on some arbitrary day in the past.
+            setAnchor(new Date());
+          }}
+        />
+
         <View style={styles.stepper}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Previous month"
+            accessibilityLabel="Previous"
             hitSlop={12}
-            onPress={() => step(-1)}>
+            onPress={() => setAnchor(shiftRange(range, -1))}>
             <Text style={styles.stepArrow}>{'‹'}</Text>
           </Pressable>
-          <Text style={styles.stepLabel}>
-            {MONTHS[month]} {year}
-          </Text>
+          <Text style={styles.stepLabel}>{range.label}</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Next month"
-            accessibilityState={{ disabled: atCurrentMonth }}
-            disabled={atCurrentMonth}
+            accessibilityLabel="Next"
+            accessibilityState={{ disabled: atLatest }}
+            disabled={atLatest}
             hitSlop={12}
-            onPress={() => step(1)}>
-            <Text
-              style={[styles.stepArrow, atCurrentMonth && styles.stepArrowOff]}>
+            onPress={() => setAnchor(shiftRange(range, 1))}>
+            <Text style={[styles.stepArrow, atLatest && styles.stepArrowOff]}>
               {'›'}
             </Text>
           </Pressable>
@@ -278,6 +307,16 @@ export function LogScreen() {
             { paddingBottom: TAB_BAR_CLEARANCE + insets.bottom },
           ]}
           showsVerticalScrollIndicator={false}>
+          {period ? (
+            <PeriodPanel
+              summary={period}
+              insight={insight ?? null}
+              onAdjustTime={(knowtId) =>
+                navigation.navigate('EditSchedule', { knowtId })
+              }
+            />
+          ) : null}
+
           {groups.length === 0 ? (
             <EmptyState
               message={
@@ -309,9 +348,13 @@ export function LogScreen() {
             })
           )}
 
-          <Text style={styles.sectionTitle}>Summary</Text>
-          {summary ? (
-            <SummaryPanel summary={summary} tagged={tagged ?? []} />
+          {/* Month shaped by nature: follow-through, what gets put off, the
+              weekday spread. It has nothing to say about a single day. */}
+          {periodKind === 'month' && summary ? (
+            <>
+              <Text style={styles.sectionTitle}>Summary</Text>
+              <SummaryPanel summary={summary} tagged={tagged ?? []} />
+            </>
           ) : null}
         </ScrollView>
       )}

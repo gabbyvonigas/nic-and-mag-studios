@@ -7,6 +7,11 @@ import {
   windowStart,
   type MonthSummary,
 } from '../history/summary';
+import {
+  summarizePeriod,
+  type PeriodRange,
+  type PeriodSummary,
+} from '../history/period';
 import type { CategoryRow, EventMethod, EventRow } from './types';
 
 /**
@@ -154,4 +159,32 @@ export async function loadMonthLog(
 export async function undoCompletion(eventId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM events WHERE id = ?', eventId);
+}
+
+/**
+ * One period's numbers, for any of the three spans the Log offers.
+ *
+ * Only the range changes; the arithmetic is in `src/history/period.ts` so it
+ * can be tested without a database, the same as the month summary.
+ */
+export async function loadPeriodSummary(
+  range: PeriodRange,
+  today = new Date(),
+): Promise<PeriodSummary> {
+  const db = await getDatabase();
+
+  const events = await db.getAllAsync<EventRow>(
+    `SELECT * FROM events
+      WHERE COALESCE(completed_at, fired_at) >= ?
+        AND COALESCE(completed_at, fired_at) < ?`,
+    range.from.getTime(),
+    range.to.getTime(),
+  );
+
+  const [knowts, categories] = await Promise.all([
+    listKnowts(),
+    listCategories(),
+  ]);
+
+  return summarizePeriod({ range, knowts, categories, events, today });
 }

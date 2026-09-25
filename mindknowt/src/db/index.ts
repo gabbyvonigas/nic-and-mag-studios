@@ -25,9 +25,11 @@ export {
   type DayMark,
   type DashboardSection,
 } from './dashboard';
+export { clearInsightCache, loadInsight } from './insights';
 export {
   loadMonthLog,
   loadMonthSummary,
+  loadPeriodSummary,
   undoCompletion,
   type LogCategoryGroup,
   type LoggedCompletion,

@@ -13,6 +13,7 @@ import {
 import { Button, Card, ScreenHeader } from '../components/ui';
 import { requiresScan } from '../knowts/modes';
 import {
+  clearInsightCache,
   destroyDatabase,
   getAllAppMeta,
   listKnowts,
@@ -188,6 +189,24 @@ export function DevScreen() {
           Content is validated at load. Anything listed here is a problem in the
           JSON, not in the app.
         </Text>
+
+        <Text style={styles.sectionTitle}>Insights</Text>
+        <Text style={styles.hint}>
+          The Log picks one insight a day and keeps it. This forgets the pick so
+          the next Log open recomputes, which is the only way to see a rule fire
+          without waiting for tomorrow.
+        </Text>
+        <Button
+          label="Recompute the insight"
+          variant="secondary"
+          disabled={busy}
+          onPress={() =>
+            void (async () => {
+              await clearInsightCache();
+              setAlarmNotice('Insight cleared. Open Log to recompute it.');
+            })()
+          }
+        />
 
         <Text style={styles.sectionTitle}>Ring a knowt in 1 minute</Text>
         <Text style={styles.hint}>
