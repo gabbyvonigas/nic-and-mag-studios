@@ -64,6 +64,13 @@ export type MonthSummary = {
   daysInMonth: number;
   /** Whether this is the month containing today. */
   isCurrentMonth: boolean;
+  /**
+   * Longest and current runs per knowt. Computed and tested, and deliberately
+   * rendered nowhere: the product does not use streaks, because a broken chain
+   * reads as failure and the philosophy is "yesterday happened, here's today".
+   * Kept only because the run walk is what `activeDays` and the weekday
+   * breakdown are derived from. Do not surface it.
+   */
   streaks: StreakEntry[];
 
   /** Every snooze pressed this month, across everything. */

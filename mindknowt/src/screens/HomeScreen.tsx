@@ -13,7 +13,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { GearIcon } from '../components/icons';
 import { CategoryDot, KnowtCard } from '../components/KnowtCard';
-import { EmptyState, HeaderRule } from '../components/ui';
+import { EmptyState, HeaderLockup } from '../components/ui';
 import {
   describeRepeat,
   formatTime,
@@ -198,8 +198,8 @@ export function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerText}>
-            <HeaderRule />
-            <Text style={styles.title}>Daily</Text>
+                        <Text style={styles.title}>Daily</Text>
+            <HeaderLockup />
             <Text style={styles.date}>{todayLabel(now)}</Text>
           </View>
           <Pressable

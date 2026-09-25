@@ -14,7 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { CategoryDot } from '../components/KnowtCard';
 import { SummaryPanel } from '../components/SummaryPanel';
-import { EmptyState, HeaderRule } from '../components/ui';
+import { EmptyState, HeaderLockup } from '../components/ui';
 import {
   loadMonthLog,
   loadMonthSummary,
@@ -241,8 +241,8 @@ export function LogScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <HeaderRule />
-        <Text style={styles.title}>Log</Text>
+                <Text style={styles.title}>Log</Text>
+        <HeaderLockup />
         <View style={styles.stepper}>
           <Pressable
             accessibilityRole="button"
