@@ -1,0 +1,258 @@
+import { CATEGORY_COLORS } from '../theme/categoryColors';
+
+/**
+ * Schema per spec section 3. Bump SCHEMA_VERSION and add a migration step when
+ * this changes; `PRAGMA user_version` is the on-device record of which version
+ * a given install is at.
+ */
+export const SCHEMA_VERSION = 13;
+
+export const TABLES_SQL = `
+PRAGMA journal_mode = WAL;
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS categories (
+  id        TEXT PRIMARY KEY NOT NULL,
+  name      TEXT NOT NULL,
+  -- Stable identifier for shipped categories. Starter-set JSON references this
+  -- rather than the generated id or the display name, so renaming a category
+  -- in the UI cannot break bundled content. NULL for user-made categories.
+  key       TEXT,
+  color     TEXT NOT NULL,
+  icon      TEXT NOT NULL,
+  is_custom INTEGER NOT NULL DEFAULT 0,
+  sort      INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS knowts (
+  id             TEXT PRIMARY KEY NOT NULL,
+  tag_uid        TEXT UNIQUE,
+  mode           TEXT NOT NULL CHECK (mode IN ('strict', 'soft', 'open')),
+  name           TEXT NOT NULL,
+  icon           TEXT NOT NULL DEFAULT 'dot',
+  category_id    TEXT REFERENCES categories(id) ON DELETE SET NULL,
+  location_note  TEXT,
+  notes          TEXT,
+  link_url       TEXT,
+  -- What this knowt should become once a tag is attached. Strict and Soft both
+  -- require a tag, and applying a starter set creates untagged knowts, so the
+  -- set's suggestion is stored rather than applied immediately.
+  suggested_mode TEXT CHECK (suggested_mode IN ('strict', 'soft', 'open')),
+  -- Countable habits. A knowt with a daily_target is completed N times a day
+  -- rather than once, which is what a water tracker needs. NULL means the
+  -- knowt is an ordinary one-per-instance task, so no separate kind column is
+  -- required to tell them apart.
+  daily_target   INTEGER,
+  target_unit    TEXT,
+  -- 0 low, 1 normal, 2 high. An integer so it sorts without a lookup.
+  priority       INTEGER NOT NULL DEFAULT 1,
+  refire_minutes INTEGER NOT NULL DEFAULT 5,
+  snooze_minutes INTEGER NOT NULL DEFAULT 5,
+  archived       INTEGER NOT NULL DEFAULT 0,
+  created_at     INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS schedules (
+  id            TEXT PRIMARY KEY NOT NULL,
+  knowt_id      TEXT NOT NULL REFERENCES knowts(id) ON DELETE CASCADE,
+  label         TEXT,
+  time          TEXT NOT NULL,
+  repeat_type   TEXT NOT NULL CHECK (repeat_type IN
+                  ('daily','weekdays','weekends','days_of_week','interval','supply','once')),
+  days_of_week  TEXT,
+  interval_days INTEGER,
+  -- Calendar months rather than days, for monthly, six monthly and annual.
+  -- It rides on repeat_type 'interval' on purpose: repeat_type carries a
+  -- CHECK constraint, and SQLite cannot alter one without rebuilding the
+  -- table on every device that already exists. A schedule uses whichever of
+  -- the two is set; months wins if both somehow are.
+  interval_months INTEGER,
+  supply_days   INTEGER,
+  lead_days     INTEGER,
+  start_date    TEXT,
+  enabled       INTEGER NOT NULL DEFAULT 1,
+  alarmkit_id   TEXT
+);
+
+CREATE TABLE IF NOT EXISTS events (
+  id           TEXT PRIMARY KEY NOT NULL,
+  knowt_id     TEXT NOT NULL REFERENCES knowts(id) ON DELETE CASCADE,
+  schedule_id  TEXT REFERENCES schedules(id) ON DELETE SET NULL,
+  fired_at     INTEGER,
+  completed_at INTEGER,
+  method       TEXT CHECK (method IN ('scan', 'tap', 'override', 'missed')),
+  note         TEXT,
+  snooze_count INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS pending_alarms (
+  id          TEXT PRIMARY KEY NOT NULL,
+  knowt_id    TEXT NOT NULL REFERENCES knowts(id) ON DELETE CASCADE,
+  -- NULL for a re-fire, a snooze, or a test ring, none of which belong to a
+  -- particular schedule.
+  schedule_id TEXT REFERENCES schedules(id) ON DELETE SET NULL,
+  -- The id AlarmKit handed back, which is what canceling needs.
+  alarmkit_id TEXT NOT NULL,
+  fires_at    INTEGER NOT NULL,
+  kind        TEXT NOT NULL CHECK (kind IN ('scheduled', 'refire', 'snooze', 'test')),
+  -- Fingerprint of the schedule this alarm was armed from. Sync compares it
+  -- to decide whether an alarm still matches, so an unchanged schedule is
+  -- left alone instead of being torn down and rebuilt at every launch.
+  signature   TEXT,
+  created_at  INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS app_meta (
+  key   TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL
+);
+
+`;
+
+/**
+ * Created after any migration has run. `idx_categories_key` references a column
+ * that migration 2 adds, so creating it alongside the tables would fail on an
+ * older database, where the column does not exist yet.
+ */
+export const INDEXES_SQL = `
+CREATE INDEX IF NOT EXISTS idx_schedules_knowt ON schedules(knowt_id);
+CREATE INDEX IF NOT EXISTS idx_events_knowt    ON events(knowt_id);
+CREATE INDEX IF NOT EXISTS idx_events_schedule ON events(schedule_id);
+CREATE INDEX IF NOT EXISTS idx_knowts_archived ON knowts(archived);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_key
+  ON categories(key) WHERE key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_pending_knowt ON pending_alarms(knowt_id);
+CREATE INDEX IF NOT EXISTS idx_pending_fires ON pending_alarms(fires_at);
+`;
+
+/** Columns each version adds, applied only when missing. */
+export const ADDED_COLUMNS: { to: number; table: string; column: string; type: string }[] = [
+  { to: 2, table: 'categories', column: 'key', type: 'TEXT' },
+  { to: 2, table: 'knowts', column: 'suggested_mode', type: 'TEXT' },
+  { to: 3, table: 'knowts', column: 'daily_target', type: 'INTEGER' },
+  { to: 3, table: 'knowts', column: 'target_unit', type: 'TEXT' },
+  { to: 5, table: 'pending_alarms', column: 'signature', type: 'TEXT' },
+  {
+    to: 6,
+    table: 'knowts',
+    column: 'priority',
+    type: 'INTEGER NOT NULL DEFAULT 1',
+  },
+  { to: 6, table: 'schedules', column: 'interval_months', type: 'INTEGER' },
+  {
+    to: 9,
+    table: 'knowts',
+    column: 'is_draft',
+    type: 'INTEGER NOT NULL DEFAULT 0',
+  },
+  {
+    to: 11,
+    table: 'knowts',
+    column: 'deleted_at',
+    type: 'INTEGER',
+  },
+  {
+    to: 13,
+    table: 'knowts',
+    column: 'is_pinned',
+    type: 'INTEGER NOT NULL DEFAULT 0',
+  },
+];
+
+/**
+ * Repaints the shipped categories. `categories.color` is written once at seed
+ * time, so changing the palette constant alone leaves every existing install on
+ * the old colors. Custom categories are matched by `is_custom = 0` and never
+ * touched, because their color is the user's choice.
+ */
+export const RECOLOR_SQL = Object.entries(CATEGORY_COLORS)
+  .map(
+    ([key, color]) =>
+      `UPDATE categories SET color = '${color}' WHERE key = '${key}' AND is_custom = 0;`,
+  )
+  .join('\n');
+
+/**
+ * Renames the shipped categories. Names are stored in `categories.name`, so the
+ * seed constant alone leaves every existing install on the old words. Matched
+ * on `key`, which never changes, and on `is_custom = 0`, so a category someone
+ * renamed themselves is left alone. The colors are untouched.
+ */
+/** Read once here so the inserted row cannot drift from the palette. */
+const SEASONAL_COLOR = CATEGORY_COLORS.seasonal;
+
+const RENAME_SQL = [
+  ['ritual', 'Routine'],
+  ['go', 'Activity'],
+  ['care', 'Wellness'],
+]
+  .map(
+    ([key, name]) =>
+      `UPDATE categories SET name = '${name}' WHERE key = '${key}' AND is_custom = 0;`,
+  )
+  .join('\n');
+
+/** Data fixes that run once, after the columns for that version exist. */
+export const BACKFILLS: { to: number; sql: string }[] = [
+  {
+    to: 2,
+    // Shipped categories were seeded before keys existed, and their display
+    // names are still the originals, so they can be matched safely.
+    sql: `UPDATE categories SET key = lower(name) WHERE key IS NULL AND is_custom = 0;`,
+  },
+  { to: 4, sql: RECOLOR_SQL },
+  {
+    to: 4,
+    // Ten minutes was too long in testing. Nothing edits this value yet, so
+    // every row still holds the old default and none of this is a user choice
+    // being overwritten.
+    sql: `UPDATE knowts SET snooze_minutes = 5 WHERE snooze_minutes = 10;`,
+  },
+  {
+    to: 6,
+    // Three modes became two. Soft was "has a tag but can be dismissed", which
+    // is Alarm Only with a tag attached, and tag_uid is a separate column, so
+    // collapsing it into open loses nothing. The CHECK still permits 'soft'
+    // because dropping a value would mean rebuilding the table; nothing writes
+    // it any more.
+    sql: `UPDATE knowts SET mode = 'open' WHERE mode = 'soft';
+          UPDATE knowts SET suggested_mode = 'open' WHERE suggested_mode = 'soft';`,
+  },
+  {
+    to: 7,
+    // The palette was brightened for the new visual direction. RECOLOR_SQL is
+    // generated from the current constant, so this paints the same values the
+    // v4 entry would; it exists because an install already past 4 never runs
+    // that one again. Custom colors are still excluded by is_custom = 0.
+    sql: RECOLOR_SQL,
+  },
+  {
+    to: 8,
+    // Brightening was not enough: the swatches were desaturated, so they still
+    // read as muted. Same mechanism as v7, same reason it needs its own entry.
+    sql: RECOLOR_SQL,
+  },
+  { to: 10, sql: RENAME_SQL },
+  {
+    to: 11,
+    // Seasonal is new, so existing installs have never seeded it. OR IGNORE
+    // rather than a existence check: the unique index on key is what decides,
+    // and it decides correctly even if this somehow runs twice.
+    sql: `INSERT OR IGNORE INTO categories (id, name, key, color, icon, is_custom, sort)
+            VALUES ('cat_seasonal', 'Seasonal', 'seasonal', '${SEASONAL_COLOR}', 'gift', 0, 6);`,
+  },
+  {
+    to: 11,
+    // Every swatch moved, so the whole palette is repainted again.
+    sql: RECOLOR_SQL,
+  },
+  {
+    to: 12,
+    // And again: the softened set read washed out on a real screen, so it was
+    // replaced with fully saturated colors.
+    sql: RECOLOR_SQL,
+  },
+];
+
+/** Content tables, in dependency order for a reseed. Excludes app_meta. */
+export const CONTENT_TABLES = ['events', 'schedules', 'knowts', 'categories'] as const;

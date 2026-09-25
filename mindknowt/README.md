@@ -1,0 +1,319 @@
+# MindKnowt
+
+iOS app. Expo SDK 57 (RN 0.86), TypeScript, CNG, with no checked-in `ios/` directory.
+
+- Bundle ID: `com.nicandmag.mindknowt`
+- Deployment target: iOS 26.1 (`ios.deploymentTarget` in `app.json`), which the AlarmKit module requires
+- `platforms: ["ios"]`. Android is planned but not configured yet
+
+Requires a custom dev client. NFC works in neither Expo Go nor the simulator.
+
+```sh
+eas build --profile development --platform ios   # device build, internal distribution
+npx expo start --dev-client
+```
+
+## Current scope
+
+Build-order steps 1 to 5.
+
+- **Today**: today's instances in time order.
+- **All knowts**: grouped by category.
+- **Add a knowt**: sequential, one decision per screen.
+- **Knowt detail**: notes, schedules, history, mode control, attach/replace
+  tag, and a one-minute test alarm.
+- **Ringing**: the real thing, scan to stop, snooze, override, re-fire.
+- **Dev**: app_meta, wipe/reseed, and the NFC and AlarmKit harnesses.
+
+- **Starter sets** browse and apply, from bundled JSON.
+
+Not built yet: the categories manager, onboarding (step 10), the multi-alarm
+queue, and registering every schedule with AlarmKit. Only the test alarm arms
+one today.
+
+## Layout
+
+```
+src/
+  theme/index.ts          all colors, fonts, spacing, radii
+  components/ui.tsx       shared primitives
+  db/
+    schema.ts             DDL, spec section 3; PRAGMA user_version migrations
+    database.ts           open, migrate, app_meta, clear/destroy
+    seed.ts               example content, seedIfEmpty, reseed
+    knowts.ts             repository queries
+    scheduling.ts         isDueOn and repeat description
+    useQuery.ts           refetch on screen focus
+  navigation/
+    types.ts              route params
+    linking.ts            URL routing
+    navigationRef.ts      imperative routing from the alarm payload
+    RootNavigator.tsx     tabs plus stack
+  nfc/                    NfcReader interface + iOS implementation
+  alarms/                 AlarmScheduler interface + iOS implementation
+  screens/                one file per screen, presentational
+```
+
+### Platform boundary
+
+`NfcReader` in `src/nfc/types.ts` is the only NFC contract the app depends on.
+`react-native-nfc-manager` is imported in exactly one file (`NfcReader.ios.ts`);
+the hook and screen never touch it. Metro picks the implementation by filename
+at bundle time, so adding Android means filling in `NfcReader.android.ts` and
+changing nothing else.
+
+`NfcReader.ts` exists because Metro resolves platform suffixes but TypeScript
+does not. It is what `./NfcReader` types against, which forces all three
+implementations to share one shape.
+
+Native errors are mapped to a platform-neutral `NfcFailureReason` union, so
+screen copy never branches on an iOS-specific error class.
+
+### Theme
+
+Branding is not final. `src/theme/index.ts` holds the raw palette privately and
+exposes semantic tokens (`textPrimary`, `dangerSurface`, `accent`). No screen
+hardcodes a hex value or font family, so rebranding is one file.
+
+## NFC notes
+
+`NfcReader.ios.ts` requests `[NfcTech.Ndef]` and nothing else, deliberately:
+
+- On iOS, `requestTechnology` always opens an `NFCTagReaderSession` (never an
+  `NFCNDEFReaderSession`), so the tag UID is returned even for tags carrying no
+  NDEF payload. Blank/unformatted tags still read.
+- `Ndef` is treated as a wildcard by the library's native tech filter, so it
+  connects to any detected tag type rather than requiring NDEF formatting.
+- Default polling is ISO14443 + ISO15693, which covers the NTAG213/215/216
+  stickers this product targets.
+
+**Do not add `NfcTech.FelicaIOS`.** It switches on ISO18092 polling, which iOS
+rejects unless the app also declares
+`com.apple.developer.nfc.readersession.felica.systemcodes` in Info.plist. While
+it was present, every scan failed instantly, with no scan sheet, an empty error
+message, no tag ever involved. Confirmed on device. FeliCa is a Japanese
+transit format with no use here; if it is ever genuinely needed, pass
+`systemCodes` to the config plugin in `app.json` first.
+
+UID arrives as a hex string on `tag.id` for MiFare/ISO7816/ISO15693 tags and on
+`tag.idm` for FeliCa; both are handled.
+
+The `react-native-nfc-manager` config plugin writes the
+`com.apple.developer.nfc.readersession.formats` entitlement (`NDEF`, `TAG`) and
+`NFCReaderUsageDescription`. Note the key has no `NS` prefix. Apple's key is
+`NFCReaderUsageDescription`. Verify after changes with:
+
+```sh
+npx expo config --type introspect
+```
+
+The entitlement requires the **NFC Tag Reading** capability on the App ID in the
+Apple Developer portal, or EAS credentials sync will fail the build.
+
+## AlarmKit notes
+
+`expo-alarm-kit` is pre-1.0 and third-party. It is confined to
+`AlarmScheduler.ios.ts` behind the `AlarmScheduler` interface precisely so it
+can be replaced without touching callers.
+
+Its README documents setup through Xcode, which does not apply here, because this is a
+CNG project with no `ios/` directory, so everything is expressed in `app.json`
+and generated at prebuild:
+
+| Requirement | Where it lives |
+|---|---|
+| iOS 26.1 deployment target | `ios.deploymentTarget` |
+| `NSAlarmKitUsageDescription` | `ios.infoPlist` |
+| App Group | `ios.entitlements` → `com.apple.security.application-groups` |
+
+**26.1, not 26.0.** The module's podspec declares `:ios => '26.1'`, so a 26.0
+target fails pod install.
+
+The App Group id in `app.json` must match `APP_GROUP_ID` in
+`src/alarms/types.ts` exactly. They are the shared container between the app
+and the AlarmKit dismiss intent; a mismatch makes `configure()` return false and
+every schedule fail.
+
+`launchAppOnDismiss: true` is the mechanism behind the product's core promise:
+the Lock Screen Stop button reopens MindKnowt rather than silently clearing the
+alarm. `dismissPayload` round-trips through `consumeLaunch()`, and is how a
+knowt id will survive the launch and select the Ringing screen.
+
+`consumeLaunch()` clears the payload natively on read, so it is called on mount
+*and* on every foreground transition, because the alarm can fire while the app is
+already running.
+
+## Database
+
+Schema is spec section 3 verbatim: `knowts`, `categories`, `schedules`,
+`events`, `app_meta`. `PRAGMA user_version` records the migration level; bump
+`SCHEMA_VERSION` when the DDL changes.
+
+`install_generation` is written as `pre_ads` on first launch with
+`INSERT OR IGNORE`, so it is created if absent and can never be overwritten
+afterwards, including by a reseed. Spec section 3 calls it impossible to
+retrofit, which is why it is written before any content exists. `first_launch_at`
+is stamped the same way. Both are visible on the Dev screen.
+
+Two different wipes, deliberately:
+
+| Function | Effect |
+|---|---|
+| `reseed()` | Clears content tables, re-inserts examples. **Leaves `app_meta` alone.** |
+| `destroyDatabase()` | Deletes the file. The next open is a genuine first launch. |
+
+The seed inserts the six shipped categories and five Open-mode knowts, using
+the spec's own note examples, so the screens are populated during testing.
+`seedIfEmpty()` runs at launch and does nothing once real knowts exist.
+
+`scheduling.ts` is pure logic with no device dependency, and is covered by
+assertions for every repeat type including `supply`, which counts backward from
+running out rather than forward on a fixed interval.
+
+## Navigation and deep linking
+
+React Navigation, native stack plus bottom tabs. Every route is addressable:
+
+```sh
+npx uri-scheme open "mindknowt://ringing/<knowtId>" --ios
+```
+
+**AlarmKit does not deliver a URL.** It relaunches the process and leaves a
+payload, so routing from an alarm is imperative, via `navigationRef`. The
+linking config exists so the Ringing screen can be exercised without waiting for
+a real alarm, and is what spec section 9's queued Shortcuts action will build on.
+
+`consumeLaunch()` clears the payload natively on read, so exactly one caller may
+invoke it. `App.tsx` owns that call and publishes the result through
+`src/alarms/launchStore.ts`; the router and the dev harness both subscribe
+rather than reading the native side again.
+
+## Ringing and the re-fire loop
+
+`src/ringing/useRingingSession.ts` owns one ringing session. An event row is
+created the moment the alarm fires, not when it completes, so a session that is
+snoozed or walked away from still leaves a record.
+
+| Mode | Buttons |
+|---|---|
+| Strict | Scan to stop · Snooze · Override, no dismiss |
+| Soft | Scan to stop · Snooze · Dismiss |
+| Open | Done · Snooze |
+
+**The note renders here in full and is editable in place.** Standing in front of
+the thing is when the detail matters and when you learn what is worth writing
+down, so the screen does not make you go elsewhere to record it. A separate
+per-event note is written to `events.note`.
+
+**Scanning compares against `knowts.tag_uid` and accepts nothing else.** A wrong
+tag says `That's not <name>. Scan the <name> tag.` and the alarm keeps ringing.
+
+**Override** is never hidden, because there must always be a way out. It requires both
+typing `override` and a ten-second press-and-hold; the hold control stays
+disabled until the typed word matches, so both conditions must genuinely be
+met. Logged as `method: override`.
+
+**Re-fire**: a session is unresolved until scanned, dismissed, snoozed or
+overridden. Backgrounding the app while unresolved schedules a fresh alarm at
+`refire_minutes` and keeps doing so, once per session.
+
+Two deliberate details in that logic:
+
+- Only `background` counts as walking away. iOS reports `inactive` while the
+  system NFC sheet is up, which is the opposite of abandoning the alarm.
+- Snoozing marks the session resolved without setting `completed_at`, so it does
+  not also queue a re-fire, and the event stays honestly incomplete.
+
+**Known gap:** force-quitting the app cannot re-fire, because nothing runs to
+observe it.
+
+### Missed
+
+Spec section 6 wants `missed` written at end of day. There is no background
+execution, so `sweepMissed()` runs at launch and back-fills any past due
+instance with no event, bounded to 14 days and marked by `last_missed_sweep`.
+The data is right; only the moment it is written differs.
+
+`setAppMeta` refuses to write `install_generation` or `first_launch_at` rather
+than trusting every caller to remember they are immutable.
+
+## Starter sets
+
+Content lives in `assets/starter-sets.json` and is loaded at runtime, so adding
+a set is a content edit with no code change. Spec section 4.2.
+
+`src/sets/parse.ts` validates every set at load and reports named errors:
+category not one of the six keys, a malformed time, an unknown repeat type,
+`days_of_week` without days, `leadDays` not less than `supplyDays`, duplicate
+set ids. The Dev screen lists whatever it finds, so a typo in content shows up
+as a content problem rather than a set that silently creates nothing.
+
+It imports `CATEGORY_KEYS` from `src/db/categoryKeys.ts` rather than the `db`
+barrel specifically so validation never pulls in the native SQLite stack and
+stays testable off-device. It is covered by assertions for each failure mode.
+
+Applying a set creates every chosen knowt in **Open** mode. Strict and Soft both
+require a tag and set knowts have none yet, so `suggestedMode` is stored in
+`knowts.suggested_mode` and applied by `attachTag` when a tag arrives. That is
+what makes "suggested" honest rather than a mode the app claims but cannot
+enforce.
+
+Schedules that count from a start date (`interval`, `supply`, `once`) anchor to
+the day the set is applied. Duplicate names are flagged against existing knowts
+and start unchecked, per spec section 6.
+
+### Times
+
+Stored as 24 hour `HH:MM`, which is unambiguous and sorts correctly. Displayed
+as am and pm by `formatTime`. Entry accepts either, through `parseTimeInput`,
+which reads "8:00 am", "7pm", "8" and "19:30" and returns the canonical form.
+Both are pure functions in `scheduling.ts` and are covered by assertions,
+including midnight and noon, which are the two that catch naive conversions.
+
+### Times are never guessed
+
+Set content carries a schedule's *shape* (label and repeat type) but no time.
+Applying a set asks for a time per schedule, and nothing is scheduled until one
+is given. A knowt whose time is left blank is still created; only its schedule
+is skipped, which is better than inventing a time nobody chose.
+
+`Add a knowt` follows the same rule: the time field starts empty and the step
+cannot be completed without a valid one.
+
+Content written against the earlier shape still loads. A `time` in the JSON is
+ignored and listed as a notice on the Dev screen, so it is never silently used
+or silently dropped.
+
+### Schema v3
+
+Adds `knowts.daily_target` and `knowts.target_unit`, for knowts completed
+several times a day rather than once. A null `daily_target` means an ordinary
+one-per-instance knowt, so no separate kind column is needed to tell them apart.
+
+Each migration is a new numbered step. Editing an existing step in place would
+do nothing on any device that has already run it.
+
+`migrate()` runs in a fixed order: tables, added columns, back-fills, indexes,
+version stamp. Indexes are last because `idx_categories_key` references a column
+migration 2 adds, and creating it earlier threw `no such column: key` on every
+device that predated it. A fresh database never hit this, which is why local
+checks passed while real upgrades failed. Column additions consult
+`PRAGMA table_info` first, so a half-applied upgrade can be run again.
+
+The upgrade paths are covered by assertions using `node:sqlite`, against
+databases built in the v1 and v2 shapes as well as a fresh one.
+
+### Schema v2
+
+`SCHEMA_VERSION` is 2. `MIGRATIONS` in `src/db/schema.ts` upgrades existing
+installs; a fresh database is built from `SCHEMA_SQL` directly and skips them,
+which is why `migrate()` returns early when `user_version` is 0, because the ALTER
+steps would otherwise fail on columns that already exist.
+
+| Column | Why |
+|---|---|
+| `categories.key` | Stable identifier for shipped categories. Set JSON references this, so renaming a category in the UI cannot break bundled content. |
+| `knowts.suggested_mode` | The mode a knowt takes when a tag is attached. |
+
+The migration back-fills `categories.key` from the display names, which are
+still the originals on any install that predates this change.

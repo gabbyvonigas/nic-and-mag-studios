@@ -1,0 +1,276 @@
+import type { ScheduleRow } from './types';
+
+/** 24-hour HH:MM, the only time format schedules accept. */
+export const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Sunday = 1, matching the spec's `days_of_week` encoding. */
+export function weekdayOf(date: Date): number {
+  return date.getDay() + 1;
+}
+
+export function toISODate(date: Date): string {
+  const y = date.getFullYear();
+  const m = `${date.getMonth() + 1}`.padStart(2, '0');
+  const d = `${date.getDate()}`.padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Whole days between an ISO date and a Date, compared by local calendar day.
+ * Spec section 6: schedules are wall-clock local, never absolute, so DST
+ * transitions must not shift a day boundary.
+ */
+function daysSince(startISO: string, date: Date): number {
+  const [y, m, d] = startISO.split('-').map(Number);
+  const start = Date.UTC(y, (m ?? 1) - 1, d ?? 1);
+  const now = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.round((now - start) / 86_400_000);
+}
+
+function parseDays(json: string | null): number[] {
+  if (!json) return [];
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed.filter((n) => typeof n === 'number') : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Whole calendar months between two local dates, ignoring the day. */
+function monthsSince(startISO: string, date: Date): number {
+  const [y, m] = startISO.split('-').map(Number);
+  return (date.getFullYear() - (y ?? 1970)) * 12 + (date.getMonth() - ((m ?? 1) - 1));
+}
+
+/**
+ * The day a monthly repeat lands on in a given month.
+ *
+ * A schedule anchored to the 31st has nowhere to land in February, so it falls
+ * back to the last day of the month. Without this, a monthly knowt set on the
+ * 31st would ring in seven months of the year and silently skip the other five.
+ */
+function clampDayOfMonth(year: number, month: number, day: number): number {
+  // Day 0 of the following month is the last day of this one.
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return Math.min(day, lastDay);
+}
+
+/** Whether a schedule produces an instance on the given local day. */
+export function isDueOn(schedule: ScheduleRow, date: Date): boolean {
+  if (!schedule.enabled) return false;
+
+  const weekday = weekdayOf(date);
+
+  switch (schedule.repeat_type) {
+    case 'daily':
+      return true;
+    case 'weekdays':
+      return weekday >= 2 && weekday <= 6;
+    case 'weekends':
+      return weekday === 1 || weekday === 7;
+    case 'days_of_week':
+      return parseDays(schedule.days_of_week).includes(weekday);
+    case 'interval': {
+      if (!schedule.start_date) return false;
+
+      // Months win when both are set. Counting months in days drifts: thirty
+      // days is not a month, and twelve of them is not a year.
+      const months = schedule.interval_months ?? 0;
+      if (months > 0) {
+        const elapsed = monthsSince(schedule.start_date, date);
+        if (elapsed < 0 || elapsed % months !== 0) return false;
+        const anchorDay = Number(schedule.start_date.split('-')[2] ?? 1);
+        return (
+          date.getDate() ===
+          clampDayOfMonth(date.getFullYear(), date.getMonth(), anchorDay)
+        );
+      }
+
+      const every = schedule.interval_days ?? 0;
+      if (every <= 0) return false;
+      const elapsed = daysSince(schedule.start_date, date);
+      return elapsed >= 0 && elapsed % every === 0;
+    }
+    case 'supply': {
+      // Counts backward from running out, not forward on a fixed interval.
+      const supply = schedule.supply_days ?? 0;
+      if (!schedule.start_date || supply <= 0) return false;
+      const lead = schedule.lead_days ?? 0;
+      return daysSince(schedule.start_date, date) === supply - lead;
+    }
+    case 'once':
+      return !!schedule.start_date && daysSince(schedule.start_date, date) === 0;
+    default:
+      return false;
+  }
+}
+
+/**
+ * "08:00" -> "8:00 am". Storage stays 24 hour because it is unambiguous and
+ * sorts correctly; only the display changes.
+ */
+export function formatTime(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  if (h === undefined || m === undefined || Number.isNaN(h) || Number.isNaN(m)) {
+    return hhmm;
+  }
+  const suffix = h < 12 ? 'am' : 'pm';
+  // 0 and 12 both display as 12: midnight and noon.
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return `${hour}:${`${m}`.padStart(2, '0')} ${suffix}`;
+}
+
+/**
+ * Accepts what a person actually types: "8:00 am", "8pm", "8", "20:00".
+ * Returns canonical "HH:MM", or null when it cannot be read confidently.
+ * A time with no suffix is read as 24 hour, so "20:00" and "8:00" both work.
+ */
+export function parseTimeInput(raw: string): string | null {
+  const text = raw.trim().toLowerCase().replace(/\s+/g, '');
+  const match = /^(\d{1,2})(?::(\d{2}))?(am|pm)?$/.exec(text);
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = match[2] === undefined ? 0 : Number(match[2]);
+  const suffix = match[3];
+
+  if (minute > 59) return null;
+
+  if (suffix) {
+    if (hour < 1 || hour > 12) return null;
+    if (suffix === 'am') hour = hour === 12 ? 0 : hour;
+    else hour = hour === 12 ? 12 : hour + 12;
+  } else if (hour > 23) {
+    return null;
+  }
+
+  return `${`${hour}`.padStart(2, '0')}:${`${minute}`.padStart(2, '0')}`;
+}
+
+/** "08:00" -> minutes past midnight, for ordering Today. */
+export function minutesOf(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
+
+export function describeRepeat(schedule: ScheduleRow): string {
+  switch (schedule.repeat_type) {
+    case 'daily':
+      return 'Every day';
+    case 'weekdays':
+      return 'Weekdays';
+    case 'weekends':
+      return 'Weekends';
+    case 'days_of_week': {
+      const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const days = parseDays(schedule.days_of_week).map((d) => names[d - 1] ?? '');
+      return days.length ? days.join(', ') : 'Some days';
+    }
+    case 'interval': {
+      const months = schedule.interval_months ?? 0;
+      if (months === 1) return 'Every month';
+      if (months === 12) return 'Every year';
+      if (months > 0) return `Every ${months} months`;
+
+      const days = schedule.interval_days ?? 0;
+      if (days === 1) return 'Every day';
+      if (days === 2) return 'Every other day';
+      if (days === 7) return 'Every week';
+      if (days === 14) return 'Every two weeks';
+      return `Every ${days} days`;
+    }
+    case 'supply':
+      return `${schedule.supply_days ?? 0} day supply`;
+    case 'once':
+      return 'Once';
+    default:
+      return '';
+  }
+}
+
+/**
+ * How far ahead `nextOccurrence` will look before giving up. An interval of a
+ * year still resolves; a schedule that can never fire again returns null
+ * rather than spinning.
+ */
+const HORIZON_DAYS = 400;
+
+function hoursMinutes(time: string): { hour: number; minute: number } | null {
+  if (!TIME_PATTERN.test(time)) return null;
+  const [h, m] = time.split(':').map(Number);
+  if (h === undefined || m === undefined) return null;
+  return { hour: h, minute: m };
+}
+
+/**
+ * The next moment this schedule rings, or null if it never will again.
+ *
+ * Walks forward a day at a time rather than doing calendar arithmetic per
+ * repeat type, so `isDueOn` stays the single definition of when a schedule is
+ * due and the two cannot drift apart. Today counts only if its time has not
+ * already passed.
+ *
+ * Built from local calendar days on purpose. Spec section 6: a schedule is a
+ * wall-clock time, so an 8:00 am alarm stays at 8:00 am across a DST change
+ * rather than sliding by an hour.
+ */
+export function nextOccurrence(
+  schedule: ScheduleRow,
+  now = new Date(),
+): Date | null {
+  if (!schedule.enabled) return null;
+  const hm = hoursMinutes(schedule.time);
+  if (!hm) return null;
+
+  for (let offset = 0; offset <= HORIZON_DAYS; offset += 1) {
+    const day = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + offset,
+    );
+    if (!isDueOn(schedule, day)) continue;
+
+    const at = new Date(
+      day.getFullYear(),
+      day.getMonth(),
+      day.getDate(),
+      hm.hour,
+      hm.minute,
+      0,
+      0,
+    );
+    if (at.getTime() > now.getTime()) return at;
+  }
+
+  return null;
+}
+
+/**
+ * The weekdays a schedule repeats on, Sunday = 1, or null when it does not
+ * repeat weekly.
+ *
+ * Weekly repeats can be handed to the system as one durable recurring alarm.
+ * Everything else (an interval, a supply countdown, a one-off) has to be armed
+ * one occurrence at a time, so returning null is how the caller tells them
+ * apart.
+ */
+export function weeklyDaysFor(schedule: ScheduleRow): number[] | null {
+  switch (schedule.repeat_type) {
+    case 'daily':
+      return [1, 2, 3, 4, 5, 6, 7];
+    case 'weekdays':
+      return [2, 3, 4, 5, 6];
+    case 'weekends':
+      return [1, 7];
+    case 'days_of_week': {
+      const days = parseDays(schedule.days_of_week)
+        .filter((d) => d >= 1 && d <= 7)
+        .sort((a, b) => a - b);
+      // An empty set is not a weekly repeat, it is a schedule that never fires.
+      return days.length > 0 ? Array.from(new Set(days)) : null;
+    }
+    default:
+      return null;
+  }
+}
