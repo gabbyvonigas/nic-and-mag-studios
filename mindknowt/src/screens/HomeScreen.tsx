@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -20,12 +20,14 @@ import {
   describeRepeat,
   formatTime,
   listDashboard,
+  listSnoozed,
   listUpcoming,
   listWeekMarks,
   logCompletion,
   toISODate,
   type DashboardCard,
   type DayMark,
+  type SnoozedEntry,
   type UpcomingEntry,
 } from '../db';
 import { useQuery } from '../db/useQuery';
@@ -35,6 +37,7 @@ import {
   showUpcoming,
   stanceFor,
 } from '../knowts/dayProgress';
+import { showSnoozed, snoozeCountdown } from '../knowts/snoozed';
 import { midnight, offsetInDays, shiftWeeks } from '../knowts/weekStrip';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 import { isClaimConfigured } from '../tags/claim';
@@ -201,6 +204,56 @@ function DateStrip({
 }
 
 /**
+ * What is snoozed right now.
+ *
+ * Directly under the strip, because a snoozed knowt has left the list below
+ * and this is the only thing on the screen that says where it went. It is
+ * absent rather than empty when nothing is snoozed, and it is only on today:
+ * the countdown is against the clock, not against the day being read.
+ */
+function SnoozedSection({
+  entries,
+  onOpen,
+}: {
+  entries: SnoozedEntry[];
+  onOpen: (knowtId: string) => void;
+}) {
+  return (
+    <View style={styles.snoozed}>
+      <Text style={styles.snoozedTitle}>
+        Snoozed{entries.length > 1 ? ` (${entries.length})` : ''}
+      </Text>
+      {entries.map((entry) => {
+        const shades = categoryShades(entry.knowt.category);
+        return (
+          <Pressable
+            key={entry.knowt.id}
+            accessibilityRole="button"
+            accessibilityLabel={`${entry.knowt.name}, ${snoozeCountdown(entry.minutesLeft)}`}
+            onPress={() => onOpen(entry.knowt.id)}
+            style={({ pressed }) => [
+              styles.snoozedRow,
+              pressed && styles.pressed,
+            ]}>
+            <CategoryIcon
+              icon={entry.knowt.category?.icon}
+              shades={shades}
+              size={24}
+            />
+            <Text numberOfLines={1} style={styles.snoozedName}>
+              {entry.knowt.name}
+            </Text>
+            <Text style={styles.snoozedWhen}>
+              {snoozeCountdown(entry.minutesLeft)}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/**
  * What is next, once today is finished.
  *
  * Only appears when there is nothing left to do, so the screen has something
@@ -289,6 +342,26 @@ export function HomeScreen() {
     () => listUpcoming(),
     [],
   );
+
+  // A countdown that only moves when the screen is reopened is a countdown
+  // that is wrong most of the time it is being looked at. Half a minute is
+  // fine: the label is in whole minutes, so anything finer would redraw the
+  // same text.
+  const [tick, setTick] = useState(0);
+  const { data: snoozed, reload: reloadSnoozed } = useQuery(
+    () => listSnoozed(),
+    [tick],
+  );
+  const snoozedEntries = snoozed ?? [];
+  const snoozedOn = showSnoozed({ count: snoozedEntries.length, stance });
+
+  useEffect(() => {
+    // Only while the section is on screen. A timer running behind Knowts and
+    // Log would wake the database every half minute for nobody.
+    if (!snoozedOn) return;
+    const timer = setInterval(() => setTick((value) => value + 1), 30_000);
+    return () => clearInterval(timer);
+  }, [snoozedOn]);
   const [upcomingOpen, setUpcomingOpen] = useState(true);
 
   useFocusEffect(
@@ -296,7 +369,8 @@ export function HomeScreen() {
       void reload();
       void reloadMarks();
       void reloadUpcoming();
-    }, [reload, reloadMarks, reloadUpcoming]),
+      void reloadSnoozed();
+    }, [reload, reloadMarks, reloadUpcoming, reloadSnoozed]),
   );
 
   // The free tags are offered once, on the first Daily screen someone sees.
@@ -322,6 +396,7 @@ export function HomeScreen() {
     await reload();
     await reloadMarks();
     await reloadUpcoming();
+    await reloadSnoozed();
   };
 
   const openKnowt = (knowtId: string) =>
@@ -361,6 +436,10 @@ export function HomeScreen() {
           setSelected((current) => shiftWeeks(current, delta))
         }
       />
+
+      {snoozedOn ? (
+        <SnoozedSection entries={snoozedEntries} onOpen={openKnowt} />
+      ) : null}
 
       {loading ? (
         <ActivityIndicator color={theme.color.textSecondary} />
@@ -532,6 +611,38 @@ const styles = StyleSheet.create({
     color: theme.color.textSecondary,
   },
 
+  snoozed: {
+    marginHorizontal: theme.spacing.xl,
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.color.surface,
+    gap: theme.spacing.xs,
+  },
+  snoozedTitle: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  snoozedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingVertical: 5,
+  },
+  snoozedName: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
+  snoozedWhen: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
   upcoming: { marginTop: theme.spacing.lg, gap: theme.spacing.xs },
   upcomingHead: {
     flexDirection: 'row',

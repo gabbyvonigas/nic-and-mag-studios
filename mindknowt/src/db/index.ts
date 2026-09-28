@@ -18,12 +18,14 @@ export {
 export {
   listCategoryGroups,
   listDashboard,
+  listSnoozed,
   listUpcoming,
   listWeekMarks,
   type CategoryGroup,
   type Dashboard,
   type DashboardCard,
   type DayMark,
+  type SnoozedEntry,
   type UpcomingEntry,
   type DashboardSection,
 } from './dashboard';

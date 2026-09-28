@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { ACTION_WIDTH, dragTo, isHorizontal, settleTo } from './swipeGeometry';
 import { theme } from '../theme';
 
 /**
@@ -19,17 +20,23 @@ import { theme } from '../theme';
  * gesture with the same feel and costs nothing.
  *
  * The row is only allowed to move left, and only as far as the button is wide.
- * Past halfway it settles open, otherwise it springs shut, so a half-hearted
- * swipe never leaves the row in a state nobody asked for.
+ * The thresholds are in `swipeGeometry.ts` so they can be asserted.
+ *
+ * `spacing` is the gap below the row, and it belongs to this wrapper rather
+ * than to the row inside it. That is not a style preference. The Delete button
+ * is absolutely positioned to fill this wrapper, so a margin on the child made
+ * the wrapper taller than the row it was measuring against, and the button
+ * poked out below every row: a pale pink rounded rectangle sitting under a
+ * pale pink row, which read as each row being drawn twice.
  */
-const ACTION_WIDTH = 96;
-const OPEN_AT = ACTION_WIDTH / 2;
-
 export function SwipeToDelete({
   onDelete,
+  spacing = 0,
   children,
 }: {
   onDelete: () => void;
+  /** Gap below the row. Owned here; the child must carry no vertical margin. */
+  spacing?: number;
   children: React.ReactNode;
 }) {
   const slide = useRef(new Animated.Value(0)).current;
@@ -49,23 +56,19 @@ export function SwipeToDelete({
     PanResponder.create({
       // Horizontal intent only, so the list still scrolls vertically through it.
       onMoveShouldSetPanResponder: (_evt, gesture) =>
-        Math.abs(gesture.dx) > 8 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+        isHorizontal(gesture.dx, gesture.dy),
       onPanResponderMove: (_evt, gesture) => {
-        const base = openRef.current ? -ACTION_WIDTH : 0;
-        const next = Math.min(0, Math.max(-ACTION_WIDTH, base + gesture.dx));
-        slide.setValue(next);
+        slide.setValue(dragTo(openRef.current, gesture.dx));
       },
       onPanResponderRelease: (_evt, gesture) => {
-        const base = openRef.current ? -ACTION_WIDTH : 0;
-        const next = base + gesture.dx;
-        settle(next < -OPEN_AT ? -ACTION_WIDTH : 0);
+        settle(settleTo(openRef.current, gesture.dx));
       },
       onPanResponderTerminate: () => settle(0),
     }),
   ).current;
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { marginBottom: spacing }]}>
       <View style={styles.actionLayer} pointerEvents="box-none">
         <Pressable
           accessibilityRole="button"
@@ -89,7 +92,13 @@ export function SwipeToDelete({
 }
 
 const styles = StyleSheet.create({
-  wrap: { justifyContent: 'center' },
+  // Clipped, so the button can only ever be seen through the gap the row
+  // leaves as it slides. The radius matches the row's.
+  wrap: {
+    justifyContent: 'center',
+    borderRadius: theme.radius.lg,
+    overflow: 'hidden',
+  },
   actionLayer: {
     position: 'absolute',
     top: 0,
@@ -104,7 +113,7 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: theme.radius.xl,
+    borderRadius: theme.radius.lg,
     backgroundColor: theme.color.dangerSurface,
     borderWidth: 1,
     borderColor: theme.color.dangerBorder,

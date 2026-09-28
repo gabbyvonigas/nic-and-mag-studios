@@ -31,6 +31,28 @@ reasoning about what the library probably does:
 - `expo-alarm-kit` returns `"authorized"` immediately without prompting when
   permission already exists, which is what makes a mount-time read safe.
 
+A third example, found the same way: a vertical `ScrollView` carries
+`flexGrow: 1, flexShrink: 1` in its own `baseVertical` style, and
+`ScrollView.js` applies it with `StyleSheet.compose(baseStyle, props.style)`.
+A caller's `style` only wins for properties it actually sets, so `width: 72` on
+a column became a flex basis and every column stretched to fill its row. The
+time picker's three wheels ended up 116pt apart and stopped reading as a single
+time. Pin `flexGrow: 0` and `flexShrink: 0` whenever a ScrollView needs a fixed
+size in a flex row.
+
+## An absolutely positioned layer measures its parent, not its sibling
+
+`SwipeToDelete` fills its wrapper with the Delete button and slides the row
+over it. The row carried `marginBottom`, which is inside the wrapper, so the
+wrapper was taller than the row and the button stuck out below every one of
+them: a pale pink rounded rectangle under a pale pink row, reported as each
+row rendering twice.
+
+Spacing between rows belongs to whatever owns the absolute layer, never to the
+child inside it. When a "duplicate" or "shadow" appears under a row, look for a
+sibling layer sized to a parent that is taller than it looks, before reaching
+for `shadowOpacity`.
+
 ## When a report contradicts your explanation, the explanation is wrong
 
 Do not explain a symptom away. Do not call something cosmetic before reading

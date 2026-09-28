@@ -8,6 +8,16 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 
+import {
+  COMPACT,
+  FULL,
+  indexFromOffset,
+  partsOf,
+  timeFrom,
+  wheelPadding,
+  wheelWidth,
+  type WheelSize,
+} from './timeWheelLayout';
 import { theme } from '../theme';
 
 /**
@@ -21,30 +31,20 @@ import { theme } from '../theme';
  * Typing a time into a text field was the previous approach, and it was the
  * single worst thing about editing a knowt.
  *
+ * The measurements are in `timeWheelLayout.ts` so they can be asserted. Read
+ * the note there before changing `flexGrow` on a column: a vertical ScrollView
+ * brings its own `flexGrow: 1`, and that is what spread the three wheels across
+ * the whole screen and stopped the selected time reading as one value.
+ *
  * `compact` is the same wheel at two thirds the size, for places where a time
  * is one field among many rather than the subject of the screen. It is the
  * same control deliberately: a preset that asked for a typed time while the
  * editor offered a wheel taught two different ways to say the same thing.
  */
 
-type Size = {
-  itemHeight: number;
-  /** Odd, so one row sits centered with equal space above and below. */
-  rows: number;
-  columnWidth: number;
-  fontSize: number;
-};
-
-const FULL: Size = { itemHeight: 44, rows: 5, columnWidth: 72, fontSize: theme.font.size.xl };
-const COMPACT: Size = { itemHeight: 32, rows: 3, columnWidth: 52, fontSize: theme.font.size.md };
-
 const HOURS = Array.from({ length: 12 }, (_, i) => `${i + 1}`);
 const MINUTES = Array.from({ length: 60 }, (_, i) => `${i}`.padStart(2, '0'));
 const MERIDIEMS = ['am', 'pm'];
-
-function padFor(size: Size): number {
-  return ((size.rows - 1) / 2) * size.itemHeight;
-}
 
 function Column({
   values,
@@ -52,27 +52,35 @@ function Column({
   onIndexChange,
   label,
   size,
+  width,
 }: {
   values: string[];
   index: number;
   onIndexChange: (next: number) => void;
   label: string;
-  size: Size;
+  size: WheelSize;
+  width: number;
 }) {
   const ref = useRef<ScrollView>(null);
 
   const settle = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const next = Math.round(event.nativeEvent.contentOffset.y / size.itemHeight);
-    const clamped = Math.max(0, Math.min(values.length - 1, next));
-    if (clamped !== index) onIndexChange(clamped);
+    const next = indexFromOffset(
+      event.nativeEvent.contentOffset.y,
+      size,
+      values.length,
+    );
+    if (next !== index) onIndexChange(next);
   };
 
   return (
     <ScrollView
       ref={ref}
       accessibilityLabel={label}
-      style={{ width: size.columnWidth }}
-      contentContainerStyle={{ paddingVertical: padFor(size) }}
+      // flexGrow and flexShrink are pinned on purpose. ScrollView composes its
+      // own base style underneath this one, and that base sets both to 1, so a
+      // width alone is only a flex basis and every column stretches.
+      style={{ width, flexGrow: 0, flexShrink: 0 }}
+      contentContainerStyle={{ paddingVertical: wheelPadding(size) }}
       showsVerticalScrollIndicator={false}
       snapToInterval={size.itemHeight}
       decelerationRate="fast"
@@ -84,9 +92,7 @@ function Column({
       // without this the value would silently fail to change.
       onScrollEndDrag={settle}>
       {values.map((value, i) => (
-        <View
-          key={value}
-          style={[styles.item, { height: size.itemHeight }]}>
+        <View key={value} style={[styles.item, { height: size.itemHeight }]}>
           <Text
             style={[
               styles.itemText,
@@ -112,26 +118,28 @@ export function TimeWheel({
   compact?: boolean;
 }) {
   const size = compact ? COMPACT : FULL;
-  const parts = value.split(':').map(Number);
-  const rawHour = Number.isFinite(parts[0]) ? (parts[0] as number) : 8;
-  const minute = Number.isFinite(parts[1]) ? (parts[1] as number) : 0;
+  const { hour12, minute, isPm } = partsOf(value);
 
-  const isPm = rawHour >= 12;
-  const hour12 = rawHour % 12 === 0 ? 12 : rawHour % 12;
-
-  const emit = (h12: number, m: number, pm: boolean) => {
-    // 12 am is midnight and 12 pm is noon, which is the one case where the
-    // obvious arithmetic is wrong.
-    const hour24 = pm ? (h12 === 12 ? 12 : h12 + 12) : h12 === 12 ? 0 : h12;
-    onChange(`${`${hour24}`.padStart(2, '0')}:${`${m}`.padStart(2, '0')}`);
-  };
+  const emit = (next: {
+    hour12?: number;
+    minute?: number;
+    isPm?: boolean;
+  }) =>
+    onChange(timeFrom({ hour12, minute, isPm, ...next }));
 
   return (
-    <View style={[styles.wheel, { height: size.itemHeight * size.rows }]}>
+    <View
+      style={[
+        styles.wheel,
+        { height: size.itemHeight * size.rows, width: wheelWidth(size) },
+      ]}>
+      {/* The selection band spans the control, not the page. It sat at
+          left: 0, right: 0 of a full width parent, which drew a bar across the
+          whole screen behind three wheels that were nowhere near each other. */}
       <View
         style={[
           styles.highlight,
-          { top: padFor(size), height: size.itemHeight },
+          { top: wheelPadding(size), height: size.itemHeight },
         ]}
         pointerEvents="none"
       />
@@ -139,23 +147,33 @@ export function TimeWheel({
         <Column
           label="Hour"
           size={size}
+          width={size.hourWidth}
           values={HOURS}
           index={hour12 - 1}
-          onIndexChange={(i) => emit(i + 1, minute, isPm)}
+          onIndexChange={(i) => emit({ hour12: i + 1 })}
         />
+        {/* Not a column. It is the thing that makes the three wheels read as
+            one time rather than three numbers. */}
+        <View style={[styles.separator, { width: size.separatorWidth }]}>
+          <Text style={[styles.separatorText, { fontSize: size.fontSize }]}>
+            :
+          </Text>
+        </View>
         <Column
           label="Minute"
           size={size}
+          width={size.minuteWidth}
           values={MINUTES}
           index={minute}
-          onIndexChange={(i) => emit(hour12, i, isPm)}
+          onIndexChange={(i) => emit({ minute: i })}
         />
         <Column
           label="Morning or afternoon"
           size={size}
+          width={size.meridiemWidth}
           values={MERIDIEMS}
           index={isPm ? 1 : 0}
-          onIndexChange={(i) => emit(hour12, minute, i === 1)}
+          onIndexChange={(i) => emit({ isPm: i === 1 })}
         />
       </View>
     </View>
@@ -163,8 +181,8 @@ export function TimeWheel({
 }
 
 const styles = StyleSheet.create({
-  wheel: { justifyContent: 'center' },
-  columns: { flexDirection: 'row', justifyContent: 'center' },
+  wheel: { justifyContent: 'center', alignSelf: 'center' },
+  columns: { flexDirection: 'row' },
   highlight: {
     position: 'absolute',
     left: 0,
@@ -178,6 +196,13 @@ const styles = StyleSheet.create({
     color: theme.color.textMuted,
   },
   itemTextOn: {
+    fontFamily: theme.font.face.medium,
+    color: theme.color.textPrimary,
+  },
+  // Centered on the control, which is the selected row, because the wheel is
+  // an odd number of rows tall.
+  separator: { alignItems: 'center', justifyContent: 'center' },
+  separatorText: {
     fontFamily: theme.font.face.medium,
     color: theme.color.textPrimary,
   },

@@ -230,7 +230,10 @@ function CategorySection({
 
       {expanded
         ? knowts.map((knowt) => (
-            <SwipeToDelete key={knowt.id} onDelete={() => onDelete(knowt)}>
+            <SwipeToDelete
+              key={knowt.id}
+              spacing={theme.spacing.sm}
+              onDelete={() => onDelete(knowt)}>
               <KnowtRow
                 knowt={knowt}
                 shades={shades}
@@ -638,7 +641,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
+    // No vertical margin. The gap below a row belongs to SwipeToDelete, which
+    // measures its Delete button against this row's height; see the note there.
     paddingHorizontal: theme.spacing.sm,
     borderRadius: theme.radius.lg,
   },

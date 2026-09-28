@@ -2,6 +2,9 @@ import { getDatabase } from './database';
 import { listKnowts } from './knowts';
 import { listPendingAlarms } from './pendingAlarms';
 import { isDueOn, minutesOf, nextOccurrence, toISODate } from './scheduling';
+import { buildSnoozed, type SnoozedEntry } from '../knowts/snoozed';
+
+export type { SnoozedEntry };
 import { weekOf } from '../knowts/weekStrip';
 import { categoryShades } from '../theme/categoryColors';
 import type {
@@ -234,6 +237,23 @@ export async function listWeekMarks(anchor = new Date()): Promise<DayMark[]> {
 }
 
 /** One knowt coming up, with when it next fires. */
+/**
+ * What is snoozed at this moment, for the section under Daily's week strip.
+ *
+ * Reads every pending snooze rather than the ones for a given day: a snooze
+ * taken at 11:55pm comes due tomorrow but is snoozed right now, and right now
+ * is the only thing that section is about.
+ */
+export async function listSnoozed(now = new Date()): Promise<SnoozedEntry[]> {
+  // Every pending alarm, narrowed to snoozes by `buildSnoozed`, which is
+  // where that rule is tested.
+  const [alarms, knowts] = await Promise.all([
+    listPendingAlarms(now.getTime()),
+    listKnowts(),
+  ]);
+  return buildSnoozed({ alarms, knowts, now: now.getTime() });
+}
+
 export type UpcomingEntry = {
   knowt: KnowtWithDetail;
   schedule: ScheduleRow;

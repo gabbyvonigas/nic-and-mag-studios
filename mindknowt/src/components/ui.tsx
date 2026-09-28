@@ -1,42 +1,41 @@
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ViewStyle,
+} from 'react-native';
 
-import { CheckIcon, ChevronLeft, GearIcon } from './icons';
+import { ChevronLeft, GearIcon } from './icons';
 import { theme } from '../theme';
 
 /**
- * The stacked wordmark, drawn.
+ * The wordmark, as the supplied artwork.
  *
- * Two lines in the app's own rounded face with the lime check sitting over the
- * "i", which is what the supplied artwork does. Drawn rather than loaded
- * because the artwork is a webp and iOS will not decode one through the
- * standard Image, and because a drawn mark stays crisp at any size.
+ * This was drawn in code for a while, because the brand folder held only webp
+ * and iOS will not decode one through the standard Image. The file is a PNG
+ * now, so the real artwork is what ships: no approximation of the check over
+ * the "i", and no drift from the logo everything else uses.
+ *
+ * Sized by height. The width follows the artwork's own aspect ratio rather
+ * than a second number that could disagree with it.
  */
-export function Wordmark({ size = 20 }: { size?: number }) {
-  const dot = Math.round(size * 0.46);
+const WORDMARK = require('../../assets/brand/wordmark.png');
 
+/** The artwork's own proportions, from the file's pixel dimensions. */
+const WORDMARK_ASPECT = 1352 / 769;
+
+export function Wordmark({ height = 44 }: { height?: number }) {
   return (
-    <View accessible accessibilityLabel="MindKnowt" style={styles.wordmark}>
-      <View>
-        <Text style={[styles.wordmarkLine, { fontSize: size }]}>mind</Text>
-        {/* Over the dot of the i, which is why it is positioned rather than
-            placed in the flow. */}
-        <View
-          style={[
-            styles.wordmarkDot,
-            {
-              width: dot,
-              height: dot,
-              borderRadius: dot / 2,
-              left: size * 0.63,
-              top: -dot * 0.34,
-            },
-          ]}>
-          <CheckIcon size={Math.round(dot * 0.7)} thickness={1.8} />
-        </View>
-      </View>
-      <Text style={[styles.wordmarkLine, { fontSize: size }]}>knowt</Text>
-    </View>
+    <Image
+      accessible
+      accessibilityLabel="MindKnowt"
+      source={WORDMARK}
+      resizeMode="contain"
+      style={{ height, width: height * WORDMARK_ASPECT }}
+    />
   );
 }
 
@@ -232,19 +231,6 @@ export function Pill({ label, color }: { label: string; color?: string }) {
 
 const styles = StyleSheet.create({
   header: { gap: theme.spacing.xs, marginBottom: theme.spacing.lg },
-  wordmark: { gap: -2 },
-  wordmarkLine: {
-    fontFamily: theme.font.face.medium,
-    color: theme.color.textPrimary,
-    letterSpacing: -0.6,
-    lineHeight: undefined,
-  },
-  wordmarkDot: {
-    position: 'absolute',
-    backgroundColor: theme.color.highlight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   tabHeader: {
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.lg,
