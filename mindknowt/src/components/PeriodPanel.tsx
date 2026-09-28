@@ -9,6 +9,7 @@ import type {
   SparkMetric,
 } from '../history/period';
 import { sparkFor } from '../history/period';
+import { trendTone } from '../history/trendTone';
 import { durationLabel, hourRange } from '../history/periodLabels';
 import { shadesFromHex, theme } from '../theme';
 
@@ -139,10 +140,16 @@ function StatTile({
   return (
     <View style={[styles.tile, { backgroundColor: tint }]}>
       <Text style={[styles.tileValue, { color: ink }]}>{value}</Text>
-      <Text style={styles.tileLabel}>{label}</Text>
+      <Text numberOfLines={1} style={styles.tileLabel}>
+        {label}
+      </Text>
+      {/* Change at the left, sparkline at the right, on one line, as the
+          reference has it. */}
       <View style={styles.tileFoot}>
         <Change value={change} color={ink} />
-        <Sparkline values={spark} color={ink} />
+        <View style={styles.tileSpark}>
+          <Sparkline values={spark} color={ink} />
+        </View>
       </View>
     </View>
   );
@@ -166,25 +173,25 @@ function Trend({ summary }: { summary: PeriodSummary }) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>Completed</Text>
+      <Text numberOfLines={1} style={styles.cardTitle}>
+        Completion trend
+      </Text>
       <View style={styles.trend}>
         {bars.map((bucket, index) => (
           <View key={`${bucket.label}:${index}`} style={styles.trendCell}>
-            <Text style={styles.trendValue}>
-              {bucket.completions > 0 ? bucket.completions : ''}
-            </Text>
             <View style={styles.trendTrack}>
               <View
                 style={[
                   styles.trendBar,
                   {
                     height: `${Math.max(4, (bucket.completions / peak) * 100)}%`,
-                    // Lime throughout, with today darker rather than a
-                    // different color, so the accent is the chart and not a
-                    // judgment about which day was a good one.
-                    backgroundColor: bucket.current
-                      ? theme.color.primary
-                      : theme.color.highlight,
+                    // Color marks which day is today and nothing else. The
+                    // height already says how much got done, and coloring the
+                    // tallest bar would turn the chart into a scoreboard.
+                    backgroundColor:
+                      trendTone(bucket) === 'today'
+                        ? theme.color.highlight
+                        : theme.color.graphMuted,
                   },
                 ]}
               />
@@ -224,22 +231,28 @@ export function PeriodPanel({
   previous,
   insight,
   onAdjustTime,
+  onOpenCategory,
 }: {
   summary: PeriodSummary;
   /** The period before this one. Null while it is still loading. */
   previous: PeriodDelta | null;
   insight: Insight | null;
   onAdjustTime: (knowtId: string) => void;
+  /** Opens Knowts filtered to that category, so the chevron leads somewhere. */
+  onOpenCategory: (categoryId: string) => void;
 }) {
   const spark = (metric: SparkMetric) => sparkFor(summary, metric);
-  const top = summary.byCategory[0]?.completions ?? 1;
+  // The uncategorized tally is kept in the data and left off the list. It has
+  // no icon, no color and no category to open, so its row was a gray strip
+  // that looked like a rendering fault rather than a category.
+  const named = summary.byCategory.filter((tally) => tally.categoryId !== null);
 
   return (
     <View style={styles.panel}>
       <View style={styles.tiles}>
         <StatTile
           value={`${summary.completions}`}
-          label="completed"
+          label="knowts completed"
           tint={theme.color.tileMint}
           ink={theme.color.tileMintInk}
           change={previous?.completions ?? null}
@@ -249,7 +262,7 @@ export function PeriodPanel({
           value={
             summary.rate === null ? '-' : `${Math.round(summary.rate * 100)}%`
           }
-          label="of what came up"
+          label="completion rate"
           tint={theme.color.tileLavender}
           ink={theme.color.tileLavenderInk}
           change={previous?.rate ?? null}
@@ -258,8 +271,8 @@ export function PeriodPanel({
         <StatTile
           value={`${summary.overrides}`}
           label="overridden"
-          tint={theme.color.tilePeach}
-          ink={theme.color.tilePeachInk}
+          tint={theme.color.tilePink}
+          ink={theme.color.tilePinkInk}
           change={previous?.overrides ?? null}
           spark={spark('overrides')}
         />
@@ -292,14 +305,25 @@ export function PeriodPanel({
         />
       </View>
 
-      {summary.byCategory.length > 0 ? (
+      {named.length > 0 ? (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>By category</Text>
-          {summary.byCategory.map((tally) => {
+          <Text numberOfLines={1} style={styles.cardTitle}>
+            Completion by category
+          </Text>
+          {named.map((tally) => {
             const shades = shadesFromHex(tally.color);
+            const rate = tally.total === 0 ? 0 : tally.completions / tally.total;
             return (
-              <View key={tally.categoryId ?? 'none'} style={styles.catRow}>
-                <CategoryIcon icon={tally.icon} shades={shades} size={26} />
+              <Pressable
+                key={tally.categoryId}
+                accessibilityRole="button"
+                accessibilityLabel={`${tally.name}, ${Math.round(rate * 100)} percent`}
+                onPress={() => onOpenCategory(tally.categoryId as string)}
+                style={({ pressed }) => [
+                  styles.catRow,
+                  pressed && styles.catRowPressed,
+                ]}>
+                <CategoryIcon icon={tally.icon} shades={shades} size={CAT_ICON} />
                 <Text numberOfLines={1} style={styles.catName}>
                   {tally.name}
                 </Text>
@@ -308,14 +332,15 @@ export function PeriodPanel({
                     style={[
                       styles.catFill,
                       {
-                        width: `${Math.max(4, (tally.completions / Math.max(1, top)) * 100)}%`,
+                        width: `${Math.max(4, rate * 100)}%`,
                         backgroundColor: tally.color,
                       },
                     ]}
                   />
                 </View>
-                <Text style={styles.catCount}>{tally.completions}</Text>
-              </View>
+                <Text style={styles.catCount}>{Math.round(rate * 100)}%</Text>
+                <Text style={styles.catChevron}>{'\u203A'}</Text>
+              </Pressable>
             );
           })}
         </View>
@@ -340,6 +365,7 @@ export function PeriodPanel({
   );
 }
 
+const CAT_ICON = 28;
 const SPARK_HEIGHT = 18;
 /** Enough to show a shape, few enough that each bar is wider than its gap. */
 const SPARK_BARS = 9;
@@ -387,7 +413,13 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     color: theme.color.textSecondary,
   },
-  tileFoot: { marginTop: theme.spacing.sm, gap: 4 },
+  tileFoot: {
+    marginTop: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: theme.spacing.xs,
+  },
+  tileSpark: { flex: 1, alignItems: 'flex-end' },
   change: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.xs,
@@ -400,7 +432,7 @@ const styles = StyleSheet.create({
   },
   // Square ends, equal widths, full strength. Rounded caps and a fade read as
   // a drawing of a chart rather than as a chart.
-  sparkBar: { flex: 1, borderRadius: 0 },
+  sparkBar: { flex: 1, borderRadius: 1.5 },
 
   card: {
     backgroundColor: theme.color.surface,
@@ -416,15 +448,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
 
-  trend: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 112 },
+  trend: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 96 },
   trendCell: { flex: 1, alignItems: 'center', gap: 4 },
-  trendValue: {
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.xs,
-    color: theme.color.textMuted,
-  },
   trendTrack: { height: 64, width: '100%', justifyContent: 'flex-end' },
-  trendBar: { width: '100%', borderRadius: 3, minHeight: 3 },
+  // A touch of radius, solid fill. Square ends read as a bar code and fully
+  // rounded ones as a drawing; this is a chart.
+  trendBar: { width: '100%', borderRadius: 5, minHeight: 6 },
   trendLabel: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.xs,
@@ -449,9 +478,17 @@ const styles = StyleSheet.create({
     color: theme.color.textMuted,
   },
 
-  catRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+  catRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    // Fixed, so every row is the same height whatever its icon draws.
+    height: 40,
+  },
+  catRowPressed: { opacity: 0.6 },
   catName: {
-    width: 78,
+    // Fixed width, so every bar starts at the same x however long the name is.
+    width: 74,
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
     color: theme.color.textPrimary,
@@ -464,8 +501,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   catFill: { height: 6, borderRadius: 3 },
+  catChevron: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.lg,
+    color: theme.color.textMuted,
+  },
   catCount: {
-    minWidth: 20,
+    // Wide enough for "100%", so the chevrons line up down the column.
+    width: 38,
     textAlign: 'right',
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,

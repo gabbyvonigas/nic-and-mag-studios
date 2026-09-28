@@ -1,5 +1,10 @@
 import { useCallback, useState } from 'react';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
@@ -17,6 +22,12 @@ import { CategoryIcon } from '../components/CategoryIcon';
 import { ExpandSign, NfcIcon, PinIcon } from '../components/icons';
 import { EmptyState, TabHeader } from '../components/ui';
 import { SwipeToDelete } from '../components/SwipeToDelete';
+import {
+  applyFilter,
+  filterLabel,
+  sameFilter,
+  type KnowtFilter,
+} from '../knowts/knowtFilter';
 import { askToDelete, askToPurge, sayTagFreed } from '../knowts/deletePrompt';
 import {
   deleteKnowt,
@@ -37,9 +48,18 @@ import {
 } from '../db';
 import { useQuery } from '../db/useQuery';
 import { categoryShades, theme, type CategoryShades } from '../theme';
-import type { RootStackParamList } from '../navigation/types';
+import type { RootStackParamList, TabParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type KnowtsRoute = RouteProp<TabParamList, 'AllKnowts'>;
+
+/** What the list says when a filter has narrowed it to nothing. */
+function emptyMessage(filter: KnowtFilter): string {
+  if (filter.kind === 'no-schedule') return 'Every knowt has a schedule.';
+  if (filter.kind === 'no-tag') return 'Every knowt has a tag attached.';
+  if (filter.kind === 'category') return 'Nothing in this category yet.';
+  return 'No knowts yet.';
+}
 
 /** One category filter. Rendered in a horizontal strip, so it never wraps. */
 function FilterChip({
@@ -326,6 +346,7 @@ function Stash({
 
 export function AllKnowtsScreen() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute<KnowtsRoute>();
   const now = new Date();
   const { data: knowts, loading, reload } = useQuery(() => listKnowts(), []);
   const { data: categories, reload: reloadCategories } = useQuery(
@@ -340,17 +361,32 @@ export function AllKnowtsScreen() {
     [],
   );
   const [openStash, setOpenStash] = useState<Record<string, boolean>>({});
-  /** Null is All. Filters rather than groups, so the list stays one list. */
-  const [filter, setFilter] = useState<string | null>(null);
+  /**
+   * Filters rather than groups, so the list stays one list. A shape rather
+   * than a category id, because Log's gap cards open this screen on something
+   * that is not a category; see `knowtFilter.ts`.
+   */
+  const [filter, setFilter] = useState<KnowtFilter>({ kind: 'all' });
+
+  // Arriving from a Log card. Written on every focus with a `focus` param, so
+  // tapping the same card twice narrows the list twice rather than once.
+  const focus = route.params?.focus;
+  const focusCategory = route.params?.categoryId;
+  useFocusEffect(
+    useCallback(() => {
+      if (focus) setFilter({ kind: focus });
+      else if (focusCategory) {
+        setFilter({ kind: 'category', categoryId: focusCategory });
+      }
+    }, [focus, focusCategory]),
+  );
   // Open is the default, so this holds only what has been shut by hand.
   const [closedSections, setClosedSections] = useState<Record<string, boolean>>({});
 
   // Pinned first is already the query's order, so grouping preserves it inside
   // each section, which is what "pinned first, sorted with everything else"
   // means once the list has sections again.
-  const visible = (knowts ?? []).filter(
-    (knowt) => filter === null || knowt.category?.id === filter,
-  );
+  const visible = applyFilter(knowts ?? [], filter);
 
   const sections = (() => {
     const byCategory = new Map<string, KnowtWithDetail[]>();
@@ -458,17 +494,37 @@ export function AllKnowtsScreen() {
             contentContainerStyle={styles.filters}>
             <FilterChip
               label="All"
-              active={filter === null}
-              onPress={() => setFilter(null)}
+              active={filter.kind === 'all'}
+              onPress={() => setFilter({ kind: 'all' })}
             />
+            {/* Only while one is on. They are destinations from Log rather
+                than everyday controls, and a permanent chip for "no schedule"
+                would sit there reading as a category. */}
+            {filter.kind === 'no-schedule' || filter.kind === 'no-tag' ? (
+              <FilterChip
+                label={filterLabel(filter, categories ?? [])}
+                active
+                onPress={() => setFilter({ kind: 'all' })}
+              />
+            ) : null}
             {(categories ?? []).map((category) => (
               <FilterChip
                 key={category.id}
                 label={category.name}
                 shades={categoryShades(category)}
-                active={filter === category.id}
+                active={sameFilter(filter, {
+                  kind: 'category',
+                  categoryId: category.id,
+                })}
                 onPress={() =>
-                  setFilter(filter === category.id ? null : category.id)
+                  setFilter(
+                    sameFilter(filter, {
+                      kind: 'category',
+                      categoryId: category.id,
+                    })
+                      ? { kind: 'all' }
+                      : { kind: 'category', categoryId: category.id },
+                  )
                 }
               />
             ))}
@@ -487,14 +543,10 @@ export function AllKnowtsScreen() {
           <ScrollView showsVerticalScrollIndicator={false} style={styles.list}>
             {visible.length === 0 ? (
               <EmptyState
-                message={
-                  filter === null
-                    ? 'No knowts yet.'
-                    : 'Nothing in this category yet.'
-                }
-                actionLabel={filter === null ? 'Add a knowt' : undefined}
+                message={emptyMessage(filter)}
+                actionLabel={filter.kind === 'all' ? 'Add a knowt' : undefined}
                 onAction={
-                  filter === null
+                  filter.kind === 'all'
                     ? () => navigation.navigate('AddKnowt')
                     : undefined
                 }

@@ -105,7 +105,8 @@ export function ProgressRing({
 }
 
 const styles = StyleSheet.create({
-  track: { position: 'absolute', backgroundColor: theme.color.border },
+  // The unfilled part of the ring is a chart fill, not a border.
+  track: { position: 'absolute', backgroundColor: theme.color.graphMuted },
   clip: { position: 'absolute', top: 0, overflow: 'hidden' },
   hole: {
     position: 'absolute',

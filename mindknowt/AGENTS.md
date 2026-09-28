@@ -165,6 +165,21 @@ The rest of the voice rules are spec section 8: sentence case, no exclamation
 marks, no emoji, no praise. Errors state what happened and what to do. Empty
 screens invite action rather than explain absence.
 
+## Graph fills are never black
+
+No bar, arc, sparkline or chart fill uses black, and none uses the near black
+`ink` that text uses either. A solid dark bar reads as a hole punched in the
+card rather than as something drawn. `theme.color.graph` (`#2E3236`) is the
+value to reach for when a chart needs a dark fill, and `graphMuted` is for the
+bars a chart is not pointing at.
+
+Text keeps `ink`. This is about fills only.
+
+Color in a chart marks *which* rather than *how much*. The Completion trend
+paints today lime and every other day gray, whatever the counts are: the height
+already says how much got done, and coloring the tallest bar turns a chart into
+a scoreboard. The same reasoning is why the category tints on Log mean nothing.
+
 ## Never invent a default the user should choose
 
 Times are entered by the person, never guessed. `Add a knowt` starts with an

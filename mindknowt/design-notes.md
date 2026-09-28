@@ -254,12 +254,17 @@ page already full of them.
 |---|---|---|---|---|
 | tileMint | Mint | `#C8EEDC` | `#1B6A4B` | completed |
 | tileLavender | Lavender | `#DCD4F5` | `#5B2ED6` | of what came up |
-| tilePeach | Peach | `#FBDCC6` | `#9C4510` | overridden |
+| tilePink | Hot pink | `#FFD6E7` | `#B81253` | overridden |
 
 The first set of these was paler (`#DCF2E8`, `#E7E3F7`, `#FBE7DB`) and read as
-white with a tint of something on a real screen. Each ink clears 4.5 against
-its own tile, so the number and the sparkline carry at full contrast: mint
-5.21, lavender 5.27, peach 4.94.
+white with a tint of something on a real screen. The third was peach and read
+as warm rather than bright, so it is hot pink. Each ink clears 4.5 against its
+own tile, so the number, the arrow and the sparkline carry at full contrast:
+mint 5.21, lavender 5.27, pink 4.93.
+
+Each tile is a number, a one line label, then the change and the sparkline on
+one row. Every label on these cards is held to a single line: two of them sit
+side by side, and a wrapped label makes the pair different heights.
 
 The tints mean nothing. That is deliberate: a tile color that signaled good or
 bad would grade the number sitting on it.
@@ -291,10 +296,19 @@ is not.
 Arrows use the tile's own ink in both directions. A red down arrow grades the
 number under it, and a quiet month is data.
 
-### The Completed chart
+### Chart fills
+
+`graph` (`#2E3236`) and `graphMuted` (`#DFE3E7`). No chart fill is black, and
+none is the near black `ink` that text uses: a solid dark bar reads as a hole
+in the card rather than as something drawn. Text keeps `ink`.
+
+### The Completion trend chart
 
 Seven bars, Monday first, counting completions per weekday across the whole
-period. It was one bar per day of the month labeled with the date, which at a
+period. Today's bar is lime and every other bar is `graphMuted`, whatever the
+counts are. Color marks which day is today; the height already says how much
+got done, and coloring the tallest bar would turn the chart into a scoreboard.
+There are no numbers above the bars: it is a shape to glance at, not a table. It was one bar per day of the month labeled with the date, which at a
 month's width rendered as "1 6 1. 1. 2": thirty-one bars too thin to read with
 five of the labels clipped in half.
 

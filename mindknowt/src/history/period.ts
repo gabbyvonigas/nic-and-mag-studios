@@ -39,6 +39,8 @@ export type PeriodCategoryTally = {
   /** The glyph name stored on the category, for the badge on the row. */
   icon: string | null;
   completions: number;
+  /** Completions plus misses, so the row can show a rate rather than a count. */
+  total: number;
 };
 
 export type PeriodSummary = {
@@ -418,20 +420,25 @@ export function summarizePeriod(input: {
   for (const knowt of knowts) categoryOf.set(knowt.id, knowt.category?.id ?? null);
 
   const tallies = new Map<string, PeriodCategoryTally>();
-  for (const event of completions) {
+  // Every event, not just the completions: a category's rate needs the misses
+  // as well, and a category that was never once done still has a row to show.
+  for (const event of inRange) {
     const categoryId = categoryOf.get(event.knowt_id) ?? null;
     const category = categories.find((row) => row.id === categoryId) ?? null;
     const key = categoryId ?? 'none';
     const existing = tallies.get(key);
+    const done = isCompletion(event);
     if (existing) {
-      existing.completions += 1;
+      existing.total += 1;
+      if (done) existing.completions += 1;
     } else {
       tallies.set(key, {
         categoryId,
         name: category?.name ?? 'Everything else',
         color: category?.color ?? '#8A93A0',
         icon: category?.icon ?? null,
-        completions: 1,
+        completions: done ? 1 : 0,
+        total: 1,
       });
     }
   }

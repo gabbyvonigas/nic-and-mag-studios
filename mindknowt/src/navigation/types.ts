@@ -7,7 +7,15 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
  */
 export type TabParamList = {
   Daily: undefined;
-  AllKnowts: undefined;
+  /**
+   * `focus` opens the list already narrowed, for the gap cards on Log. It is
+   * the filter's kind rather than the filter itself, because a route param
+   * has to survive serialization and a category filter carries an id the Log
+   * cards never need.
+   */
+  AllKnowts:
+    | { focus?: 'no-schedule' | 'no-tag'; categoryId?: string }
+    | undefined;
   Log: undefined;
 };
 

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CategoryIcon } from '../components/CategoryIcon';
-import { ExpandSign } from '../components/icons';
+import { CheckIcon, ExpandSign } from '../components/icons';
 import { KnowtCard } from '../components/KnowtCard';
 import { ProgressRing } from '../components/ProgressRing';
 import { EmptyState, TabHeader } from '../components/ui';
@@ -453,7 +453,14 @@ export function HomeScreen() {
           {/* On the page, not inside a colored card. */}
           <View style={styles.progress}>
             <ProgressRing value={total === 0 ? 0 : done / total} size={62}>
-              <Text style={styles.ringText}>{total === 0 ? '0' : done}</Text>
+              {/* A finished day says so with a mark rather than a number.
+                  Partial progress keeps the count, because there the number
+                  is the thing worth knowing. */}
+              {total > 0 && done >= total ? (
+                <CheckIcon size={24} color={theme.color.textPrimary} />
+              ) : (
+                <Text style={styles.ringText}>{total === 0 ? '0' : done}</Text>
+              )}
             </ProgressRing>
             <View style={styles.progressText}>
               <Text style={styles.progressCount}>
@@ -643,7 +650,18 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
   },
-  upcoming: { marginTop: theme.spacing.lg, gap: theme.spacing.xs },
+  upcoming: {
+    marginTop: theme.spacing.lg,
+    gap: theme.spacing.xs,
+    // Its own block: opaque, bordered, padded. It sat on the page with no
+    // edges, so it read as loose rows rather than as a section.
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.xl,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+  },
   upcomingHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -661,7 +679,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
-    backgroundColor: theme.color.surface,
     borderRadius: theme.radius.lg,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,

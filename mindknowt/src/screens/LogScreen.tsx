@@ -23,7 +23,7 @@ import {
   type LogCategoryGroup,
   type LoggedCompletion,
 } from '../db';
-import { listTagged, loadInsight, loadPeriodPair } from '../db';
+import { listKnowts, loadInsight, loadPeriodPair } from '../db';
 import {
   deltaBetween,
   rangeFor,
@@ -31,6 +31,7 @@ import {
   type PeriodKind,
 } from '../history/period';
 import { useQuery } from '../db/useQuery';
+import { countWithoutSchedule, countWithoutTag } from '../knowts/knowtFilter';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 import type { RootStackParamList } from '../navigation/types';
 import { categoryShades, METHOD_COLORS, theme } from '../theme';
@@ -203,7 +204,12 @@ export function LogScreen() {
   );
   // Not month scoped: a tag is attached now or it is not, whatever month is
   // being read.
-  const { data: tagged, reload: reloadTagged } = useQuery(() => listTagged(), []);
+  // Not period scoped: a knowt is missing a tag or a schedule now, whatever
+  // span is being read.
+  const { data: allKnowts, reload: reloadTagged } = useQuery(
+    () => listKnowts(),
+    [],
+  );
 
   /** Month is the default, because that is the span the Log grew up around. */
   const [periodKind, setPeriodKind] = useState<PeriodKind>('month');
@@ -321,6 +327,12 @@ export function LogScreen() {
               onAdjustTime={(knowtId) =>
                 navigation.navigate('EditSchedule', { knowtId })
               }
+              onOpenCategory={(categoryId) =>
+                navigation.navigate('Tabs', {
+                  screen: 'AllKnowts',
+                  params: { categoryId },
+                })
+              }
             />
           ) : null}
 
@@ -360,7 +372,23 @@ export function LogScreen() {
           {periodKind === 'month' && summary ? (
             <>
               <Text style={styles.sectionTitle}>Summary</Text>
-              <SummaryPanel summary={summary} tagged={tagged ?? []} />
+              <SummaryPanel
+                summary={summary}
+                gaps={{
+                  withoutTag: countWithoutTag(allKnowts ?? []),
+                  withoutSchedule: countWithoutSchedule(allKnowts ?? []),
+                  onOpenUntagged: () =>
+                    navigation.navigate('Tabs', {
+                      screen: 'AllKnowts',
+                      params: { focus: 'no-tag' },
+                    }),
+                  onOpenUnscheduled: () =>
+                    navigation.navigate('Tabs', {
+                      screen: 'AllKnowts',
+                      params: { focus: 'no-schedule' },
+                    }),
+                }}
+              />
             </>
           ) : null}
         </ScrollView>

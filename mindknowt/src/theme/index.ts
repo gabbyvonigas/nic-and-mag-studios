@@ -43,10 +43,17 @@ export const theme = {
     /** Log's stat tiles, in the order they are read. */
     tileMint: palette.mint,
     tileLavender: palette.lavender,
-    tilePeach: palette.peach,
+    tilePink: palette.hotPink,
     tileMintInk: palette.mintInk,
     tileLavenderInk: palette.lavenderInk,
-    tilePeachInk: palette.peachInk,
+    tilePinkInk: palette.hotPinkInk,
+
+    /**
+     * Chart fills, never text. Pure black and even near black read as a hole
+     * in the card rather than as a drawn bar.
+     */
+    graph: palette.graph,
+    graphMuted: palette.graphMuted,
 
     successSurface: palette.green50,
     successBorder: palette.green200,

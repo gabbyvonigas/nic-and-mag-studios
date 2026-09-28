@@ -1,7 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { MonthSummary } from '../history/summary';
-import type { KnowtWithDetail } from '../db';
 import { categoryShades, METHOD_COLORS, theme } from '../theme';
 
 /**
@@ -13,7 +12,6 @@ import { categoryShades, METHOD_COLORS, theme } from '../theme';
  * quietly become the way the app is used.
  */
 
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 /**
  * When someone usually gets to a thing, said as a habit rather than a speed.
@@ -99,18 +97,54 @@ function Key({
   );
 }
 
+/**
+ * One of the two gap cards.
+ *
+ * Reads as a sentence rather than a statistic: "2 knowts without schedules".
+ * Each line is held to one, because two of these sit side by side at phone
+ * width and a wrapped label makes the pair different heights.
+ */
+function GapCard({
+  count,
+  noun,
+  onPress,
+}: {
+  count: number;
+  noun: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${count} knowt${count === 1 ? '' : 's'} without ${noun}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.gap, pressed && styles.gapPressed]}>
+      <Text style={styles.gapCount}>{count}</Text>
+      <Text numberOfLines={1} style={styles.gapLabel}>
+        knowt{count === 1 ? '' : 's'} without
+      </Text>
+      <Text numberOfLines={1} style={styles.gapLabel}>
+        {noun}
+      </Text>
+    </Pressable>
+  );
+}
+
 export function SummaryPanel({
   summary,
-  tagged,
+  gaps,
 }: {
   summary: MonthSummary;
-  /** Knowts currently holding a tag. Omitted where the panel is not the Log. */
-  tagged?: KnowtWithDetail[];
+  /** The two gap cards. Omitted where the panel is not the Log. */
+  gaps?: {
+    withoutTag: number;
+    withoutSchedule: number;
+    onOpenUntagged: () => void;
+    onOpenUnscheduled: () => void;
+  };
 }) {
   const { byMethod } = summary;
   const anyMethod = byMethod.scan + byMethod.tap + byMethod.override > 0;
-  const busiest = Math.max(...summary.byWeekday, 1);
-  const anyWeekday = summary.byWeekday.some((n) => n > 0);
 
   if (summary.completions === 0 && summary.missed === 0) {
     return (
@@ -171,33 +205,24 @@ export function SummaryPanel({
           where it carries the icon badges. Two lists of the same numbers on one
           screen made the second one read as a different measure. */}
 
-      {/* Deliberately the one dark block in a panel of white tiles. Tags are
-          the thing that makes this app work, so the section that counts them
-          should not look like another statistic. */}
-      {tagged && tagged.length > 0 ? (
-        <View style={styles.tags}>
-          <View style={styles.tagsHead}>
-            <Text style={styles.tagsCount}>{tagged.length}</Text>
-            <Text style={styles.tagsLabel}>
-              knowt{tagged.length === 1 ? '' : 's'} with a tag attached
-            </Text>
-          </View>
-          {tagged.map((knowt) => (
-            <View key={knowt.id} style={styles.tagRow}>
-              <View
-                style={[
-                  styles.tagDot,
-                  { backgroundColor: categoryShades(knowt.category).color },
-                ]}
-              />
-              <Text numberOfLines={1} style={styles.tagName}>
-                {knowt.name}
-              </Text>
-              <Text numberOfLines={1} style={styles.tagWhere}>
-                {knowt.location_note ?? 'no place noted'}
-              </Text>
-            </View>
-          ))}
+      {/* The two gaps, side by side. A tag is what makes a knowt scannable
+          and a schedule is what makes it ring, so a knowt missing either is
+          the one thing on this screen worth acting on. Lime because it is an
+          invitation rather than a scold, and each card opens the list already
+          narrowed to what it counted, so the number is a way in rather than a
+          fact to read. */}
+      {gaps ? (
+        <View style={styles.gapRow}>
+          <GapCard
+            count={gaps.withoutTag}
+            noun="a tag attached"
+            onPress={gaps.onOpenUntagged}
+          />
+          <GapCard
+            count={gaps.withoutSchedule}
+            noun="schedules"
+            onPress={gaps.onOpenUnscheduled}
+          />
         </View>
       ) : null}
 
@@ -225,28 +250,11 @@ export function SummaryPanel({
         </>
       ) : null}
 
-      {anyWeekday ? (
-        <View style={styles.weekRow}>
-          {summary.byWeekday.map((count, index) => (
-            <View key={index} style={styles.weekCol}>
-              <View style={styles.weekTrack}>
-                <View
-                  style={[
-                    styles.weekFill,
-                    {
-                      // Proportional to the busiest day, so the shape of the
-                      // week reads even when the numbers are small.
-                      height: `${count === 0 ? 0 : Math.max(8, (count / busiest) * 100)}%`,
-                      backgroundColor: METHOD_COLORS.scan,
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.weekLabel}>{WEEKDAYS[index]}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
+      {/* The weekday chart that was here is now the Completion trend card
+          in the period panel above, Monday first. Two charts of the same
+          seven numbers on one screen made the second one read as a
+          different measure. `byWeekday` is still on the summary; nothing
+          else needs it drawn twice. */}
 
       {summary.mostSnoozed.length > 0 ? (
         <View style={styles.list}>
@@ -284,46 +292,29 @@ export function SummaryPanel({
 }
 
 const styles = StyleSheet.create({
-  tags: {
-    backgroundColor: theme.color.primary,
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.lg,
-    marginTop: theme.spacing.md,
-    gap: theme.spacing.sm,
-  },
-  tagsHead: {
+  gapRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
     gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
   },
-  tagsCount: {
+  gap: {
+    flex: 1,
+    backgroundColor: theme.color.highlight,
+    borderRadius: theme.radius.xl,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  gapPressed: { opacity: 0.85 },
+  gapCount: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.display,
-    color: theme.color.highlight,
+    color: theme.color.onHighlight,
   },
-  tagsLabel: {
-    flex: 1,
+  gapLabel: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
-    color: theme.color.onPrimary,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  tagDot: { width: 8, height: 8, borderRadius: 4 },
-  tagName: {
-    flex: 1,
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.md,
-    color: theme.color.onPrimary,
-  },
-  tagWhere: {
-    flexShrink: 1,
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.sm,
-    color: theme.color.border,
+    lineHeight: 18,
+    color: theme.color.onHighlight,
   },
   panel: { gap: theme.spacing.md },
   empty: {
@@ -385,27 +376,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.xs,
     color: theme.color.textSecondary,
-  },
-  weekRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    height: 72,
-    marginTop: theme.spacing.xs,
-  },
-  weekCol: { flex: 1, alignItems: 'center', gap: theme.spacing.xs },
-  weekTrack: {
-    flex: 1,
-    alignSelf: 'stretch',
-    justifyContent: 'flex-end',
-    backgroundColor: theme.color.surfaceMuted,
-    borderRadius: theme.radius.sm,
-    overflow: 'hidden',
-  },
-  weekFill: { borderRadius: theme.radius.sm },
-  weekLabel: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.xs,
-    color: theme.color.textMuted,
   },
   list: { gap: theme.spacing.xs, marginTop: theme.spacing.xs },
   listTitle: {

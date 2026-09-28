@@ -33,6 +33,15 @@ export const palette = {
   neon: '#D9FA3C',
 
   /**
+   * Every bar, arc and fill in a chart. Deliberately not `ink`: a solid black
+   * bar reads as a hole punched in the card, and a chart is drawn, not
+   * written. Text keeps `ink`.
+   */
+  graph: '#2E3236',
+  /** The bars a chart is not pointing at. */
+  graphMuted: '#DFE3E7',
+
+  /**
    * The three stat tiles on Log. Pale enough to carry ink text at full
    * contrast, and distinct enough from each other to tell the tiles apart at a
    * glance. They are backgrounds only: none of them is a status color, so a
@@ -40,7 +49,8 @@ export const palette = {
    */
   mint: '#C8EEDC',
   lavender: '#DCD4F5',
-  peach: '#FBDCC6',
+  /** Hot pink, not peach: the third tile needed energy, not warmth. */
+  hotPink: '#FFD6E7',
 
   /**
    * The number on each tile, in the tile's own hue. Dark enough to carry text
@@ -48,7 +58,7 @@ export const palette = {
    */
   mintInk: '#1B6A4B',
   lavenderInk: '#5B2ED6',
-  peachInk: '#9C4510',
+  hotPinkInk: '#B81253',
 
   green50: '#E6F7EE',
   green200: '#A6E5C3',
