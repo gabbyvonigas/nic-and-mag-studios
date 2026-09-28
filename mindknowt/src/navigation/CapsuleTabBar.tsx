@@ -126,7 +126,9 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: theme.color.highlight },
   tabLabel: {
     fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.sm,
+    // One step up the scale from sm. These are the app's three destinations
+    // and they were the smallest text on the screen.
+    fontSize: theme.font.size.md,
     color: theme.color.textMuted,
   },
   tabLabelActive: {

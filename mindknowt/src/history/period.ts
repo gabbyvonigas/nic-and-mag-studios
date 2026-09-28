@@ -49,7 +49,10 @@ export type PeriodSummary = {
   rate: number | null;
   overrides: number;
   byCategory: PeriodCategoryTally[];
+  /** Chronological, for the sparklines. One bucket per day, or per 4 hours. */
   trend: TrendBucket[];
+  /** Seven bars, Monday first, for the Completed chart. */
+  byWeekday: TrendBucket[];
   /**
    * The busiest two hour window, as a start hour, or null when nothing has
    * been completed. Two hours rather than one because a single hour on a thin
@@ -64,13 +67,40 @@ export type PeriodSummary = {
   averageMinutes: number | null;
 };
 
-/** The same numbers for the period before this one, for the change arrows. */
+/**
+ * The change against the period before, for the arrows on the stat tiles.
+ *
+ * Null means there is nothing worth comparing to, and a null is not drawn at
+ * all: no arrow, no number, no words. A tile that says "No period before this"
+ * is a debug string wearing a UI, and a tile that says "+550%" because the
+ * previous month held two completions is worse, because it looks like a fact.
+ */
 export type PeriodDelta = {
-  /** Change in completions, as a fraction. Null when the last one was empty. */
+  /** Change in completions, as a fraction: 0.2 is a fifth more. */
   completions: number | null;
+  /**
+   * Change in the completion rate, in points. 50% to 80% is 0.3, not 0.6. A
+   * rate is already a percentage and compounding one against another is how a
+   * tile ends up claiming 376%.
+   */
   rate: number | null;
   overrides: number | null;
 };
+
+/**
+ * How much the previous period has to hold before a change off it means
+ * anything.
+ *
+ * The same reasoning as `MIN_COMPLETIONS` in the insights engine: a percentage
+ * taken off a sample of two is not a small signal, it is noise with a decimal
+ * point. Someone who installed the app last month would be told their week was
+ * up 550%, which is arithmetic rather than information.
+ */
+export const MIN_PREVIOUS = 5;
+
+/** Monday first, as the Log chart reads. Three letters: S M T W T F S has two
+ * pairs nobody can tell apart. */
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const DAY_MS = 86_400_000;
 const MONTHS = [
@@ -198,13 +228,23 @@ export function deltaBetween(
   now: PeriodSummary,
   before: PeriodSummary,
 ): PeriodDelta {
+  const beforeOccurrences = before.completions + before.missed;
+
   return {
-    completions: changeBetween(now.completions, before.completions),
-    rate:
-      now.rate === null || before.rate === null || before.rate === 0
+    completions:
+      before.completions < MIN_PREVIOUS
         ? null
-        : (now.rate - before.rate) / before.rate,
-    overrides: changeBetween(now.overrides, before.overrides),
+        : changeBetween(now.completions, before.completions),
+    // In points, and only once the previous period had enough occurrences for
+    // its rate to be a rate rather than one good morning.
+    rate:
+      beforeOccurrences < MIN_PREVIOUS || now.rate === null || before.rate === null
+        ? null
+        : now.rate - before.rate,
+    overrides:
+      before.overrides < MIN_PREVIOUS
+        ? null
+        : changeBetween(now.overrides, before.overrides),
   };
 }
 
@@ -214,11 +254,15 @@ export type SparkMetric = 'completions' | 'rate' | 'overrides';
 /**
  * A sparkline's heights, each 0 to 1.
  *
+ * Read off `trend`, which is chronological, because a sparkline is the shape
+ * of the period over time. The bar chart below it is the weekday aggregate,
+ * which is a different question.
+ *
  * Scaled against the biggest value in the series rather than an absolute
- * ceiling, because the line is there to show the shape of the period, not to be
- * read off. A rate is already a fraction and is drawn as one, so a flat week at
- * 100 percent draws flat and high instead of being normalized into a straight
- * line at the top that a flat week at 20 percent would also draw.
+ * ceiling, because the line shows shape rather than being read off. A rate is
+ * already a fraction and is drawn as one, so a flat week at 100 percent draws
+ * flat and high instead of being normalized into the same straight line a flat
+ * week at 20 percent would draw.
  */
 export function sparkFor(
   summary: PeriodSummary,
@@ -238,9 +282,65 @@ export function sparkFor(
   return values.map((value) => value / peak);
 }
 
-/** The period immediately before this one, of the same length. */
-export function previousRange(range: PeriodRange): PeriodRange {
-  return rangeFor(range.kind, shiftRange(range, -1));
+/**
+ * The stretch of the previous period to compare this one against.
+ *
+ * Like for like. A month that is 23 days old is compared against the first 23
+ * days of the month before it, not against all 31, because comparing a period
+ * in progress against a finished one reports a collapse every single period
+ * right up until its last day. A period that has already finished is compared
+ * against the whole of the one before it, since there is nothing to truncate.
+ */
+export function previousWindow(range: PeriodRange, now: Date): PeriodRange {
+  const full = rangeFor(range.kind, shiftRange(range, -1));
+  const inProgress = now >= range.from && now < range.to;
+  if (!inProgress) return full;
+
+  const elapsed = now.getTime() - range.from.getTime();
+  // Clamped, because February is shorter than January and the elapsed span of
+  // a long month can run past the end of a short one.
+  const to = Math.min(full.from.getTime() + elapsed, full.to.getTime());
+  return { ...full, to: new Date(to) };
+}
+
+/**
+ * Completions per weekday across the whole period, Monday first.
+ *
+ * This is the Log's "Completed" chart. It used to be one bar per day of the
+ * month, labeled with the date, which at a month's width rendered as
+ * "1 6 1. 1. 2": thirty-one bars too thin to read and five numbers clipped in
+ * half. Aggregating by weekday answers a question worth asking instead, which
+ * is which days actually get things done, and it fits in seven bars.
+ */
+export function weekdayTotals(
+  range: PeriodRange,
+  events: EventRow[],
+  today: Date,
+): TrendBucket[] {
+  const inRange = events.filter((event) => {
+    const at = event.completed_at ?? event.fired_at;
+    return at !== null && at >= range.from.getTime() && at < range.to.getTime();
+  });
+
+  // getDay is Sunday 0; this axis is Monday first.
+  const slotOf = (date: Date) => (date.getDay() + 6) % 7;
+  const todaySlot = slotOf(today);
+  const showsToday = today >= range.from && today < range.to;
+
+  return WEEKDAY_LABELS.map((label, slot) => {
+    const mine = inRange.filter(
+      (event) =>
+        slotOf(new Date((event.completed_at ?? event.fired_at) as number)) === slot,
+    );
+    const done = mine.filter(isCompletion);
+    return {
+      label,
+      completions: done.length,
+      overrides: done.filter((event) => event.method === 'override').length,
+      total: mine.length,
+      current: showsToday && slot === todaySlot,
+    };
+  });
 }
 
 function bucketsFor(range: PeriodRange, events: EventRow[], today: Date): TrendBucket[] {
@@ -347,6 +447,7 @@ export function summarizePeriod(input: {
       (a, b) => b.completions - a.completions,
     ),
     trend: bucketsFor(range, inRange, today),
+    byWeekday: weekdayTotals(range, inRange, today),
     peakHour: peakHourOf(completions),
     averageMinutes: averageMinutesOf(completions),
   };

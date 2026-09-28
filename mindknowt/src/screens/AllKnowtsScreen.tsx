@@ -438,11 +438,15 @@ export function AllKnowtsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Outside `content`, which carries its own horizontal padding. Nested
+          inside it the header was indented twice and sat further right than
+          the same header on Daily and Log. */}
+      <TabHeader
+        title="Knowts"
+        onSettings={() => navigation.navigate('Settings')}
+      />
+
       <View style={styles.content}>
-        <TabHeader
-          title="Knowts"
-          onSettings={() => navigation.navigate('Settings')}
-        />
 
         {/* Horizontal, because seven categories plus All never fit on one
             line at phone width, and a wrapped row of chips pushes the list

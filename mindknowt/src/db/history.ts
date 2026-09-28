@@ -8,7 +8,7 @@ import {
   type MonthSummary,
 } from '../history/summary';
 import {
-  previousRange,
+  previousWindow,
   summarizePeriod,
   type PeriodRange,
   type PeriodSummary,
@@ -203,7 +203,7 @@ export async function loadPeriodPair(
 ): Promise<{ current: PeriodSummary; previous: PeriodSummary }> {
   const [current, previous] = await Promise.all([
     loadPeriodSummary(range, today),
-    loadPeriodSummary(previousRange(range), today),
+    loadPeriodSummary(previousWindow(range, today), today),
   ]);
   return { current, previous };
 }

@@ -246,20 +246,62 @@ only the alert presentation is configured and the countdown one is not.
 
 ### Log stat tiles
 
-The three numbers at the top of Log sit on pale tinted tiles rather than white
+The three numbers at the top of Log sit on tinted tiles rather than white
 cards, so the row reads as a summary block instead of three more cards in a
 page already full of them.
 
-| Key | Name | Hex | Carries |
-|---|---|---|---|
-| tileMint | Mint | `#DCF2E8` | completed |
-| tileLavender | Lavender | `#E7E3F7` | of what came up |
-| tilePeach | Peach | `#FBE7DB` | overridden |
+| Key | Name | Hex | Ink | Carries |
+|---|---|---|---|---|
+| tileMint | Mint | `#C8EEDC` | `#1B6A4B` | completed |
+| tileLavender | Lavender | `#DCD4F5` | `#5B2ED6` | of what came up |
+| tilePeach | Peach | `#FBDCC6` | `#9C4510` | overridden |
 
-They are backgrounds only. None of the three means anything, which is the
-point: a tile color that signaled good or bad would grade the number sitting
-on it. Each is pale enough for ink text at full contrast.
+The first set of these was paler (`#DCF2E8`, `#E7E3F7`, `#FBE7DB`) and read as
+white with a tint of something on a real screen. Each ink clears 4.5 against
+its own tile, so the number and the sparkline carry at full contrast: mint
+5.21, lavender 5.27, peach 4.94.
 
-The change indicator under each number compares the period against the one
-before it of the same length, and uses the same muted text color whichever way
-it points. A red down arrow would be a scold, and a dip is data.
+The tints mean nothing. That is deliberate: a tile color that signaled good or
+bad would grade the number sitting on it.
+
+### The change indicators
+
+Each tile compares against the period before it, and three rules keep that
+honest.
+
+**Like for like.** A period in progress is compared against the same elapsed
+stretch of the previous one, not against all of it. Comparing 23 days of
+September against all 31 days of August reports a collapse every month, right
+up until the last day of it.
+
+**A floor under the sample.** `MIN_PREVIOUS` is 5. Below that the change is
+null and nothing is drawn. A previous month holding two completions produced
+"+550%" on device, which is arithmetic rather than information, and it is
+exactly what someone sees in their first weeks using the app.
+
+**A rate moves in points.** 50% to 80% is +0.3, shown as 30, not +60%. A rate
+is already a percentage and compounding one against another is where "376%"
+came from.
+
+Null is drawn as nothing at all: no arrow, no number, no words. A tile that
+said "No period before this" was a fallback string that reached the screen.
+A change that really is zero shows "0%", because level is a fact and unknown
+is not.
+
+Arrows use the tile's own ink in both directions. A red down arrow grades the
+number under it, and a quiet month is data.
+
+### The Completed chart
+
+Seven bars, Monday first, counting completions per weekday across the whole
+period. It was one bar per day of the month labeled with the date, which at a
+month's width rendered as "1 6 1. 1. 2": thirty-one bars too thin to read with
+five of the labels clipped in half.
+
+A day period keeps its four hour blocks, since a day has exactly one weekday
+and seven bars with six empty ones says less than six hour blocks do.
+
+Note that this axis is Monday first while `rangeFor('week')` still starts weeks
+on Sunday, which is what the Daily strip draws. The chart is an aggregate by
+weekday rather than a walk through the period, so the order is a reading
+choice; the range itself was left alone.

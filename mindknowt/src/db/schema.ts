@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -251,6 +251,16 @@ export const BACKFILLS: { to: number; sql: string }[] = [
     // And again: the softened set read washed out on a real screen, so it was
     // replaced with fully saturated colors.
     sql: RECOLOR_SQL,
+  },
+  {
+    to: 14,
+    // Routine was seeded with the 'sparkle' icon, which CategoryIcon drew as a
+    // vertical bar crossed by a horizontal one: a plus sign, on every screen
+    // that shows a category. It has its own clock glyph now, so the stored
+    // name is moved to match what is actually drawn. Scoped to the shipped
+    // Routine row, so a custom category that chose sparkle keeps it.
+    sql: `UPDATE categories SET icon = 'clock'
+            WHERE key = 'ritual' AND is_custom = 0 AND icon = 'sparkle';`,
   },
 ];
 

@@ -484,7 +484,7 @@ export function HomeScreen() {
             <EmptyState
               message={
                 total > 0
-                  ? 'Everything on this day is done. It is all in Log.'
+                  ? "You're all caught up. Check Log for more info."
                   : 'Nothing scheduled.'
               }
               actionLabel={total > 0 ? undefined : 'Add a knowt'}

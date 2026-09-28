@@ -44,6 +44,9 @@ export const theme = {
     tileMint: palette.mint,
     tileLavender: palette.lavender,
     tilePeach: palette.peach,
+    tileMintInk: palette.mintInk,
+    tileLavenderInk: palette.lavenderInk,
+    tilePeachInk: palette.peachInk,
 
     successSurface: palette.green50,
     successBorder: palette.green200,

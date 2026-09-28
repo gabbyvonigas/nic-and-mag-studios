@@ -38,9 +38,17 @@ export const palette = {
    * glance. They are backgrounds only: none of them is a status color, so a
    * number never lands on a tile that means something.
    */
-  mint: '#DCF2E8',
-  lavender: '#E7E3F7',
-  peach: '#FBE7DB',
+  mint: '#C8EEDC',
+  lavender: '#DCD4F5',
+  peach: '#FBDCC6',
+
+  /**
+   * The number on each tile, in the tile's own hue. Dark enough to carry text
+   * at full contrast; the tint alone left the figures reading as gray.
+   */
+  mintInk: '#1B6A4B',
+  lavenderInk: '#5B2ED6',
+  peachInk: '#9C4510',
 
   green50: '#E6F7EE',
   green200: '#A6E5C3',

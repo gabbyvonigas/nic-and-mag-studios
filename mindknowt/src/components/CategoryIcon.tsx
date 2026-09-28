@@ -103,27 +103,71 @@ function Glyph({ name, color, size }: { name: string; color: string; size: numbe
         </View>
       );
 
-    case 'sparkle':
+    case 'clock':
+      // Routine is time shaped, so a clock face: a ring with two hands. It was
+      // drawn as `sparkle`, which is a vertical bar crossed by a horizontal
+      // one, and at this size that is a plus sign and nothing else.
       return (
         <View style={styles.center}>
           <View
             style={{
-              position: 'absolute',
-              width: bar,
-              height: size * 0.74,
-              borderRadius: bar,
-              backgroundColor: color,
-            }}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              width: size * 0.74,
-              height: bar,
-              borderRadius: bar,
-              backgroundColor: color,
-            }}
-          />
+              width: size * 0.82,
+              height: size * 0.82,
+              borderRadius: size * 0.41,
+              borderWidth: bar,
+              borderColor: color,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+            {/* The hands meet at the center, so each is anchored there and
+                runs outward rather than being centered on it. */}
+            <View
+              style={{
+                position: 'absolute',
+                width: bar,
+                height: size * 0.26,
+                borderRadius: bar,
+                backgroundColor: color,
+                top: size * 0.15,
+              }}
+            />
+            <View
+              style={{
+                position: 'absolute',
+                width: size * 0.2,
+                height: bar,
+                borderRadius: bar,
+                backgroundColor: color,
+                left: size * 0.41 - bar / 2,
+              }}
+            />
+          </View>
+        </View>
+      );
+
+    case 'sparkle':
+      // Four long points and four short ones. The long pair alone was a plus
+      // sign, which is what sent Routine off to its own clock glyph.
+      return (
+        <View style={styles.center}>
+          {[
+            { w: bar, h: size * 0.8, deg: '0deg' },
+            { w: bar, h: size * 0.8, deg: '90deg' },
+            { w: bar * 0.8, h: size * 0.46, deg: '45deg' },
+            { w: bar * 0.8, h: size * 0.46, deg: '135deg' },
+          ].map((arm, i) => (
+            <View
+              key={i}
+              style={{
+                position: 'absolute',
+                width: arm.w,
+                height: arm.h,
+                borderRadius: arm.w,
+                backgroundColor: color,
+                transform: [{ rotate: arm.deg }],
+              }}
+            />
+          ))}
         </View>
       );
 

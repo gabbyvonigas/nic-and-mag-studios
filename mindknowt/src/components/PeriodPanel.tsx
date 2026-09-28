@@ -57,19 +57,24 @@ export function PeriodToggle({
 }
 
 /**
- * A sparkline, as very thin bars.
+ * A sparkline, as bars.
  *
- * Bars rather than a line for the same reason the ring is built from views:
- * `react-native-svg` is not in this project, and a polyline made of rotated
- * segments at this size is a pile of geometry to maintain for something read at
- * a glance. Every bar keeps a foot so the line has a baseline to sit on.
+ * Bars rather than a line because `react-native-svg` is not in this project,
+ * and a polyline made of rotated segments at this size is a pile of geometry
+ * to maintain for something read at a glance.
+ *
+ * Deliberately plain: square ends, equal widths, one flat color, every bar
+ * keeping a foot so the series has a baseline. Rounded caps and a fade made it
+ * read as a drawing of a chart rather than as a chart.
  */
 function Sparkline({ values, color }: { values: number[]; color: string }) {
-  // A month is 31 bars in a tile a third of the screen wide, which is thinner
-  // than the gap between them. Sampling keeps the shape and drops the mush.
+  // A month is 31 bars in a tile a third of the screen wide, thinner than the
+  // gaps between them. Sampling keeps the shape and drops the mush.
   const points =
-    values.length > 16
-      ? values.filter((_, index) => index % Math.ceil(values.length / 16) === 0)
+    values.length > SPARK_BARS
+      ? values.filter(
+          (_, index) => index % Math.ceil(values.length / SPARK_BARS) === 0,
+        )
       : values;
 
   return (
@@ -90,20 +95,28 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
   );
 }
 
-/** The percent change against the period before, or nothing to compare to. */
-function Change({ value }: { value: number | null }) {
-  if (value === null || !Number.isFinite(value)) {
-    return <Text style={styles.changeFlat}>No period before this</Text>;
-  }
-  if (Math.round(value * 100) === 0) {
-    return <Text style={styles.changeFlat}>Level</Text>;
+/**
+ * The change against the period before, or nothing at all.
+ *
+ * Null is drawn as null. There is no placeholder, because a tile that says
+ * "No period before this" is a debug string that reached the screen, and the
+ * honest rendering of "nothing to compare against" is an empty space.
+ *
+ * One color in both directions on purpose. A red down arrow grades the number
+ * it sits under, and a quiet month is data.
+ */
+function Change({ value, color }: { value: number | null; color: string }) {
+  if (value === null || !Number.isFinite(value)) return null;
+
+  const percent = Math.round(value * 100);
+  if (percent === 0) {
+    return <Text style={[styles.change, { color }]}>0%</Text>;
   }
 
-  const up = value > 0;
   return (
-    <Text style={styles.change}>
-      {up ? '↑' : '↓'}
-      {Math.abs(Math.round(value * 100))}%
+    <Text style={[styles.change, { color }]}>
+      {percent > 0 ? '\u2191' : '\u2193'}
+      {Math.abs(percent)}%
     </Text>
   );
 }
@@ -112,44 +125,54 @@ function StatTile({
   value,
   label,
   tint,
+  ink,
   change,
   spark,
 }: {
   value: string;
   label: string;
   tint: string;
+  ink: string;
   change: number | null;
   spark: number[];
 }) {
   return (
     <View style={[styles.tile, { backgroundColor: tint }]}>
-      <Text style={styles.tileValue}>{value}</Text>
+      <Text style={[styles.tileValue, { color: ink }]}>{value}</Text>
       <Text style={styles.tileLabel}>{label}</Text>
       <View style={styles.tileFoot}>
-        <Change value={change} />
-        <Sparkline values={spark} color={theme.color.textPrimary} />
+        <Change value={change} color={ink} />
+        <Sparkline values={spark} color={ink} />
       </View>
     </View>
   );
 }
 
 /**
- * The trend, as bars.
+ * The Completed chart.
  *
- * Every bar keeps a visible foot even at zero, so an empty day reads as a day
+ * For a week or a month this is `byWeekday`: seven bars, Monday first. It used
+ * to be one bar per day of the month labeled with the date, which at a month's
+ * width rendered as "1 6 1. 1. 2", thirty-one bars too thin to read with five
+ * numbers clipped in half. A day is the one period where a weekday axis says
+ * nothing, since a day has exactly one, so that keeps its four hour blocks.
+ *
+ * Every bar keeps a visible foot even at zero, so a quiet day reads as a day
  * with nothing on it rather than as a gap in the chart.
  */
 function Trend({ summary }: { summary: PeriodSummary }) {
-  const peak = Math.max(1, ...summary.trend.map((bucket) => bucket.completions));
-  // A month of bars is too many to label one by one.
-  const sparse = summary.trend.length > 14;
+  const bars = summary.range.kind === 'day' ? summary.trend : summary.byWeekday;
+  const peak = Math.max(1, ...bars.map((bucket) => bucket.completions));
 
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Completed</Text>
       <View style={styles.trend}>
-        {summary.trend.map((bucket, index) => (
+        {bars.map((bucket, index) => (
           <View key={`${bucket.label}:${index}`} style={styles.trendCell}>
+            <Text style={styles.trendValue}>
+              {bucket.completions > 0 ? bucket.completions : ''}
+            </Text>
             <View style={styles.trendTrack}>
               <View
                 style={[
@@ -158,7 +181,7 @@ function Trend({ summary }: { summary: PeriodSummary }) {
                     height: `${Math.max(4, (bucket.completions / peak) * 100)}%`,
                     // Lime throughout, with today darker rather than a
                     // different color, so the accent is the chart and not a
-                    // judgment about which day was good.
+                    // judgment about which day was a good one.
                     backgroundColor: bucket.current
                       ? theme.color.primary
                       : theme.color.highlight,
@@ -169,7 +192,7 @@ function Trend({ summary }: { summary: PeriodSummary }) {
             <Text
               numberOfLines={1}
               style={[styles.trendLabel, bucket.current && styles.trendLabelOn]}>
-              {sparse && index % 5 !== 0 ? ' ' : bucket.label}
+              {bucket.label}
             </Text>
           </View>
         ))}
@@ -218,6 +241,7 @@ export function PeriodPanel({
           value={`${summary.completions}`}
           label="completed"
           tint={theme.color.tileMint}
+          ink={theme.color.tileMintInk}
           change={previous?.completions ?? null}
           spark={spark('completions')}
         />
@@ -227,6 +251,7 @@ export function PeriodPanel({
           }
           label="of what came up"
           tint={theme.color.tileLavender}
+          ink={theme.color.tileLavenderInk}
           change={previous?.rate ?? null}
           spark={spark('rate')}
         />
@@ -234,6 +259,7 @@ export function PeriodPanel({
           value={`${summary.overrides}`}
           label="overridden"
           tint={theme.color.tilePeach}
+          ink={theme.color.tilePeachInk}
           change={previous?.overrides ?? null}
           spark={spark('overrides')}
         />
@@ -314,7 +340,9 @@ export function PeriodPanel({
   );
 }
 
-const SPARK_HEIGHT = 16;
+const SPARK_HEIGHT = 18;
+/** Enough to show a shape, few enough that each bar is wider than its gap. */
+const SPARK_BARS = 9;
 
 const styles = StyleSheet.create({
   panel: { gap: theme.spacing.md },
@@ -363,12 +391,6 @@ const styles = StyleSheet.create({
   change: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.xs,
-    color: theme.color.textSecondary,
-  },
-  changeFlat: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.xs,
-    color: theme.color.textMuted,
   },
   spark: {
     flexDirection: 'row',
@@ -376,7 +398,9 @@ const styles = StyleSheet.create({
     gap: 1,
     height: SPARK_HEIGHT,
   },
-  sparkBar: { flex: 1, borderRadius: 1, opacity: 0.45 },
+  // Square ends, equal widths, full strength. Rounded caps and a fade read as
+  // a drawing of a chart rather than as a chart.
+  sparkBar: { flex: 1, borderRadius: 0 },
 
   card: {
     backgroundColor: theme.color.surface,
@@ -392,10 +416,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
 
-  trend: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 92 },
-  trendCell: { flex: 1, alignItems: 'center', gap: 5 },
-  trendTrack: { height: 66, width: '100%', justifyContent: 'flex-end' },
-  trendBar: { width: '100%', borderRadius: 4, minHeight: 3 },
+  trend: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 112 },
+  trendCell: { flex: 1, alignItems: 'center', gap: 4 },
+  trendValue: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textMuted,
+  },
+  trendTrack: { height: 64, width: '100%', justifyContent: 'flex-end' },
+  trendBar: { width: '100%', borderRadius: 3, minHeight: 3 },
   trendLabel: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.xs,

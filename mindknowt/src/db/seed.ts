@@ -11,7 +11,7 @@ const CATEGORIES = [
   { key: 'home', name: 'Home', color: theme.categoryPalette.home, icon: 'house' },
   { key: 'daily', name: 'Daily', color: theme.categoryPalette.daily, icon: 'sun' },
   { key: 'care', name: 'Wellness', color: theme.categoryPalette.care, icon: 'heart' },
-  { key: 'ritual', name: 'Routine', color: theme.categoryPalette.ritual, icon: 'sparkle' },
+  { key: 'ritual', name: 'Routine', color: theme.categoryPalette.ritual, icon: 'clock' },
   { key: 'go', name: 'Activity', color: theme.categoryPalette.go, icon: 'car' },
   { key: 'admin', name: 'Admin', color: theme.categoryPalette.admin, icon: 'tray' },
   // Built to be archived. Decorations, wrapping and holiday shopping are real

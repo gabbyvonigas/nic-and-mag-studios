@@ -27,7 +27,14 @@ const WORDMARK = require('../../assets/brand/wordmark.png');
 /** The artwork's own proportions, from the file's pixel dimensions. */
 const WORDMARK_ASPECT = 1352 / 769;
 
-export function Wordmark({ height = 44 }: { height?: number }) {
+/**
+ * The logo's height in the tab header. Only the graphic scales with this: the
+ * lime rule is measured from the page name and the spacing is the header's, so
+ * resizing the mark leaves everything around it where it was.
+ */
+const WORDMARK_HEIGHT = 31;
+
+export function Wordmark({ height = WORDMARK_HEIGHT }: { height?: number }) {
   return (
     <Image
       accessible
