@@ -296,7 +296,7 @@ function UpcomingSection({
                 onPress={() => onOpen(entry.knowt.id)}
                 style={({ pressed }) => [
                   styles.upcomingRow,
-                  pressed && styles.pressed,
+                  pressed && styles.upcomingRowPressed,
                 ]}>
                 <CategoryIcon
                   icon={entry.knowt.category?.icon}
@@ -487,18 +487,19 @@ export function HomeScreen() {
             />
           ) : null}
 
+          {/* A finished day says nothing. The ring already shows a check and
+              Upcoming is sitting right above this, so a line explaining that
+              the day is done was the third thing on screen saying it. A day
+              with nothing on it still gets the invitation, because there the
+              only useful thing is a way to add something. */}
           {remaining.length === 0 ? (
-            <EmptyState
-              message={
-                total > 0
-                  ? "You're all caught up. Check Log for more info."
-                  : 'Nothing scheduled.'
-              }
-              actionLabel={total > 0 ? undefined : 'Add a knowt'}
-              onAction={
-                total > 0 ? undefined : () => navigation.navigate('AddKnowt')
-              }
-            />
+            total > 0 ? null : (
+              <EmptyState
+                message="Nothing scheduled."
+                actionLabel="Add a knowt"
+                onAction={() => navigation.navigate('AddKnowt')}
+              />
+            )
           ) : (
             remaining.map((card) => (
               <KnowtCard
@@ -650,18 +651,7 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
   },
-  upcoming: {
-    marginTop: theme.spacing.lg,
-    gap: theme.spacing.xs,
-    // Its own block: opaque, bordered, padded. It sat on the page with no
-    // edges, so it read as loose rows rather than as a section.
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.xl,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
-  },
+  upcoming: { marginTop: theme.spacing.lg, gap: theme.spacing.xs },
   upcomingHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -679,10 +669,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
+    backgroundColor: theme.color.surface,
     borderRadius: theme.radius.lg,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
+    // Half strength, the white card included, so the whole row sits back from
+    // today's work rather than competing with it. On the View rather than in
+    // the colors, so the icon, the text and the card all fade together.
+    opacity: 0.5,
   },
+  // Pressing goes the other way, up to full strength, so a row that is being
+  // touched is the one row on the page at full opacity. Halving 0.5 again
+  // would have made the feedback read as the row switching off.
+  upcomingRowPressed: { opacity: 1 },
   upcomingName: {
     flex: 1,
     fontFamily: theme.font.face.regular,
