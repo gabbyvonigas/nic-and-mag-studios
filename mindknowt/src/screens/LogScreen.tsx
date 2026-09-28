@@ -15,7 +15,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CategoryDot } from '../components/KnowtCard';
 import { PeriodPanel, PeriodToggle } from '../components/PeriodPanel';
 import { SummaryPanel } from '../components/SummaryPanel';
-import { EmptyState, HeaderLockup } from '../components/ui';
+import { EmptyState, TabHeader } from '../components/ui';
 import {
   loadMonthLog,
   loadMonthSummary,
@@ -23,8 +23,13 @@ import {
   type LogCategoryGroup,
   type LoggedCompletion,
 } from '../db';
-import { listTagged, loadInsight, loadPeriodSummary } from '../db';
-import { rangeFor, shiftRange, type PeriodKind } from '../history/period';
+import { listTagged, loadInsight, loadPeriodPair } from '../db';
+import {
+  deltaBetween,
+  rangeFor,
+  shiftRange,
+  type PeriodKind,
+} from '../history/period';
 import { useQuery } from '../db/useQuery';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 import type { RootStackParamList } from '../navigation/types';
@@ -207,7 +212,7 @@ export function LogScreen() {
   const rangeKey = `${periodKind}:${range.from.getTime()}`;
 
   const { data: period, reload: reloadPeriod } = useQuery(
-    () => loadPeriodSummary(range),
+    () => loadPeriodPair(range),
     [rangeKey],
   );
   const { data: insight, reload: reloadInsight } = useQuery(
@@ -262,9 +267,10 @@ export function LogScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <TabHeader title="Log" onSettings={() => navigation.navigate('Settings')} />
+
       <View style={styles.header}>
-                <Text style={styles.title}>Log</Text>
-        <HeaderLockup />
+
         <PeriodToggle
           value={periodKind}
           onChange={(kind) => {
@@ -309,7 +315,8 @@ export function LogScreen() {
           showsVerticalScrollIndicator={false}>
           {period ? (
             <PeriodPanel
-              summary={period}
+              summary={period.current}
+              previous={deltaBetween(period.current, period.previous)}
               insight={insight ?? null}
               onAdjustTime={(knowtId) =>
                 navigation.navigate('EditSchedule', { knowtId })

@@ -2,6 +2,7 @@ import { getDatabase } from './database';
 import { listKnowts } from './knowts';
 import { listPendingAlarms } from './pendingAlarms';
 import { isDueOn, minutesOf, nextOccurrence, toISODate } from './scheduling';
+import { weekOf } from '../knowts/weekStrip';
 import { categoryShades } from '../theme/categoryColors';
 import type {
   CategoryRow,
@@ -204,28 +205,18 @@ export type DayMark = {
 };
 
 /**
- * Seven days centered on the one being looked at, with what is due on each.
+ * The calendar week containing a day, with what is due on each of its days.
  *
- * Centered rather than a fixed week, so stepping to a neighboring day shifts
- * the window and there is always somewhere further to go in both directions.
- * That is what replaces the week ahead list: Daily is one day at a time now,
- * and the strip is how you reach the others.
+ * Daily is one day at a time, and the strip is how the others are reached:
+ * arrows move a whole week, so a weekday never changes column underneath you.
  */
-export async function listWeekMarks(
-  anchor = new Date(),
-  days = 7,
-): Promise<DayMark[]> {
+export async function listWeekMarks(anchor = new Date()): Promise<DayMark[]> {
   const knowts = await listKnowts();
-  const half = Math.floor(days / 2);
   const marks: DayMark[] = [];
 
-  for (let offset = -half; offset <= days - half - 1; offset += 1) {
-    const date = new Date(
-      anchor.getFullYear(),
-      anchor.getMonth(),
-      anchor.getDate() + offset,
-    );
-
+  // The calendar week containing the anchor, Sunday first. The date math is in
+  // `weekStrip` so it can be tested against month ends and clock changes.
+  for (const date of weekOf(anchor)) {
     let count = 0;
     const colors: string[] = [];
     for (const knowt of knowts) {
@@ -240,6 +231,48 @@ export async function listWeekMarks(
   }
 
   return marks;
+}
+
+/** One knowt coming up, with when it next fires. */
+export type UpcomingEntry = {
+  knowt: KnowtWithDetail;
+  schedule: ScheduleRow;
+  at: Date;
+};
+
+/**
+ * What is next, from tomorrow onward and with no horizon.
+ *
+ * Shown on Daily only once the day is finished, so the screen has something to
+ * say other than that there is nothing to do. One row per knowt, because this
+ * is a glance: a knowt firing three times on Thursday is still one thing to
+ * expect.
+ */
+export async function listUpcoming(
+  now = new Date(),
+  limit = 8,
+): Promise<UpcomingEntry[]> {
+  const knowts = await listKnowts();
+  const tomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+
+  const entries: UpcomingEntry[] = [];
+  for (const knowt of knowts) {
+    let soonest: UpcomingEntry | null = null;
+    for (const schedule of knowt.schedules) {
+      const at = nextOccurrence(schedule, tomorrow);
+      if (!at) continue;
+      if (!soonest || at < soonest.at) soonest = { knowt, schedule, at };
+    }
+    if (soonest) entries.push(soonest);
+  }
+
+  return entries
+    .sort((a, b) => a.at.getTime() - b.at.getTime())
+    .slice(0, limit);
 }
 
 /**

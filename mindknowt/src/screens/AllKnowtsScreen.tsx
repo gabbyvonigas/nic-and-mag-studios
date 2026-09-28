@@ -13,8 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import { CategoryDot } from '../components/KnowtCard';
+import { CategoryIcon } from '../components/CategoryIcon';
 import { ExpandSign, NfcIcon, PinIcon } from '../components/icons';
-import { EmptyState, ScreenHeader } from '../components/ui';
+import { EmptyState, TabHeader } from '../components/ui';
 import { SwipeToDelete } from '../components/SwipeToDelete';
 import { askToDelete, askToPurge, sayTagFreed } from '../knowts/deletePrompt';
 import {
@@ -88,7 +89,7 @@ function FilterChip({
  * down the left edge now and the card is white, so the eye reads names first
  * and color second.
  */
-const ROW_HEIGHT = 76;
+const ROW_HEIGHT = 58;
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -147,24 +148,26 @@ function KnowtRow({
       accessibilityHint="Hold to pin or unpin"
       onPress={onPress}
       onLongPress={onTogglePin}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-      <View style={[styles.accent, { backgroundColor: shades.color }]} />
+      style={({ pressed }) => [
+        styles.row,
+        { backgroundColor: shades.fill },
+        pressed && styles.pressed,
+      ]}>
+      <View style={styles.rowIcon}>
+        <CategoryIcon icon={knowt.category?.icon} shades={shades} size={30} />
+      </View>
 
       <View style={styles.rowText}>
         <View style={styles.rowTitle}>
-          {pinned ? <PinIcon size={12} color={shades.ink} /> : null}
-          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.rowName}>
+          {pinned ? <PinIcon size={11} color={shades.ink} /> : null}
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={[styles.rowName, { color: shades.ink }]}>
             {knowt.name}
           </Text>
-          {/* Whether a tag is attached, which is not the same question as
-              whether the knowt is in Scan mode. */}
-          {knowt.tag_uid ? <NfcIcon size={13} color={shades.ink} /> : null}
+          {knowt.tag_uid ? <NfcIcon size={12} color={shades.ink} /> : null}
         </View>
-        <Text numberOfLines={1} style={styles.rowMeta}>
-          {knowt.schedules.length > 0
-            ? `${formatTime(knowt.schedules[0]!.time)}, ${describeRepeat(knowt.schedules[0]!)}`
-            : 'No schedule'}
-        </Text>
         {knowt.location_note ? (
           <Text numberOfLines={1} style={styles.rowWhere}>
             {knowt.location_note}
@@ -172,8 +175,73 @@ function KnowtRow({
         ) : null}
       </View>
 
-      <Text style={styles.rowNext}>{nextLabel(soonestFor(knowt, now), now)}</Text>
+      <View style={styles.rowPill}>
+        <Text style={[styles.rowNext, { color: shades.ink }]}>
+          {nextLabel(soonestFor(knowt, now), now)}
+        </Text>
+      </View>
     </Pressable>
+  );
+}
+
+/**
+ * A category and the knowts in it.
+ *
+ * Grouping came back after filters alone made a long list hard to scan. The
+ * two work together: a filter narrows to one section, and without one the
+ * sections are what give the list a shape.
+ */
+function CategorySection({
+  name,
+  icon,
+  shades,
+  knowts,
+  expanded,
+  onToggle,
+  now,
+  onOpenKnowt,
+  onTogglePin,
+  onDelete,
+}: {
+  name: string;
+  icon: string | null;
+  shades: CategoryShades;
+  knowts: KnowtWithDetail[];
+  expanded: boolean;
+  onToggle: () => void;
+  now: Date;
+  onOpenKnowt: (id: string) => void;
+  onTogglePin: (knowt: KnowtWithDetail) => void;
+  onDelete: (knowt: KnowtWithDetail) => void;
+}) {
+  return (
+    <View style={styles.section}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`${name}, ${knowts.length}`}
+        onPress={onToggle}
+        style={({ pressed }) => [styles.sectionHead, pressed && styles.pressed]}>
+        <CategoryIcon icon={icon} shades={shades} size={22} />
+        <Text style={[styles.sectionName, { color: shades.ink }]}>{name}</Text>
+        <Text style={styles.sectionCount}>{knowts.length}</Text>
+        <ExpandSign expanded={expanded} size={14} />
+      </Pressable>
+
+      {expanded
+        ? knowts.map((knowt) => (
+            <SwipeToDelete key={knowt.id} onDelete={() => onDelete(knowt)}>
+              <KnowtRow
+                knowt={knowt}
+                shades={shades}
+                now={now}
+                onPress={() => onOpenKnowt(knowt.id)}
+                onTogglePin={() => onTogglePin(knowt)}
+              />
+            </SwipeToDelete>
+          ))
+        : null}
+    </View>
   );
 }
 
@@ -271,11 +339,48 @@ export function AllKnowtsScreen() {
   const [openStash, setOpenStash] = useState<Record<string, boolean>>({});
   /** Null is All. Filters rather than groups, so the list stays one list. */
   const [filter, setFilter] = useState<string | null>(null);
+  // Open is the default, so this holds only what has been shut by hand.
+  const [closedSections, setClosedSections] = useState<Record<string, boolean>>({});
 
-  // Pinned first is already the query's order, so filtering preserves it.
+  // Pinned first is already the query's order, so grouping preserves it inside
+  // each section, which is what "pinned first, sorted with everything else"
+  // means once the list has sections again.
   const visible = (knowts ?? []).filter(
     (knowt) => filter === null || knowt.category?.id === filter,
   );
+
+  const sections = (() => {
+    const byCategory = new Map<string, KnowtWithDetail[]>();
+    for (const knowt of visible) {
+      const key = knowt.category?.id ?? 'none';
+      const list = byCategory.get(key);
+      if (list) list.push(knowt);
+      else byCategory.set(key, [knowt]);
+    }
+
+    // Categories in their own order, with the uncategorized group last.
+    const ordered = (categories ?? [])
+      .filter((category) => byCategory.has(category.id))
+      .map((category) => ({
+        key: category.id,
+        name: category.name,
+        icon: category.icon as string | null,
+        shades: categoryShades(category),
+        knowts: byCategory.get(category.id) ?? [],
+      }));
+
+    const loose = byCategory.get('none');
+    if (loose) {
+      ordered.push({
+        key: 'none',
+        name: 'Everything else',
+        icon: null,
+        shades: categoryShades(null),
+        knowts: loose,
+      });
+    }
+    return ordered;
+  })();
 
   const togglePin = async (knowt: KnowtWithDetail) => {
     await setPinned(knowt.id, knowt.is_pinned !== 1);
@@ -331,7 +436,10 @@ export function AllKnowtsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.content}>
-        <ScreenHeader title="Knowts" />
+        <TabHeader
+          title="Knowts"
+          onSettings={() => navigation.navigate('Settings')}
+        />
 
         {/* Horizontal, because seven categories plus All never fit on one
             line at phone width, and a wrapped row of chips pushes the list
@@ -385,18 +493,27 @@ export function AllKnowtsScreen() {
                 }
               />
             ) : (
-              visible.map((knowt) => (
-                <SwipeToDelete key={knowt.id} onDelete={() => void remove(knowt)}>
-                  <KnowtRow
-                    knowt={knowt}
-                    shades={categoryShades(knowt.category)}
-                    now={now}
-                    onPress={() =>
-                      navigation.navigate('KnowtDetail', { knowtId: knowt.id })
-                    }
-                    onTogglePin={() => void togglePin(knowt)}
-                  />
-                </SwipeToDelete>
+              sections.map((section) => (
+                <CategorySection
+                  key={section.key}
+                  name={section.name}
+                  icon={section.icon}
+                  shades={section.shades}
+                  knowts={section.knowts}
+                  now={now}
+                  expanded={!closedSections[section.key]}
+                  onToggle={() =>
+                    setClosedSections((prev) => ({
+                      ...prev,
+                      [section.key]: !prev[section.key],
+                    }))
+                  }
+                  onOpenKnowt={(knowtId) =>
+                    navigation.navigate('KnowtDetail', { knowtId })
+                  }
+                  onTogglePin={(knowt) => void togglePin(knowt)}
+                  onDelete={(knowt) => void remove(knowt)}
+                />
               ))
             )}
 
@@ -514,50 +631,63 @@ const styles = StyleSheet.create({
   chipTextOn: { color: theme.color.onHighlight },
   chipTextQuiet: { color: theme.color.textMuted },
 
+  // Compact and tinted, per the reference: the category carries the color and
+  // the row carries as little height as it can while staying tappable.
   row: {
     height: ROW_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
     marginBottom: theme.spacing.sm,
-    paddingRight: theme.spacing.lg,
-    borderRadius: theme.radius.xl,
-    backgroundColor: theme.color.surface,
-    ...theme.shadow.card,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.radius.lg,
   },
-  // The whole of the color on a Knowts card, and the reason it reads white.
-  accent: {
-    width: 5,
-    height: ROW_HEIGHT - theme.spacing.lg * 2,
-    marginLeft: theme.spacing.md,
-    borderRadius: 3,
-  },
+  rowIcon: { backgroundColor: theme.color.surface, borderRadius: 10 },
   rowText: { flex: 1, gap: 1 },
   rowTitle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
+    gap: theme.spacing.xs,
   },
   rowName: {
     flexShrink: 1,
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.md,
-    color: theme.color.textPrimary,
-  },
-  rowMeta: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
   },
   rowWhere: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.xs,
     color: theme.color.textMuted,
   },
+  rowPill: {
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 5,
+  },
   rowNext: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+  },
+
+  section: { marginBottom: theme.spacing.lg },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+  },
+  sectionName: {
+    flex: 1,
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  sectionCount: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
+    color: theme.color.textMuted,
   },
   // A rounded tile rather than a bare glyph, so the left edge of every row has
   // the same shape to land on.

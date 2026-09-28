@@ -8,6 +8,7 @@ import {
   type MonthSummary,
 } from '../history/summary';
 import {
+  previousRange,
   summarizePeriod,
   type PeriodRange,
   type PeriodSummary,
@@ -187,4 +188,22 @@ export async function loadPeriodSummary(
   ]);
 
   return summarizePeriod({ range, knowts, categories, events, today });
+}
+
+/**
+ * This period and the one before it, for the change indicators.
+ *
+ * Two reads rather than one wide one: the summarizer buckets by the range it
+ * was handed, so a single query spanning both periods would put last month's
+ * events into this month's bars.
+ */
+export async function loadPeriodPair(
+  range: PeriodRange,
+  today = new Date(),
+): Promise<{ current: PeriodSummary; previous: PeriodSummary }> {
+  const [current, previous] = await Promise.all([
+    loadPeriodSummary(range, today),
+    loadPeriodSummary(previousRange(range), today),
+  ]);
+  return { current, previous };
 }

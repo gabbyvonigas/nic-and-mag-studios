@@ -167,34 +167,9 @@ export function SummaryPanel({
         </>
       ) : null}
 
-      {summary.byCategory.length > 0 ? (
-        <View style={styles.categories}>
-          {summary.byCategory.map((tally) => {
-            const shades = categoryShades(tally.category);
-            return (
-              <View key={tally.category?.id ?? 'none'} style={styles.catRow}>
-                <Text
-                  numberOfLines={1}
-                  style={[styles.catName, { color: shades.ink }]}>
-                  {tally.category?.name ?? 'No category'}
-                </Text>
-                <View style={styles.catTrack}>
-                  <View
-                    style={[
-                      styles.catFill,
-                      {
-                        width: `${Math.max(3, tally.share * 100)}%`,
-                        backgroundColor: shades.color,
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.catCount}>{tally.completions}</Text>
-              </View>
-            );
-          })}
-        </View>
-      ) : null}
+      {/* The by-category breakdown lives once, in the period panel above,
+          where it carries the icon badges. Two lists of the same numbers on one
+          screen made the second one read as a different measure. */}
 
       {/* Deliberately the one dark block in a panel of white tiles. Tags are
           the thing that makes this app work, so the section that counts them
@@ -395,28 +370,6 @@ const styles = StyleSheet.create({
     color: theme.color.textPrimary,
   },
   keyLabel: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
-  },
-  categories: { gap: theme.spacing.sm, marginTop: theme.spacing.xs },
-  catRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
-  catName: {
-    width: 78,
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.sm,
-  },
-  catTrack: {
-    flex: 1,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.color.surfaceMuted,
-    overflow: 'hidden',
-  },
-  catFill: { height: 8, borderRadius: 4 },
-  catCount: {
-    width: 24,
-    textAlign: 'right',
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,

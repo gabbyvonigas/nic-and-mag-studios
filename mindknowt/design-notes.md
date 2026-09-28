@@ -243,3 +243,23 @@ What that rules out without a patched `expo-alarm-kit` and a widget extension
 target: the app's typeface on the banner, a scan glyph rather than the word, a
 complete button next to dismiss, and any buttons at all while snoozed, since
 only the alert presentation is configured and the countdown one is not.
+
+### Log stat tiles
+
+The three numbers at the top of Log sit on pale tinted tiles rather than white
+cards, so the row reads as a summary block instead of three more cards in a
+page already full of them.
+
+| Key | Name | Hex | Carries |
+|---|---|---|---|
+| tileMint | Mint | `#DCF2E8` | completed |
+| tileLavender | Lavender | `#E7E3F7` | of what came up |
+| tilePeach | Peach | `#FBE7DB` | overridden |
+
+They are backgrounds only. None of the three means anything, which is the
+point: a tile color that signaled good or bad would grade the number sitting
+on it. Each is pale enough for ink text at full contrast.
+
+The change indicator under each number compares the period against the one
+before it of the same length, and uses the same muted text color whichever way
+it points. A red down arrow would be a scold, and a dip is data.

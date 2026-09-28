@@ -32,6 +32,16 @@ export const palette = {
    */
   neon: '#D9FA3C',
 
+  /**
+   * The three stat tiles on Log. Pale enough to carry ink text at full
+   * contrast, and distinct enough from each other to tell the tiles apart at a
+   * glance. They are backgrounds only: none of them is a status color, so a
+   * number never lands on a tile that means something.
+   */
+  mint: '#DCF2E8',
+  lavender: '#E7E3F7',
+  peach: '#FBE7DB',
+
   green50: '#E6F7EE',
   green200: '#A6E5C3',
   green700: '#1B6F42',

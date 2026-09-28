@@ -1,46 +1,97 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
-import { CheckIcon, ChevronLeft } from './icons';
+import { CheckIcon, ChevronLeft, GearIcon } from './icons';
 import { theme } from '../theme';
 
 /**
- * The `mk.` mark: the letters, with a lime circle and a check as the period.
+ * The stacked wordmark, drawn.
  *
- * Drawn rather than loaded. The supplied mark is a webp, which iOS will not
- * decode through the standard Image, and drawing it means it stays crisp at
- * any size and uses the app's own rounded face. Same reasoning as every other
- * icon here.
+ * Two lines in the app's own rounded face with the lime check sitting over the
+ * "i", which is what the supplied artwork does. Drawn rather than loaded
+ * because the artwork is a webp and iOS will not decode one through the
+ * standard Image, and because a drawn mark stays crisp at any size.
  */
-export function MkMark({ size = 15 }: { size?: number }) {
-  const dot = Math.round(size * 0.62);
+export function Wordmark({ size = 20 }: { size?: number }) {
+  const dot = Math.round(size * 0.46);
+
   return (
-    <View style={styles.mkRow} accessible accessibilityLabel="MindKnowt">
-      <Text style={[styles.mkLetters, { fontSize: size }]}>mk</Text>
-      <View
-        style={[
-          styles.mkDot,
-          { width: dot, height: dot, borderRadius: dot / 2 },
-        ]}>
-        <CheckIcon size={Math.round(dot * 0.72)} thickness={1.8} />
+    <View accessible accessibilityLabel="MindKnowt" style={styles.wordmark}>
+      <View>
+        <Text style={[styles.wordmarkLine, { fontSize: size }]}>mind</Text>
+        {/* Over the dot of the i, which is why it is positioned rather than
+            placed in the flow. */}
+        <View
+          style={[
+            styles.wordmarkDot,
+            {
+              width: dot,
+              height: dot,
+              borderRadius: dot / 2,
+              left: size * 0.63,
+              top: -dot * 0.34,
+            },
+          ]}>
+          <CheckIcon size={Math.round(dot * 0.7)} thickness={1.8} />
+        </View>
       </View>
+      <Text style={[styles.wordmarkLine, { fontSize: size }]}>knowt</Text>
     </View>
   );
 }
 
 /**
- * The line under a screen title, on Daily, Knowts and Log.
+ * The top of Daily, Knowts and Log: wordmark at the left, gear at the right,
+ * and a lime rule between the wordmark and the page name.
  *
- * It replaces a bare lime rule that sat above the title. That rule was the
- * neon used as decoration, and the direction reserves the color for active
- * states, progress and key actions, so it had no business being a masthead
- * stripe. The mark carries the brand instead and the neon stays inside it.
+ * The rule is measured rather than fixed. It matches the width of the title
+ * under it, which cannot be known until the title has laid out, so the title
+ * reports its width and the rule is drawn from that. A guessed width would be
+ * wrong on every word.
  */
-export function HeaderLockup() {
+export function TabHeader({
+  title,
+  onSettings,
+  children,
+}: {
+  title: string;
+  onSettings: () => void;
+  /** Anything that belongs beside the title, such as a Today button. */
+  children?: ReactNode;
+}) {
+  const [titleWidth, setTitleWidth] = useState(0);
+
   return (
-    <View style={styles.lockup}>
-      <MkMark />
-      <Text style={styles.lockupText}>One less thing to carry.</Text>
+    <View style={styles.tabHeader}>
+      <View style={styles.tabHeaderTop}>
+        <Wordmark />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          hitSlop={12}
+          onPress={onSettings}
+          style={({ pressed }) => [styles.tabGear, pressed && styles.pressed]}>
+          <GearIcon />
+        </Pressable>
+      </View>
+
+      <View
+        style={[
+          styles.tabRule,
+          // Zero until the title has measured, so it never flashes at a
+          // width it is about to stop having.
+          { width: titleWidth },
+        ]}
+      />
+
+      <View style={styles.tabTitleRow}>
+        <Text
+          onLayout={(event) => setTitleWidth(event.nativeEvent.layout.width)}
+          style={styles.title}>
+          {title}
+        </Text>
+        {children}
+      </View>
     </View>
   );
 }
@@ -55,7 +106,6 @@ export function ScreenHeader({
   return (
     <View style={styles.header}>
       <Text style={styles.title}>{title}</Text>
-      <HeaderLockup />
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
   );
@@ -182,28 +232,41 @@ export function Pill({ label, color }: { label: string; color?: string }) {
 
 const styles = StyleSheet.create({
   header: { gap: theme.spacing.xs, marginBottom: theme.spacing.lg },
-  lockup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    marginTop: 2,
-  },
-  lockupText: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textMuted,
-  },
-  mkRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
-  mkLetters: {
+  wordmark: { gap: -2 },
+  wordmarkLine: {
     fontFamily: theme.font.face.medium,
     color: theme.color.textPrimary,
-    letterSpacing: -0.4,
+    letterSpacing: -0.6,
+    lineHeight: undefined,
   },
-  mkDot: {
+  wordmarkDot: {
+    position: 'absolute',
     backgroundColor: theme.color.highlight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 1,
+  },
+  tabHeader: {
+    paddingHorizontal: theme.spacing.xl,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.sm,
+  },
+  tabHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  tabGear: { paddingLeft: theme.spacing.lg, paddingBottom: theme.spacing.sm },
+  tabRule: {
+    height: 4,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.color.highlight,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
+  },
+  tabTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   subHeader: { gap: theme.spacing.xs, marginBottom: theme.spacing.lg },
   subHeaderTop: {

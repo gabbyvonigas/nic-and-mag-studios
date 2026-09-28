@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { halfRadii, ringAngles, rotationShift } from './ringGeometry';
 import { theme } from '../theme';
 
 /**
@@ -29,7 +30,7 @@ function Half({
   degrees: number;
   color: string;
 }) {
-  const shift = side === 'right' ? -size / 4 : size / 4;
+  const shift = rotationShift(side, size);
 
   return (
     <View
@@ -43,6 +44,9 @@ function Half({
           width: size / 2,
           height: size,
           backgroundColor: color,
+          // Without these it is a rectangle, and a rotated rectangle in a half
+          // width clip draws a square. This is what makes it an arc.
+          ...halfRadii(side, size),
           transform: [
             { translateX: shift },
             { rotate: `${degrees}deg` },
@@ -68,10 +72,7 @@ export function ProgressRing({
 }) {
   const progress = Math.max(0, Math.min(1, value));
   const hole = size - thickness * 2;
-
-  // The right half carries the first 50 percent, the left half the rest.
-  const rightDegrees = -180 + Math.min(progress, 0.5) * 360;
-  const leftDegrees = -180 + Math.max(0, progress - 0.5) * 360;
+  const angles = ringAngles(value);
 
   return (
     <View
@@ -84,8 +85,8 @@ export function ProgressRing({
           { width: size, height: size, borderRadius: size / 2 },
         ]}
       />
-      <Half size={size} side="right" degrees={rightDegrees} color={theme.color.highlight} />
-      <Half size={size} side="left" degrees={leftDegrees} color={theme.color.highlight} />
+      <Half size={size} side="right" degrees={angles.right} color={theme.color.highlight} />
+      <Half size={size} side="left" degrees={angles.left} color={theme.color.highlight} />
       <View
         style={[
           styles.hole,

@@ -11,26 +11,31 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GearIcon } from '../components/icons';
+import { CategoryIcon } from '../components/CategoryIcon';
+import { ExpandSign } from '../components/icons';
 import { KnowtCard } from '../components/KnowtCard';
 import { ProgressRing } from '../components/ProgressRing';
-import { EmptyState, HeaderLockup } from '../components/ui';
+import { EmptyState, TabHeader } from '../components/ui';
 import {
   describeRepeat,
   formatTime,
   listDashboard,
+  listUpcoming,
   listWeekMarks,
   logCompletion,
   toISODate,
   type DashboardCard,
   type DayMark,
+  type UpcomingEntry,
 } from '../db';
 import { useQuery } from '../db/useQuery';
 import {
   progressCount,
   progressLine,
+  showUpcoming,
   stanceFor,
 } from '../knowts/dayProgress';
+import { midnight, offsetInDays, shiftWeeks } from '../knowts/weekStrip';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 import { isClaimConfigured } from '../tags/claim';
 import { shouldOfferTags } from '../tags/offer';
@@ -64,17 +69,6 @@ const MONTHS = [
   'December',
 ];
 
-function midnight(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-/** Whole days from today, negative for the past. */
-function offsetFromToday(date: Date, now: Date): number {
-  return Math.round(
-    (midnight(date).getTime() - midnight(now).getTime()) / 86_400_000,
-  );
-}
-
 function longDate(date: Date): string {
   return `${DAY_NAMES[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`;
 }
@@ -84,6 +78,17 @@ function clock(at: number | Date): string {
   const hours = date.getHours();
   const minutes = `${date.getMinutes()}`.padStart(2, '0');
   return `${hours % 12 === 0 ? 12 : hours % 12}:${minutes} ${hours < 12 ? 'am' : 'pm'}`;
+}
+
+/** When something later is due, said the way a person would. */
+function whenLabel(at: Date, now: Date): string {
+  const day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((day.getTime() - today.getTime()) / 86_400_000);
+
+  if (days === 1) return `Tomorrow, ${clock(at)}`;
+  if (days < 7) return `${DAY_NAMES[at.getDay()]}, ${clock(at)}`;
+  return `${MONTHS[at.getMonth()]} ${at.getDate()}`;
 }
 
 /** The live thing to say about a card, if there is one. */
@@ -120,50 +125,141 @@ function DateStrip({
   selectedIso,
   todayIso,
   onPick,
+  onShiftWeek,
 }: {
   marks: DayMark[];
   selectedIso: string;
   todayIso: string;
   onPick: (date: Date) => void;
+  onShiftWeek: (delta: number) => void;
 }) {
   return (
-    <View style={styles.strip}>
-      {marks.map((mark) => {
-        const selected = mark.iso === selectedIso;
-        const isToday = mark.iso === todayIso;
-        return (
-          <Pressable
-            key={mark.iso}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-            accessibilityLabel={longDate(mark.date)}
-            onPress={() => onPick(mark.date)}
-            style={styles.stripCell}>
-            <Text style={styles.stripInitial}>
-              {DAY_INITIALS[mark.date.getDay()]}
-            </Text>
-            <View style={[styles.stripDay, selected && styles.stripDayOn]}>
-              <Text
-                style={[
-                  styles.stripNumber,
-                  selected && styles.stripNumberOn,
-                  !selected && isToday && styles.stripNumberToday,
-                ]}>
-                {mark.date.getDate()}
+    <View style={styles.stripRow}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Previous week"
+        hitSlop={10}
+        onPress={() => onShiftWeek(-1)}>
+        <Text style={styles.stripArrow}>{'‹'}</Text>
+      </Pressable>
+
+      <View style={styles.strip}>
+        {marks.map((mark) => {
+          const selected = mark.iso === selectedIso;
+          const isToday = mark.iso === todayIso;
+          return (
+            <Pressable
+              key={mark.iso}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={longDate(mark.date)}
+              onPress={() => onPick(mark.date)}
+              style={styles.stripCell}>
+              <Text style={styles.stripInitial}>
+                {DAY_INITIALS[mark.date.getDay()]}
               </Text>
-            </View>
-            {/* Rendered even when empty so the row never changes height. */}
-            <View style={styles.stripDots}>
-              {mark.colors.map((color) => (
-                <View
-                  key={color}
-                  style={[styles.stripDot, { backgroundColor: color }]}
+              {/* Today keeps a ring whatever is selected, so it can always be
+                  found again; the filled day is the one being read. */}
+              <View
+                style={[
+                  styles.stripDay,
+                  isToday && !selected && styles.stripDayToday,
+                  selected && styles.stripDayOn,
+                ]}>
+                <Text
+                  style={[
+                    styles.stripNumber,
+                    selected && styles.stripNumberOn,
+                    !selected && isToday && styles.stripNumberToday,
+                  ]}>
+                  {mark.date.getDate()}
+                </Text>
+              </View>
+              {/* Rendered even when empty so the row never changes height. */}
+              <View style={styles.stripDots}>
+                {mark.colors.map((color) => (
+                  <View
+                    key={color}
+                    style={[styles.stripDot, { backgroundColor: color }]}
+                  />
+                ))}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Next week"
+        hitSlop={10}
+        onPress={() => onShiftWeek(1)}>
+        <Text style={styles.stripArrow}>{'›'}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/**
+ * What is next, once today is finished.
+ *
+ * Only appears when there is nothing left to do, so the screen has something
+ * to say other than being empty. Collapsible, because it is a glance forward
+ * rather than the point of the page.
+ */
+function UpcomingSection({
+  entries,
+  expanded,
+  onToggle,
+  onOpen,
+  now,
+}: {
+  entries: UpcomingEntry[];
+  expanded: boolean;
+  onToggle: () => void;
+  onOpen: (knowtId: string) => void;
+  now: Date;
+}) {
+  if (entries.length === 0) return null;
+
+  return (
+    <View style={styles.upcoming}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={onToggle}
+        style={({ pressed }) => [styles.upcomingHead, pressed && styles.pressed]}>
+        <Text style={styles.upcomingTitle}>Upcoming</Text>
+        <ExpandSign expanded={expanded} size={14} />
+      </Pressable>
+
+      {expanded
+        ? entries.map((entry) => {
+            const shades = categoryShades(entry.knowt.category);
+            return (
+              <Pressable
+                key={`${entry.knowt.id}:${entry.schedule.id}`}
+                accessibilityRole="button"
+                onPress={() => onOpen(entry.knowt.id)}
+                style={({ pressed }) => [
+                  styles.upcomingRow,
+                  pressed && styles.pressed,
+                ]}>
+                <CategoryIcon
+                  icon={entry.knowt.category?.icon}
+                  shades={shades}
+                  size={24}
                 />
-              ))}
-            </View>
-          </Pressable>
-        );
-      })}
+                <Text numberOfLines={1} style={styles.upcomingName}>
+                  {entry.knowt.name}
+                </Text>
+                <Text style={styles.upcomingWhen}>
+                  {whenLabel(entry.at, now)}
+                </Text>
+              </Pressable>
+            );
+          })
+        : null}
     </View>
   );
 }
@@ -178,7 +274,7 @@ export function HomeScreen() {
   // you reach the others, which is what replaced the week ahead list.
   const [selected, setSelected] = useState<Date>(() => midnight(new Date()));
   const selectedIso = toISODate(selected);
-  const offset = offsetFromToday(selected, now);
+  const offset = offsetInDays(selected, now);
   const stance = stanceFor(offset);
 
   const { data: board, loading, reload } = useQuery(
@@ -189,12 +285,18 @@ export function HomeScreen() {
     () => listWeekMarks(selected),
     [selectedIso],
   );
+  const { data: upcoming, reload: reloadUpcoming } = useQuery(
+    () => listUpcoming(),
+    [],
+  );
+  const [upcomingOpen, setUpcomingOpen] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
       void reload();
       void reloadMarks();
-    }, [reload, reloadMarks]),
+      void reloadUpcoming();
+    }, [reload, reloadMarks, reloadUpcoming]),
   );
 
   // The free tags are offered once, on the first Daily screen someone sees.
@@ -219,6 +321,7 @@ export function HomeScreen() {
     });
     await reload();
     await reloadMarks();
+    await reloadUpcoming();
   };
 
   const openKnowt = (knowtId: string) =>
@@ -233,31 +336,30 @@ export function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>
-              {stance === 'today' ? 'Today' : DAY_NAMES[selected.getDay()]}
-            </Text>
-            <Text style={styles.date}>{longDate(selected)}</Text>
-            <HeaderLockup />
-          </View>
+      <TabHeader
+        title={stance === 'today' ? 'Today' : DAY_NAMES[selected.getDay()] ?? ''}
+        onSettings={() => navigation.navigate('Settings')}>
+        {stance === 'today' ? null : (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Settings"
-            hitSlop={12}
-            onPress={() => navigation.navigate('Settings')}
-            style={({ pressed }) => [styles.gear, pressed && styles.pressed]}>
-            <GearIcon />
+            accessibilityLabel="Go to today"
+            onPress={() => setSelected(midnight(new Date()))}
+            style={({ pressed }) => [styles.todayPill, pressed && styles.pressed]}>
+            <Text style={styles.todayPillText}>Today</Text>
           </Pressable>
-        </View>
-      </View>
+        )}
+      </TabHeader>
+
+      <Text style={styles.date}>{longDate(selected)}</Text>
 
       <DateStrip
         marks={marks ?? []}
         selectedIso={selectedIso}
         todayIso={todayIso}
         onPick={(date) => setSelected(midnight(date))}
+        onShiftWeek={(delta) =>
+          setSelected((current) => shiftWeeks(current, delta))
+        }
       />
 
       {loading ? (
@@ -283,6 +385,21 @@ export function HomeScreen() {
               </Text>
             </View>
           </View>
+
+          {showUpcoming({
+            remaining: remaining.length,
+            total,
+            stance,
+            upcomingCount: upcoming?.length ?? 0,
+          }) ? (
+            <UpcomingSection
+              entries={upcoming ?? []}
+              expanded={upcomingOpen}
+              onToggle={() => setUpcomingOpen((open) => !open)}
+              onOpen={openKnowt}
+              now={now}
+            />
+          ) : null}
 
           {remaining.length === 0 ? (
             <EmptyState
@@ -325,42 +442,40 @@ export function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.color.background },
-  header: {
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.sm,
-    gap: 2,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  headerText: { flex: 1, gap: 2 },
-  gear: {
-    paddingTop: theme.spacing.md,
-    paddingLeft: theme.spacing.lg,
-    paddingBottom: theme.spacing.sm,
-  },
-  title: {
-    fontFamily: theme.font.face.bold,
-    fontSize: theme.font.size.display,
-    color: theme.color.textPrimary,
-    letterSpacing: -0.5,
-  },
   date: {
+    paddingHorizontal: theme.spacing.xl,
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.md,
     color: theme.color.textSecondary,
   },
+  todayPill: {
+    backgroundColor: theme.color.surface,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+  },
+  todayPillText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textPrimary,
+  },
   pressed: { opacity: 0.7 },
 
-  strip: {
+  stripRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.sm,
   },
+  stripArrow: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.xl,
+    color: theme.color.textMuted,
+  },
+  strip: { flex: 1, flexDirection: 'row', justifyContent: 'space-between' },
   stripCell: { alignItems: 'center', gap: 4, flex: 1 },
   stripInitial: {
     fontFamily: theme.font.face.regular,
@@ -375,6 +490,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stripDayOn: { backgroundColor: theme.color.highlight },
+  stripDayToday: {
+    borderWidth: 1.5,
+    borderColor: theme.color.textPrimary,
+  },
   stripNumber: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.md,
@@ -408,6 +527,41 @@ const styles = StyleSheet.create({
     color: theme.color.textPrimary,
   },
   progressLine: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
+
+  upcoming: { marginTop: theme.spacing.lg, gap: theme.spacing.xs },
+  upcomingHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: theme.spacing.sm,
+  },
+  upcomingTitle: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  upcomingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  upcomingName: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
+  upcomingWhen: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,

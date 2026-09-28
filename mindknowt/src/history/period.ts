@@ -25,6 +25,9 @@ export type TrendBucket = {
   /** Short label under the bar. */
   label: string;
   completions: number;
+  overrides: number;
+  /** Completions plus misses, so a rate can be read per bucket. */
+  total: number;
   /** Whether this bucket is the one containing today. */
   current: boolean;
 };
@@ -33,6 +36,8 @@ export type PeriodCategoryTally = {
   categoryId: string | null;
   name: string;
   color: string;
+  /** The glyph name stored on the category, for the badge on the row. */
+  icon: string | null;
   completions: number;
 };
 
@@ -45,6 +50,26 @@ export type PeriodSummary = {
   overrides: number;
   byCategory: PeriodCategoryTally[];
   trend: TrendBucket[];
+  /**
+   * The busiest two hour window, as a start hour, or null when nothing has
+   * been completed. Two hours rather than one because a single hour on a thin
+   * month is whichever hour happened twice.
+   */
+  peakHour: number | null;
+  /**
+   * Mean minutes from an alarm ringing to it being finished, or null when
+   * nothing rang. A check-in with no alarm behind it has no duration to
+   * average, so it is left out rather than counted as zero.
+   */
+  averageMinutes: number | null;
+};
+
+/** The same numbers for the period before this one, for the change arrows. */
+export type PeriodDelta = {
+  /** Change in completions, as a fraction. Null when the last one was empty. */
+  completions: number | null;
+  rate: number | null;
+  overrides: number | null;
 };
 
 const DAY_MS = 86_400_000;
@@ -52,7 +77,10 @@ const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-const SHORT_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+// Three letters rather than one initial. Single letters give S M T W T F S,
+// where two pairs are indistinguishable, and the chart's whole job is telling
+// you which day was the quiet one.
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -121,6 +149,100 @@ function isCompletion(event: EventRow): boolean {
  * A day is read in four hour blocks, because a bar per hour on a phone is
  * twenty four slivers nobody can read. A week is days, a month is days.
  */
+/**
+ * The busiest two hour window. Read over starts rather than fixed blocks, so a
+ * habit that straddles the top of an hour is not split across two bars.
+ */
+function peakHourOf(completions: EventRow[]): number | null {
+  if (completions.length === 0) return null;
+
+  const perHour = new Array<number>(24).fill(0);
+  for (const event of completions) {
+    perHour[new Date(event.completed_at as number).getHours()] += 1;
+  }
+
+  let bestHour = 0;
+  let best = -1;
+  for (let hour = 0; hour < 24; hour += 1) {
+    const pair = perHour[hour]! + (perHour[(hour + 1) % 24] ?? 0);
+    if (pair > best) {
+      best = pair;
+      bestHour = hour;
+    }
+  }
+  return best > 0 ? bestHour : null;
+}
+
+/** Mean minutes between ringing and finishing, over events that did both. */
+function averageMinutesOf(completions: EventRow[]): number | null {
+  const answered = completions.filter(
+    (event) => event.fired_at !== null && event.completed_at !== null,
+  );
+  if (answered.length === 0) return null;
+
+  const total = answered.reduce(
+    (sum, event) =>
+      sum + ((event.completed_at as number) - (event.fired_at as number)),
+    0,
+  );
+  return total / answered.length / 60_000;
+}
+
+/** Growth from one number to the next. Null when there is nothing to grow from. */
+export function changeBetween(now: number, before: number): number | null {
+  if (before === 0) return null;
+  return (now - before) / before;
+}
+
+export function deltaBetween(
+  now: PeriodSummary,
+  before: PeriodSummary,
+): PeriodDelta {
+  return {
+    completions: changeBetween(now.completions, before.completions),
+    rate:
+      now.rate === null || before.rate === null || before.rate === 0
+        ? null
+        : (now.rate - before.rate) / before.rate,
+    overrides: changeBetween(now.overrides, before.overrides),
+  };
+}
+
+/** Which number a sparkline is drawing. */
+export type SparkMetric = 'completions' | 'rate' | 'overrides';
+
+/**
+ * A sparkline's heights, each 0 to 1.
+ *
+ * Scaled against the biggest value in the series rather than an absolute
+ * ceiling, because the line is there to show the shape of the period, not to be
+ * read off. A rate is already a fraction and is drawn as one, so a flat week at
+ * 100 percent draws flat and high instead of being normalized into a straight
+ * line at the top that a flat week at 20 percent would also draw.
+ */
+export function sparkFor(
+  summary: PeriodSummary,
+  metric: SparkMetric,
+): number[] {
+  if (metric === 'rate') {
+    return summary.trend.map((bucket) =>
+      bucket.total === 0 ? 0 : bucket.completions / bucket.total,
+    );
+  }
+
+  const values = summary.trend.map((bucket) =>
+    metric === 'overrides' ? bucket.overrides : bucket.completions,
+  );
+  const peak = Math.max(...values, 0);
+  if (peak === 0) return values.map(() => 0);
+  return values.map((value) => value / peak);
+}
+
+/** The period immediately before this one, of the same length. */
+export function previousRange(range: PeriodRange): PeriodRange {
+  return rangeFor(range.kind, shiftRange(range, -1));
+}
+
 function bucketsFor(range: PeriodRange, events: EventRow[], today: Date): TrendBucket[] {
   const done = events.filter(isCompletion);
   const todayStart = startOfDay(today).getTime();
@@ -131,14 +253,17 @@ function bucketsFor(range: PeriodRange, events: EventRow[], today: Date): TrendB
       const start = new Date(range.from);
       start.setHours(hour, 0, 0, 0);
       const end = new Date(start.getTime() + 4 * 60 * 60 * 1000);
-      const count = done.filter((event) => {
-        const at = event.completed_at as number;
-        return at >= start.getTime() && at < end.getTime();
-      }).length;
+      const inBucket = (event: EventRow) => {
+        const at = event.completed_at ?? event.fired_at;
+        return at !== null && at >= start.getTime() && at < end.getTime();
+      };
       const hour12 = hour % 12 === 0 ? 12 : hour % 12;
       return {
         label: `${hour12}${hour < 12 ? 'a' : 'p'}`,
-        completions: count,
+        completions: done.filter(inBucket).length,
+        overrides: done.filter((e) => inBucket(e) && e.method === 'override')
+          .length,
+        total: events.filter(inBucket).length,
         current:
           today.getTime() >= start.getTime() && today.getTime() < end.getTime(),
       };
@@ -153,16 +278,18 @@ function bucketsFor(range: PeriodRange, events: EventRow[], today: Date): TrendB
       range.from.getDate() + index,
     );
     const end = new Date(start.getTime() + DAY_MS);
-    const count = done.filter((event) => {
-      const at = event.completed_at as number;
-      return at >= start.getTime() && at < end.getTime();
-    }).length;
+    const inBucket = (event: EventRow) => {
+      const at = event.completed_at ?? event.fired_at;
+      return at !== null && at >= start.getTime() && at < end.getTime();
+    };
     return {
       label:
         range.kind === 'week'
           ? (SHORT_DAYS[start.getDay()] ?? '')
           : `${start.getDate()}`,
-      completions: count,
+      completions: done.filter(inBucket).length,
+      overrides: done.filter((e) => inBucket(e) && e.method === 'override').length,
+      total: events.filter(inBucket).length,
       current: start.getTime() === todayStart,
     };
   });
@@ -203,6 +330,7 @@ export function summarizePeriod(input: {
         categoryId,
         name: category?.name ?? 'Everything else',
         color: category?.color ?? '#8A93A0',
+        icon: category?.icon ?? null,
         completions: 1,
       });
     }
@@ -219,5 +347,7 @@ export function summarizePeriod(input: {
       (a, b) => b.completions - a.completions,
     ),
     trend: bucketsFor(range, inRange, today),
+    peakHour: peakHourOf(completions),
+    averageMinutes: averageMinutesOf(completions),
   };
 }

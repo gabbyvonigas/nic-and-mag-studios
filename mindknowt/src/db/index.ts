@@ -18,17 +18,20 @@ export {
 export {
   listCategoryGroups,
   listDashboard,
+  listUpcoming,
   listWeekMarks,
   type CategoryGroup,
   type Dashboard,
   type DashboardCard,
   type DayMark,
+  type UpcomingEntry,
   type DashboardSection,
 } from './dashboard';
 export { clearInsightCache, loadInsight } from './insights';
 export {
   loadMonthLog,
   loadMonthSummary,
+  loadPeriodPair,
   loadPeriodSummary,
   undoCompletion,
   type LogCategoryGroup,

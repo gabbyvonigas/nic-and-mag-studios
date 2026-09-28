@@ -40,6 +40,11 @@ export const theme = {
     onAccent: palette.card,
     accentDisabled: palette.lightGray,
 
+    /** Log's stat tiles, in the order they are read. */
+    tileMint: palette.mint,
+    tileLavender: palette.lavender,
+    tilePeach: palette.peach,
+
     successSurface: palette.green50,
     successBorder: palette.green200,
     successText: palette.green700,

@@ -55,3 +55,30 @@ export function progressLine(
   if (done === 1) return 'One down.';
   return 'Going well.';
 }
+
+/**
+ * Whether Daily should show what is coming next rather than only the empty
+ * state.
+ *
+ * Only on today, and only once today is actually clear. A day in the past is
+ * finished and a day in the future is not the day you are on, so in both cases
+ * "next" would mean something different from what the section shows. A day with
+ * nothing scheduled gets the invitation to add one instead, because showing
+ * tomorrow to someone who has nothing today buries the only useful control.
+ */
+export function showUpcoming({
+  remaining,
+  total,
+  stance,
+  upcomingCount,
+}: {
+  remaining: number;
+  total: number;
+  stance: DayStance;
+  upcomingCount: number;
+}): boolean {
+  if (stance !== 'today') return false;
+  if (total === 0) return false;
+  if (remaining > 0) return false;
+  return upcomingCount > 0;
+}
