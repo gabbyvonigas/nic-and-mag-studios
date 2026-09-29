@@ -1,0 +1,353 @@
+import { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import {
+  armKnowtAlarm,
+  cancelAllAlarms,
+  resyncAlarmsQuietly,
+  syncScheduledAlarms,
+} from '../alarms';
+import { Button, Card, ScreenHeader } from '../components/ui';
+import { requiresScan } from '../knowts/modes';
+import {
+  clearInsightCache,
+  destroyDatabase,
+  getAllAppMeta,
+  listKnowts,
+  listPendingAlarms,
+  reseed,
+  seedIfEmpty,
+} from '../db';
+import { useQuery } from '../db/useQuery';
+import { listSets, setContentErrors, setContentNotices } from '../sets';
+import { theme } from '../theme';
+import type { RootStackParamList } from '../navigation/types';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+export function DevScreen() {
+  const navigation = useNavigation<Nav>();
+  const { data: meta, reload: reloadMeta } = useQuery(() => getAllAppMeta(), []);
+  const { data: knowts, reload: reloadKnowts } = useQuery(() => listKnowts(), []);
+  const { data: pending, reload: reloadPending } = useQuery(
+    () => listPendingAlarms(),
+    [],
+  );
+  const [busy, setBusy] = useState(false);
+  const [alarmNotice, setAlarmNotice] = useState<string | null>(null);
+
+  const run = async (task: () => Promise<void>) => {
+    setBusy(true);
+    try {
+      await task();
+      // Every task here can replace the schedules wholesale, so the armed
+      // alarms have to be rebuilt from what the database now says.
+      await resyncAlarmsQuietly();
+      await reloadMeta();
+      await reloadKnowts();
+      await reloadPending();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <ScreenHeader title="Dev" subtitle="Test harnesses and database tools" />
+
+        <Text style={styles.sectionTitle}>app_meta</Text>
+        <Card>
+          {Object.entries(meta ?? {}).length === 0 ? (
+            <Text style={styles.body}>Empty.</Text>
+          ) : (
+            Object.entries(meta ?? {}).map(([key, value]) => (
+              <View key={key} style={styles.metaRow}>
+                <Text style={styles.metaKey}>{key}</Text>
+                <Text style={styles.metaValue} selectable>
+                  {key === 'first_launch_at'
+                    ? new Date(Number(value)).toLocaleString()
+                    : value}
+                </Text>
+              </View>
+            ))
+          )}
+        </Card>
+        <Text style={styles.hint}>
+          install_generation is written once with INSERT OR IGNORE and is never
+          overwritten. Reseeding leaves it alone; only a full reset clears it.
+        </Text>
+
+        <Text style={styles.sectionTitle}>Pending alarms</Text>
+        <Card>
+          {(pending ?? []).length === 0 ? (
+            <Text style={styles.body}>Nothing armed.</Text>
+          ) : (
+            (pending ?? []).map((alarm) => {
+              const owner = (knowts ?? []).find((k) => k.id === alarm.knowt_id);
+              return (
+                <View key={alarm.id} style={styles.metaRow}>
+                  <Text style={styles.metaKey}>
+                    {owner?.name ?? alarm.knowt_id} ({alarm.kind})
+                  </Text>
+                  <Text style={styles.metaValue}>
+                    {new Date(alarm.fires_at).toLocaleString()}
+                  </Text>
+                </View>
+              );
+            })
+          )}
+        </Card>
+        <Button
+          label="Re-arm all schedules"
+          variant="secondary"
+          disabled={busy}
+          onPress={() =>
+            void run(async () => {
+              const r = await syncScheduledAlarms();
+              setAlarmNotice(
+                `Armed ${r.armed}, replaced ${r.replaced}, cleared ${r.cleared}` +
+                  (r.failed > 0 ? `, failed ${r.failed}.` : '.'),
+              );
+            })
+          }
+        />
+        <Button
+          label="Cancel every alarm"
+          variant="secondary"
+          disabled={busy}
+          onPress={() =>
+            void run(async () => {
+              const count = await cancelAllAlarms();
+              setAlarmNotice(
+                count === 0
+                  ? 'AlarmKit had nothing scheduled.'
+                  : `Canceled ${count} alarm${count === 1 ? '' : 's'}.`,
+              );
+            })
+          }
+        />
+        {alarmNotice ? <Text style={styles.hint}>{alarmNotice}</Text> : null}
+        <Text style={styles.hint}>
+          Schedules are armed at launch and whenever one changes. A weekly
+          repeat is one recurring alarm, so its time here is the next firing,
+          not the only one. Cancel every alarm goes to AlarmKit for the real
+          list, which is the only way to reach one armed before this record
+          existed.
+        </Text>
+
+        <Text style={styles.sectionTitle}>Database</Text>
+        <Text style={styles.body}>{knowts?.length ?? 0} knowts</Text>
+        <Button
+          label="Wipe and reseed"
+          variant="secondary"
+          disabled={busy}
+          onPress={() => void run(reseed)}
+        />
+        <Button
+          label="Delete database and start over"
+          variant="quiet"
+          disabled={busy}
+          onPress={() =>
+            void run(async () => {
+              await destroyDatabase();
+              await seedIfEmpty();
+            })
+          }
+        />
+        <Text style={styles.hint}>
+          Wipe and reseed replaces the example content. Delete removes the file
+          entirely, so the next read is a genuine first launch and app_meta is
+          stamped again.
+        </Text>
+
+        <Text style={styles.sectionTitle}>Starter sets</Text>
+        <Card>
+          <Text style={styles.body}>
+            {listSets().length} set{listSets().length === 1 ? '' : 's'} loaded from
+            assets/starter-sets.json
+          </Text>
+          {setContentErrors().length === 0 ? (
+            <Text style={styles.hint}>No content problems.</Text>
+          ) : (
+            setContentErrors().map((error) => (
+              <Text key={error} style={styles.contentError}>
+                {error}
+              </Text>
+            ))
+          )}
+          {setContentNotices().map((notice) => (
+            <Text key={notice} style={styles.contentNotice}>
+              {notice}
+            </Text>
+          ))}
+        </Card>
+        <Text style={styles.hint}>
+          Content is validated at load. Anything listed here is a problem in the
+          JSON, not in the app.
+        </Text>
+
+        <Text style={styles.sectionTitle}>Insights</Text>
+        <Text style={styles.hint}>
+          The Log picks one insight a day and keeps it. This forgets the pick so
+          the next Log open recomputes, which is the only way to see a rule fire
+          without waiting for tomorrow.
+        </Text>
+        <Button
+          label="Recompute the insight"
+          variant="secondary"
+          disabled={busy}
+          onPress={() =>
+            void (async () => {
+              await clearInsightCache();
+              setAlarmNotice('Insight cleared. Open Log to recompute it.');
+            })()
+          }
+        />
+
+        <Text style={styles.sectionTitle}>Ring a knowt in 1 minute</Text>
+        <Text style={styles.hint}>
+          Arms a one-off alarm so the ringing screen and the scan-to-stop loop
+          can be exercised without waiting for a real schedule. This used to sit
+          on the knowt itself, where it was not something anyone needed.
+        </Text>
+        {(knowts ?? []).length === 0 ? (
+          <Text style={styles.hint}>No knowts to ring.</Text>
+        ) : (
+          (knowts ?? []).map((knowt) => (
+            <Pressable
+              key={knowt.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Ring ${knowt.name} in one minute`}
+              disabled={busy}
+              onPress={() =>
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    await armKnowtAlarm({
+                      knowtId: knowt.id,
+                      title: knowt.name,
+                      firesAt: new Date(Date.now() + 60_000),
+                      kind: 'test',
+                      // So the test alarm shows the same Lock Screen as a real
+                      // one, which is the whole point of being able to fire it.
+                      requiresScan: requiresScan(knowt.mode),
+                    });
+                    setAlarmNotice(
+                      `${knowt.name} rings in one minute. Lock the phone.`,
+                    );
+                    await reloadPending();
+                  } catch (err) {
+                    setAlarmNotice(
+                      err instanceof Error ? err.message : String(err),
+                    );
+                  } finally {
+                    setBusy(false);
+                  }
+                })()
+              }
+              style={({ pressed }) => [
+                styles.ringRow,
+                pressed && styles.pressed,
+              ]}>
+              <Text style={styles.ringName}>{knowt.name}</Text>
+              <Text style={styles.ringGo}>Ring</Text>
+            </Pressable>
+          ))
+        )}
+
+        <Text style={styles.sectionTitle}>Hardware harnesses</Text>
+        <Button
+          label="NFC"
+          variant="secondary"
+          onPress={() => navigation.navigate('NfcHarness')}
+        />
+        <Button
+          label="Alarms"
+          variant="secondary"
+          onPress={() => navigation.navigate('AlarmHarness')}
+        />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.color.background },
+  pressed: { opacity: 0.6 },
+  ringRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.color.surface,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  ringName: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
+  ringGo: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.accent,
+  },
+  content: {
+    paddingHorizontal: theme.spacing.xl,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.xxl,
+    gap: theme.spacing.sm,
+  },
+  sectionTitle: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: theme.spacing.lg,
+  },
+  body: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    color: theme.color.textBody,
+  },
+  hint: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    lineHeight: 19,
+    color: theme.color.textMuted,
+  },
+  contentNotice: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    lineHeight: 18,
+    color: theme.color.warningText,
+  },
+  contentError: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    lineHeight: 18,
+    color: theme.color.dangerText,
+  },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing.md },
+  metaKey: {
+    fontFamily: theme.font.mono,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
+  metaValue: {
+    fontFamily: theme.font.mono,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textPrimary,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+});
