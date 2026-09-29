@@ -1,6 +1,7 @@
 import { getDatabase } from './database';
 import { newId } from './ids';
 import { isDueOn, minutesOf, TIME_PATTERN, toISODate } from './scheduling';
+import { CATEGORY_COLORS } from '../theme/categoryColors';
 import {
   PRIORITY_HIGH,
   PRIORITY_LOW,
@@ -69,6 +70,45 @@ export async function createCategory(input: {
  * `is_custom = 0`, so a color changed here would be silently overwritten by a
  * later version. Refusing is honest; letting it be reverted later is not.
  */
+/**
+ * Puts a shipped category back to the color it ships with, and clears the
+ * lock so future palette changes reach it again.
+ *
+ * A custom category has no shipped color to go back to, so it is left alone
+ * rather than being painted some arbitrary default.
+ */
+export async function resetCategoryColor(id: string): Promise<void> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<CategoryRow>(
+    'SELECT * FROM categories WHERE id = ?',
+    id,
+  );
+  if (!row || !row.key) return;
+
+  const color = CATEGORY_COLORS[row.key as keyof typeof CATEGORY_COLORS];
+  if (!color) return;
+
+  await db.runAsync(
+    'UPDATE categories SET color = ?, color_locked = 0 WHERE id = ?',
+    color,
+    id,
+  );
+}
+
+/**
+ * Writes the order the categories are shown in.
+ *
+ * Every row is rewritten with a dense index rather than the moved one being
+ * nudged. Two categories sharing a sort value fall through to ordering by
+ * name, which reads as the move not having taken.
+ */
+export async function reorderCategories(ids: string[]): Promise<void> {
+  const db = await getDatabase();
+  for (const [index, id] of ids.entries()) {
+    await db.runAsync('UPDATE categories SET sort = ? WHERE id = ?', index, id);
+  }
+}
+
 export async function updateCategory(
   id: string,
   fields: { name?: string; color?: string },
@@ -79,12 +119,6 @@ export async function updateCategory(
     id,
   );
   if (!row) return;
-
-  if (fields.color !== undefined && !row.is_custom) {
-    throw new CategoryLockedError(
-      'The built in categories keep their colors. Make your own to choose one.',
-    );
-  }
 
   const sets: string[] = [];
   const args: string[] = [];
@@ -98,6 +132,10 @@ export async function updateCategory(
   if (fields.color !== undefined) {
     sets.push('color = ?');
     args.push(fields.color);
+    // Every category's color is the person's to change now, shipped ones
+    // included. The flag is what stops the next palette repaint from quietly
+    // undoing that: RECOLOR_SQL skips any row carrying it.
+    sets.push('color_locked = 1');
   }
   if (sets.length === 0) return;
 

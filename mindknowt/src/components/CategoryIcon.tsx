@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { clockParts, heartParts } from './glyphGeometry';
 import type { CategoryShades } from '../theme';
 import { theme } from '../theme';
 
@@ -60,41 +61,32 @@ function Glyph({ name, color, size }: { name: string; color: string; size: numbe
         </View>
       );
 
-    case 'heart':
-      // Two lobes and a rotated square, which is the only way to a heart
-      // without a path.
+    case 'heart': {
+      // Two lobes and a square on its point, which is the only way to a heart
+      // without a path. The measurements are whole points from
+      // `heartParts`, because rounding each of them separately is what made
+      // this lean; see the note there.
+      const h = heartParts(size);
+      const lobe = {
+        position: 'absolute' as const,
+        top: 0,
+        width: h.lobe.size,
+        height: h.lobe.size,
+        borderRadius: h.lobe.radius,
+        backgroundColor: color,
+      };
       return (
         <View style={styles.center}>
-          <View style={{ width: size * 0.78, height: size * 0.7 }}>
+          <View style={{ width: h.box.width, height: h.box.height }}>
+            <View style={[lobe, { left: h.lobe.leftX }]} />
+            <View style={[lobe, { left: h.lobe.rightX }]} />
             <View
               style={{
                 position: 'absolute',
-                left: 0,
-                top: 0,
-                width: size * 0.44,
-                height: size * 0.44,
-                borderRadius: size * 0.22,
-                backgroundColor: color,
-              }}
-            />
-            <View
-              style={{
-                position: 'absolute',
-                right: 0,
-                top: 0,
-                width: size * 0.44,
-                height: size * 0.44,
-                borderRadius: size * 0.22,
-                backgroundColor: color,
-              }}
-            />
-            <View
-              style={{
-                position: 'absolute',
-                left: size * 0.17,
-                top: size * 0.17,
-                width: size * 0.44,
-                height: size * 0.44,
+                left: h.wedge.x,
+                top: h.wedge.y,
+                width: h.wedge.size,
+                height: h.wedge.size,
                 backgroundColor: color,
                 transform: [{ rotate: '45deg' }],
               }}
@@ -102,48 +94,57 @@ function Glyph({ name, color, size }: { name: string; color: string; size: numbe
           </View>
         </View>
       );
+    }
 
-    case 'clock':
-      // Routine is time shaped, so a clock face: a ring with two hands. It was
-      // drawn as `sparkle`, which is a vertical bar crossed by a horizontal
-      // one, and at this size that is a plus sign and nothing else.
+    case 'clock': {
+      // A plain circle clock: a ring and two hands. Not an alarm clock, which
+      // at this size is a circle with two bumps on it.
+      const c = clockParts(size, bar);
+      const hand = { position: 'absolute' as const, backgroundColor: color };
       return (
-        <View style={styles.center}>
+        <View style={{ width: c.box, height: c.box }}>
           <View
             style={{
-              width: size * 0.82,
-              height: size * 0.82,
-              borderRadius: size * 0.41,
-              borderWidth: bar,
+              position: 'absolute',
+              left: c.ring.offset,
+              top: c.ring.offset,
+              width: c.ring.size,
+              height: c.ring.size,
+              borderRadius: c.ring.size / 2,
+              borderWidth: c.ring.border,
               borderColor: color,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-            {/* The hands meet at the center, so each is anchored there and
-                runs outward rather than being centered on it. */}
-            <View
-              style={{
-                position: 'absolute',
-                width: bar,
-                height: size * 0.26,
-                borderRadius: bar,
-                backgroundColor: color,
-                top: size * 0.15,
-              }}
-            />
-            <View
-              style={{
-                position: 'absolute',
-                width: size * 0.2,
-                height: bar,
-                borderRadius: bar,
-                backgroundColor: color,
-                left: size * 0.41 - bar / 2,
-              }}
-            />
-          </View>
+            }}
+          />
+          {/* Outside the ring on purpose. Inside it these are measured
+              against the ring's content box, which the border has already
+              inset, so both hands sat low and left of the middle. */}
+          <View
+            style={[
+              hand,
+              {
+                left: c.hand.minute.x,
+                top: c.hand.minute.y,
+                width: c.hand.minute.width,
+                height: c.hand.minute.height,
+                borderRadius: c.ring.border,
+              },
+            ]}
+          />
+          <View
+            style={[
+              hand,
+              {
+                left: c.hand.hour.x,
+                top: c.hand.hour.y,
+                width: c.hand.hour.width,
+                height: c.hand.hour.height,
+                borderRadius: c.ring.border,
+              },
+            ]}
+          />
         </View>
       );
+    }
 
     case 'sparkle':
       // Four long points and four short ones. The long pair alone was a plus

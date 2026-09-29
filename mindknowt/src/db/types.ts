@@ -41,6 +41,8 @@ export type CategoryRow = {
   icon: string;
   is_custom: number;
   sort: number;
+  /** 1 once the color was chosen by hand, so repaints leave it alone. */
+  color_locked: number;
 };
 
 export type KnowtRow = {

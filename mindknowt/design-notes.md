@@ -319,3 +319,36 @@ Note that this axis is Monday first while `rangeFor('week')` still starts weeks
 on Sunday, which is what the Daily strip draws. The chart is an aggregate by
 weekday rather than a walk through the period, so the order is a reading
 choice; the range itself was left alone.
+
+
+### Category color and order are the person's
+
+Every category's color can be changed, shipped ones included. That needed a
+`color_locked` flag on the row: `RECOLOR_SQL` repaints the shipped categories
+whenever the palette moves, five such repaints have already shipped, and
+without the flag the next one would silently undo someone's choice. Setting a
+color sets the flag; "Reset color" puts a shipped category back to its palette
+value and clears it, so future palette work reaches it again.
+
+The picker is a generated grid (`colorGrid.ts`): twelve hues across three
+levels plus a row of grays. A real hue wheel means a gesture driven control or
+a third party dependency, and neither is in this project. Every swatch is
+checked to produce a readable ink.
+
+That check found a real fault in `shadesFromHex`. It darkened a color by a flat
+42 percent for label text, which works for most hues and fails for bright ones:
+a vivid yellow came out at 3.67 against its own fill, so a category named in it
+could not be read. The darkening now steps down until the ink clears 4.5,
+capped at 86 percent so a bright category does not just turn black. The shipped
+categories are unaffected; their inks are hand-picked in `CATEGORY_INK`.
+
+Order is stored in `categories.sort`, which has existed since the first schema
+and which nothing ever wrote, so every category sat at 0 and the list fell
+through to ordering by name. Moving a category rewrites the whole order densely
+rather than nudging one value, because two categories sharing a sort value fall
+back to name order, which reads as the move not having taken.
+
+The control is a pair of arrows on the Categories screen rather than a drag on
+the Knowts strip itself. The strip scrolls sideways, so a drag inside it has to
+win a gesture the ScrollView also wants, and that arbitration is not something
+that can be checked anywhere but on a device.

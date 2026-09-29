@@ -89,6 +89,8 @@ export {
   setPinned,
   TagInUseError,
   todayCompletionCount,
+  reorderCategories,
+  resetCategoryColor,
   updateCategory,
   updateKnowt,
   updateNotes,

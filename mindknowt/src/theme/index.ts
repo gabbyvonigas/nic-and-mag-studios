@@ -176,6 +176,5 @@ export {
   METHOD_COLORS,
   categoryShades,
   shadesFromHex,
-  CUSTOM_PALETTE,
   type CategoryShades,
 } from './categoryColors';

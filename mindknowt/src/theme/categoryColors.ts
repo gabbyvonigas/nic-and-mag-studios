@@ -85,23 +85,6 @@ export const CATEGORY_FALLBACK = {
   fill: '#F1F3F5',
 } as const;
 
-/**
- * Swatches offered when someone makes their own category. The same vivid
- * register as the shipped six, so a custom category sits beside them rather
- * than looking like a faded copy, in hues the shipped six do not use.
- */
-export const CUSTOM_PALETTE = [
-  '#FF3B5C',
-  '#FF7A1A',
-  '#FFD028',
-  '#8BD934',
-  '#12C7B4',
-  '#22A7F0',
-  '#5C6BFF',
-  '#A855F7',
-  '#EC4899',
-  '#64748B',
-] as const;
 
 export type CategoryShades = {
   /** The swatch itself. Everything that is not text draws this. */
@@ -146,14 +129,63 @@ function mix(
  * black and white. Close enough to stay legible, and it means a custom
  * category renders in its own color instead of falling back to gray.
  */
+/** Relative luminance, for the contrast check below. */
+function luminance([r, g, b]: [number, number, number]): number {
+  const channel = (v: number) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+function contrast(
+  a: [number, number, number],
+  b: [number, number, number],
+): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return ((hi as number) + 0.05) / ((lo as number) + 0.05);
+}
+
+function blend(
+  rgb: [number, number, number],
+  towards: [number, number, number],
+  amount: number,
+): [number, number, number] {
+  return [
+    rgb[0] + (towards[0] - rgb[0]) * amount,
+    rgb[1] + (towards[1] - rgb[1]) * amount,
+    rgb[2] + (towards[2] - rgb[2]) * amount,
+  ];
+}
+
+/**
+ * Shades for a color nobody hand-picked shades for, which is every custom
+ * category.
+ *
+ * The ink used to be a flat 42 percent toward black, which works for most
+ * hues and fails for the bright ones. Yellow is the case that shows it: a
+ * vivid yellow darkened by 42 percent is still bright, and it came out at 3.67
+ * against its own fill, so a category named in it could not be read. The
+ * darkening now steps down until the ink actually clears 4.5, which is the
+ * property that matters rather than the number that usually produces it.
+ *
+ * The shipped categories do not come through here. Their inks are hand-picked
+ * in CATEGORY_INK, and `categoryShades` prefers those.
+ */
 export function shadesFromHex(hex: string): CategoryShades {
   const rgb = parseHex(hex);
   if (!rgb) return { ...CATEGORY_FALLBACK };
-  return {
-    color: toHex(rgb),
-    ink: mix(rgb, [0, 0, 0], 0.42),
-    fill: mix(rgb, [255, 255, 255], 0.88),
-  };
+
+  const fill = blend(rgb, [255, 255, 255], 0.88);
+
+  let ink = blend(rgb, [0, 0, 0], 0.42);
+  // Capped: past this the hue is gone and every bright category reads black.
+  for (let amount = 0.42; amount <= 0.86 && contrast(ink, fill) < 4.5; ) {
+    amount += 0.04;
+    ink = blend(rgb, [0, 0, 0], amount);
+  }
+
+  return { color: toHex(rgb), ink: toHex(ink), fill: toHex(fill) };
 }
 
 /**

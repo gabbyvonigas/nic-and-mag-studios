@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -21,7 +21,11 @@ CREATE TABLE IF NOT EXISTS categories (
   color     TEXT NOT NULL,
   icon      TEXT NOT NULL,
   is_custom INTEGER NOT NULL DEFAULT 0,
-  sort      INTEGER NOT NULL DEFAULT 0
+  sort      INTEGER NOT NULL DEFAULT 0,
+  -- Set once someone picks this category's color themselves. RECOLOR_SQL
+  -- repaints the shipped categories whenever the palette moves, and without
+  -- this the next repaint would silently undo their choice.
+  color_locked INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS knowts (
@@ -157,6 +161,15 @@ export const ADDED_COLUMNS: { to: number; table: string; column: string; type: s
     column: 'is_pinned',
     type: 'INTEGER NOT NULL DEFAULT 0',
   },
+  {
+    to: 15,
+    table: 'categories',
+    // Set once someone picks a color for a category themselves. Shipped
+    // categories are repainted by RECOLOR_SQL whenever the palette moves, and
+    // without this flag the next repaint would silently undo their choice.
+    column: 'color_locked',
+    type: 'INTEGER NOT NULL DEFAULT 0',
+  }
 ];
 
 /**
@@ -168,7 +181,8 @@ export const ADDED_COLUMNS: { to: number; table: string; column: string; type: s
 export const RECOLOR_SQL = Object.entries(CATEGORY_COLORS)
   .map(
     ([key, color]) =>
-      `UPDATE categories SET color = '${color}' WHERE key = '${key}' AND is_custom = 0;`,
+      `UPDATE categories SET color = '${color}'
+         WHERE key = '${key}' AND is_custom = 0 AND color_locked = 0;`,
   )
   .join('\n');
 
