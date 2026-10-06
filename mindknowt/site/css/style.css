@@ -532,8 +532,10 @@ img {
 /* ---------- The kit ---------- */
 
 /*
- * The one thing on this page that asks for a decision, so it is the one dark
- * block on a white page. Everything else is a tint.
+ * The one thing on this page that asks for a decision, so it carries the most
+ * weight. That weight used to come from a near-black block; it comes from a
+ * solid lime one now. Lime is the brand's loudest color and this is the place
+ * to spend it.
  */
 .offer {
   padding-bottom: clamp(56px, 8vw, 104px);
@@ -544,7 +546,7 @@ img {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px clamp(28px, 4vw, 64px);
   align-items: center;
-  background: var(--band);
+  background: var(--lime);
   border-radius: 28px;
   padding: clamp(28px, 4vw, 48px);
 }
@@ -555,7 +557,9 @@ img {
   font-size: 14px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--lime);
+  /* Ink on lime is 15.9. Everything on this band is ink or charcoal. */
+  color: var(--ink);
+  opacity: 0.72;
 }
 
 .offer-line {
@@ -565,11 +569,17 @@ img {
   font-size: clamp(28px, 3.6vw, 44px);
   line-height: 1.1;
   letter-spacing: -0.02em;
-  color: var(--white);
+  color: var(--ink);
 }
 
-/* Five tags, as five dots. Shapes only, because there is no product photo
-   and inventing one would be a picture of something that does not exist. */
+/*
+ * Five tags, as five dots. Shapes only, because there is no product photo and
+ * inventing one would be a picture of something that does not exist.
+ *
+ * Every dot carries an ink ring. Without it the lime one is invisible against
+ * a lime band, 1.0 to 1, and the teal and coral ones sit at 1.9 and 2.8. The
+ * ring is what makes all five read as five.
+ */
 .offer-dots {
   list-style: none;
   display: flex;
@@ -582,6 +592,7 @@ img {
   width: 22px;
   height: 22px;
   border-radius: 50%;
+  border: 2px solid var(--ink);
 }
 
 .offer-dots li:nth-child(1) {
@@ -604,8 +615,12 @@ img {
   background: var(--activity);
 }
 
+/* Lifted onto white so the price separates from the lime around it. */
 .offer-price {
   text-align: right;
+  background: var(--white);
+  border-radius: 22px;
+  padding: 22px 26px;
 }
 
 /* The price and the badge are one unit, so they share a line and wrap
@@ -621,15 +636,17 @@ img {
 .offer-amount {
   font-family: var(--display);
   font-weight: 700;
-  font-size: clamp(44px, 5.6vw, 68px);
+  font-size: clamp(42px, 5.2vw, 62px);
   line-height: 1;
   letter-spacing: -0.03em;
-  color: var(--lime);
+  color: var(--ink);
 }
 
+/* Ink filled with lime type, which is 15.9, so the badge still carries the
+   brand color now that the band itself is lime. */
 .offer-badge {
-  background: var(--lime);
-  color: var(--ink);
+  background: var(--ink);
+  color: var(--lime);
   font-family: var(--display);
   font-weight: 700;
   font-size: clamp(15px, 1.5vw, 18px);
@@ -641,7 +658,7 @@ img {
 .offer-terms {
   margin-top: 16px;
   font-size: 16px;
-  color: var(--white);
+  color: var(--charcoal);
 }
 
 .offer-platform {
@@ -649,15 +666,19 @@ img {
   font-family: var(--display);
   font-weight: 500;
   font-size: 14px;
-  color: var(--band-muted);
+  color: var(--gray);
 }
 
-/* Inside the band, along its bottom edge, spanning both columns. */
+/*
+ * Inside the band, along its bottom edge. Charcoal rather than gray: gray on
+ * lime is 3.99, which fails at this size.
+ */
 .offer-later {
   grid-column: 1 / -1;
   margin-top: 4px;
   font-size: 13px;
-  color: var(--band-muted);
+  color: var(--charcoal);
+  opacity: 0.8;
 }
 
 /* ---------- Phone vignettes ---------- */
