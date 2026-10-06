@@ -244,6 +244,13 @@ export type NewKnowt = {
     repeatType: RepeatType;
     daysOfWeek?: number[];
     intervalDays?: number;
+    /**
+     * Calendar months, for monthly and longer. Separate from `intervalDays`
+     * because counting months in days drifts: thirty days is not a month.
+     * Without this the monthly presets saved both interval columns null, and
+     * `isDueOn` answered false for every date, so they never rang at all.
+     */
+    intervalMonths?: number;
     startDate?: string;
   };
 };
@@ -278,8 +285,9 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
       await db.runAsync(
         `INSERT INTO schedules
            (id, knowt_id, label, time, repeat_type, days_of_week, interval_days,
-            supply_days, lead_days, start_date, enabled, alarmkit_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, 1, NULL)`,
+            interval_months, supply_days, lead_days, start_date, enabled,
+            alarmkit_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, 1, NULL)`,
         newId(),
         id,
         s.label ?? null,
@@ -287,6 +295,7 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
         s.repeatType,
         s.daysOfWeek ? JSON.stringify(s.daysOfWeek) : null,
         s.intervalDays ?? null,
+        s.intervalMonths ?? null,
         s.startDate ?? null,
       );
     }

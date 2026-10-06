@@ -20,15 +20,23 @@ import { TimeWheel } from '../components/TimeWheel';
 import { Button, SubScreenHeader } from '../components/ui';
 import {
   createKnowt,
+  describeRepeat,
   purgeKnowt,
   findKnowtByTagUid,
-  formatTime,
   reassignTag,
   listCategories,
   toISODate,
   type KnowtMode,
 } from '../db';
 import { useQuery } from '../db/useQuery';
+import { MonthCalendar } from '../components/MonthCalendar';
+import {
+  clockLabel,
+  dayLabel,
+  draftRow,
+  nextOccurrences,
+  occursOn,
+} from '../knowts/occurrences';
 import { REPEAT_PRESETS, shapeFor, type RepeatPresetId } from '../knowts/repeats';
 import { askToReassign } from '../knowts/tagConflict';
 import { NfcScanError, nfcReader } from '../nfc';
@@ -97,6 +105,18 @@ export function SetupKnowtScreen() {
   const [preset, setPreset] = useState<RepeatPresetId>('daily');
   const [days, setDays] = useState<number[]>([]);
   const [everyN, setEveryN] = useState('3');
+  /**
+   * The day the schedule starts on, and the day a one-off happens on. The
+   * column has always existed; nothing was ever writing anything but today.
+   */
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  });
+  const [visibleMonth, setVisibleMonth] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   const [mode, setMode] = useState<KnowtMode>('open');
   const [tagUid, setTagUid] = useState<string | null>(null);
@@ -109,6 +129,32 @@ export function SetupKnowtScreen() {
   const [saving, setSaving] = useState(false);
 
   const chosen = REPEAT_PRESETS.find((p) => p.id === preset) ?? REPEAT_PRESETS[0]!;
+
+  const today = (() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  })();
+
+  const draft = {
+    preset,
+    days,
+    count: Number(everyN) || 1,
+    startDate,
+  };
+
+  /**
+   * "Starts Mon, Oct 12 at 6:00 am. Repeats weekly."
+   *
+   * Reads the first real occurrence rather than the chosen date. A weekends
+   * schedule started on a Monday does not start on Monday, and saying it does
+   * would be the one line on the screen that is wrong.
+   */
+  const summaryLine = (() => {
+    const first = nextOccurrences(draft, 1)[0] ?? startDate;
+    const when = `Starts ${dayLabel(first, today)} at ${clockLabel(time)}.`;
+    if (preset === 'once') return `${when} Just once.`;
+    return `${when} ${describeRepeat(draftRow(draft))}.`;
+  })();
   const scheduleReady =
     !scheduled ||
     ((!chosen.needsDay || days.length === 1) &&
@@ -177,9 +223,11 @@ export function SetupKnowtScreen() {
               // createKnowt takes undefined for the same idea.
               daysOfWeek: shape.daysOfWeek ?? undefined,
               intervalDays: shape.intervalDays ?? undefined,
-              startDate: shape.needsStartDate
-                ? toISODate(new Date())
-                : undefined,
+              intervalMonths: shape.intervalMonths ?? undefined,
+              // Always written now, not only for the shapes that count from
+              // it. The calendar asked for it, so storing today instead would
+              // quietly throw the answer away.
+              startDate: toISODate(startDate),
             }
           : undefined,
       });
@@ -281,6 +329,26 @@ export function SetupKnowtScreen() {
 
             {scheduled ? (
               <>
+                {/* The calendar leads the step: the date is the thing with
+                    the most consequence here, and it was the one thing the
+                    step never asked for. The time and the frequency sit
+                    directly under it, both still in reach without a scroll. */}
+                <MonthCalendar
+                  month={visibleMonth}
+                  selected={startDate}
+                  today={today}
+                  occursOn={(day) => occursOn(draftRow(draft), day, startDate)}
+                  onPick={(day) => {
+                    setStartDate(day);
+                    setVisibleMonth(new Date(day.getFullYear(), day.getMonth(), 1));
+                  }}
+                  onShiftMonth={(delta) =>
+                    setVisibleMonth((m) =>
+                      new Date(m.getFullYear(), m.getMonth() + delta, 1),
+                    )
+                  }
+                />
+
                 <TimeWheel value={time} onChange={setTime} />
                 <View style={styles.chips}>
                   {REPEAT_PRESETS.map((option) => {
@@ -343,8 +411,10 @@ export function SetupKnowtScreen() {
                   </View>
                 ) : null}
 
+                {/* Says the date, the time and the rhythm, because all three
+                    are now choices rather than assumptions. */}
                 <Text style={styles.stepNote}>
-                  Starts {formatTime(time)}, from today.
+                  {summaryLine}
                 </Text>
               </>
             ) : (
