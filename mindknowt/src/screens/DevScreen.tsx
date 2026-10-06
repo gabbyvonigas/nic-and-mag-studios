@@ -22,6 +22,13 @@ import {
   seedIfEmpty,
 } from '../db';
 import { useQuery } from '../db/useQuery';
+import {
+  configProblems,
+  describeProblem,
+  FREE_PACK_HANDLE,
+  SHOP_CONFIG,
+} from '../shop/config';
+import { fetchVariant } from '../shop/storefront';
 import { listSets, setContentErrors, setContentNotices } from '../sets';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -38,6 +45,7 @@ export function DevScreen() {
   );
   const [busy, setBusy] = useState(false);
   const [alarmNotice, setAlarmNotice] = useState<string | null>(null);
+  const [shopProbe, setShopProbe] = useState<string | null>(null);
 
   const run = async (task: () => Promise<void>) => {
     setBusy(true);
@@ -58,6 +66,68 @@ export function DevScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <ScreenHeader title="Dev" subtitle="Test harnesses and database tools" />
+
+        {/* The shop fails in ways that look identical from the outside: a
+            token that is not set, a product not published to the right sales
+            channel, an expired API version. This says which. */}
+        <Text style={styles.sectionTitle}>Shop</Text>
+        <Card>
+          {SHOP_CONFIG ? (
+            <>
+              <View style={styles.metaRow}>
+                <Text style={styles.metaKey}>store</Text>
+                <Text style={styles.metaValue} selectable>
+                  {SHOP_CONFIG.domain}
+                </Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Text style={styles.metaKey}>api</Text>
+                <Text style={styles.metaValue}>{SHOP_CONFIG.apiVersion}</Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Text style={styles.metaKey}>handle</Text>
+                <Text style={styles.metaValue} selectable>
+                  {FREE_PACK_HANDLE}
+                </Text>
+              </View>
+              <Button
+                label={shopProbe ?? 'Check the starter pack'}
+                variant="secondary"
+                onPress={() =>
+                  void (async () => {
+                    setShopProbe('Checking');
+                    try {
+                      // Captured, because the module constant is nullable and
+                      // the narrowing above does not reach into this closure.
+                      const config = SHOP_CONFIG;
+                      if (!config) return;
+                      const variant = await fetchVariant(
+                        config,
+                        FREE_PACK_HANDLE,
+                      );
+                      setShopProbe(`Found it, ${variant.price || 'no price'}`);
+                    } catch (err) {
+                      setShopProbe(
+                        err instanceof Error
+                          ? `${err.name}: ${err.message}`
+                          : String(err),
+                      );
+                    }
+                  })()
+                }
+              />
+            </>
+          ) : (
+            configProblems({
+              domain: process.env.EXPO_PUBLIC_SHOPIFY_DOMAIN ?? '',
+              token: process.env.EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN ?? '',
+            }).map((problem) => (
+              <Text key={problem} style={styles.body}>
+                {describeProblem(problem)}
+              </Text>
+            ))
+          )}
+        </Card>
 
         <Text style={styles.sectionTitle}>app_meta</Text>
         <Card>

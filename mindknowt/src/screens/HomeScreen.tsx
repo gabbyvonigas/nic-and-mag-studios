@@ -40,8 +40,8 @@ import {
 import { showSnoozed, snoozeCountdown } from '../knowts/snoozed';
 import { midnight, offsetInDays, shiftWeeks } from '../knowts/weekStrip';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
-import { isClaimConfigured } from '../tags/claim';
-import { shouldOfferTags } from '../tags/offer';
+import { isShopConfigured } from '../shop/config';
+import { shouldOfferTags } from '../shop/freeTags';
 import type { RootStackParamList } from '../navigation/types';
 import { categoryShades, theme } from '../theme';
 
@@ -378,7 +378,7 @@ export function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       void (async () => {
-        if (offered.current || !isClaimConfigured()) return;
+        if (offered.current || !isShopConfigured()) return;
         offered.current = true;
         if (await shouldOfferTags()) {
           navigation.navigate('ClaimTags', { prompt: true });
