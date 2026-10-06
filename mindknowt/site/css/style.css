@@ -201,27 +201,32 @@ img {
  * One control at every width, as asked. A menu that changes shape at a
  * breakpoint is two menus to keep working; this is one.
  */
+/*
+ * Icon only. The button stays 44 by 44 because that is the smallest thing a
+ * thumb reliably hits, but the mark inside it is small and light so it reads
+ * as a quiet control rather than a feature. The label moved to aria-label,
+ * so it is still announced.
+ */
 .nav-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -11px;
   background: none;
   border: 0;
-  padding: 8px;
-  margin: -8px;
+  padding: 0;
   cursor: pointer;
-  font-family: var(--display);
-  font-weight: 500;
-  font-size: 15px;
-  color: var(--ink);
+  color: var(--charcoal);
 }
 
 .nav-toggle-bars {
   display: block;
   position: relative;
-  width: 22px;
-  height: 2px;
-  background: var(--ink);
+  width: 19px;
+  height: 1.5px;
+  background: currentColor;
   border-radius: 2px;
 }
 
@@ -230,18 +235,18 @@ img {
   content: '';
   position: absolute;
   left: 0;
-  width: 22px;
-  height: 2px;
-  background: var(--ink);
+  width: 19px;
+  height: 1.5px;
+  background: currentColor;
   border-radius: 2px;
 }
 
 .nav-toggle-bars::before {
-  top: -7px;
+  top: -6px;
 }
 
 .nav-toggle-bars::after {
-  top: 7px;
+  top: 6px;
 }
 
 .site-menu {
@@ -315,33 +320,45 @@ img {
   box-shadow: inset 0 -0.18em 0 var(--lime);
 }
 
-/* ---------- Hero ---------- */
+/* ---------- Top row: lead and How it works ---------- */
 
-.hero {
-  padding: clamp(48px, 10vw, 104px) 0 clamp(36px, 6vw, 64px);
+.top {
+  padding: clamp(24px, 4vw, 44px) 0 clamp(28px, 4vw, 48px);
 }
 
-.hero h1 {
-  font-size: clamp(34px, 6.4vw, 62px);
-  max-width: 17ch;
+.top-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(32px, 5vw, 72px);
+  align-items: start;
 }
 
-.hero p {
-  margin-top: 22px;
-  max-width: 54ch;
-  font-size: clamp(17px, 2.2vw, 20px);
+.top-lead h1 {
+  font-size: clamp(32px, 5vw, 56px);
+}
+
+/* Holds "on your mind." together, so the break is the one in the markup and
+   not whatever the column width produces. */
+.nowrap {
+  white-space: nowrap;
+}
+
+.top-lead p {
+  margin-top: 18px;
+  max-width: 46ch;
+  font-size: clamp(16px, 1.6vw, 19px);
   color: var(--charcoal);
 }
 
 .hero-status {
-  margin-top: 34px;
+  margin-top: 24px;
   display: inline-flex;
   align-items: center;
   gap: 10px;
   font-family: var(--display);
   font-weight: 500;
   font-size: 15px;
-  padding: 10px 18px;
+  padding: 9px 17px;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--charcoal);
@@ -357,6 +374,71 @@ img {
   box-shadow: 0 0 0 3px rgba(217, 250, 60, 0.3);
 }
 
+.section-head {
+  font-size: clamp(20px, 2.4vw, 26px);
+  margin-bottom: 18px;
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  counter-reset: step;
+}
+
+/* Stacked rather than three across: this is a column now, and three boxes
+   side by side inside half a page are too narrow to read. */
+.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  background: var(--page);
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+
+/*
+ * The number spans both rows of its own row box, and the heading and the copy
+ * both sit in the second column. Without the explicit placement there are
+ * three items for two columns, so the paragraph wraps onto a second row and
+ * lands back in the 34px number column, one word per line.
+ */
+.steps li::before {
+  content: counter(step);
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--lime);
+  color: var(--ink);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.steps h3 {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 17px;
+  margin-bottom: 3px;
+}
+
+.steps p {
+  grid-column: 2;
+  grid-row: 2;
+  color: var(--charcoal);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
 /* ---------- Knowt Tag ---------- */
 
 /*
@@ -365,22 +447,28 @@ img {
  * solid lime, because solid lime over this much area stops being an accent.
  */
 .tag {
-  padding: clamp(16px, 4vw, 40px) 0 clamp(40px, 7vw, 72px);
+  padding: 0 0 clamp(32px, 5vw, 56px);
 }
 
+/*
+ * Smaller than it was, and capped, so it reads as a closing note rather than
+ * competing with the top of the page. The art column is fixed rather than
+ * fractional; letting it scale made the circle the biggest thing on screen.
+ */
 .tag-inner {
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
-  gap: clamp(24px, 5vw, 64px);
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: clamp(20px, 3vw, 40px);
   align-items: center;
+  max-width: 780px;
   background: rgba(217, 250, 60, 0.18);
-  border-radius: 28px;
-  padding: clamp(28px, 5vw, 56px);
+  border-radius: 22px;
+  padding: clamp(20px, 3vw, 32px);
 }
 
 .tag-art {
   aspect-ratio: 1;
-  border-radius: 22px;
+  border-radius: 16px;
   overflow: hidden;
   background: var(--white);
 }
@@ -392,51 +480,44 @@ img {
 }
 
 .tag-copy h2 {
-  font-size: clamp(26px, 4.4vw, 42px);
+  font-size: clamp(21px, 2.6vw, 28px);
 }
 
 .tag-copy p {
-  margin-top: 18px;
-  font-size: clamp(17px, 2.2vw, 20px);
+  margin-top: 12px;
+  font-size: clamp(15px, 1.6vw, 17px);
   color: var(--charcoal);
-  max-width: 46ch;
+  max-width: 48ch;
 }
 
 /* The plain-language line. Quieter, because it explains rather than sells. */
 .tag-copy .tag-note {
-  font-size: 16px;
+  font-size: 14px;
   color: var(--gray);
-  line-height: 1.7;
+  line-height: 1.6;
 }
 
 /* ---------- Phone vignettes ---------- */
 
 .screens {
-  padding: clamp(40px, 7vw, 88px) 0 clamp(56px, 9vw, 112px);
+  padding: 0 0 clamp(28px, 4vw, 48px);
 }
 
+/*
+ * Ten percent narrower than the column it sits in, centered. Scaling the row
+ * rather than each frame keeps the three identical and keeps them aligned.
+ */
 .screen-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(20px, 4vw, 52px);
+  gap: clamp(16px, 3vw, 40px);
   align-items: start;
+  width: 90%;
+  margin-inline: auto;
 }
 
 .screen {
   margin: 0;
-}
-
-/*
- * Staggered rather than lined up. The offsets are small on purpose: enough
- * that the row reads as composed, not so much that the captions stop lining
- * up with the device they describe.
- */
-.screen:nth-child(1) {
-  transform: translateY(28px);
-}
-
-.screen:nth-child(3) {
-  transform: translateY(52px);
 }
 
 /*
@@ -463,71 +544,16 @@ img {
 }
 
 .screen figcaption {
-  margin-top: 22px;
-  font-size: 15px;
+  margin-top: 14px;
+  font-size: 14px;
+  line-height: 1.5;
   color: var(--charcoal);
-  max-width: 28ch;
-}
-
-/* ---------- How it works ---------- */
-
-.how {
-  background: var(--page);
-  padding: clamp(56px, 9vw, 104px) 0;
-}
-
-.section-head {
-  font-size: clamp(26px, 4vw, 38px);
-  margin-bottom: 44px;
-}
-
-.steps {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(24px, 4vw, 48px);
-  counter-reset: step;
-}
-
-.steps li {
-  counter-increment: step;
-  background: var(--white);
-  border-radius: 22px;
-  padding: 32px;
-}
-
-.steps li::before {
-  content: counter(step);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  margin-bottom: 20px;
-  border-radius: 50%;
-  background: var(--lime);
-  color: var(--ink);
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 19px;
-}
-
-.steps h3 {
-  font-size: 20px;
-  margin-bottom: 10px;
-}
-
-.steps p {
-  color: var(--charcoal);
-  font-size: 16px;
 }
 
 /* ---------- Prose pages ---------- */
 
 .page-head {
-  padding: clamp(44px, 7vw, 88px) 0 clamp(20px, 3vw, 36px);
+  padding: clamp(28px, 4vw, 56px) 0 clamp(16px, 2vw, 28px);
 }
 
 .page-head h1 {
@@ -541,7 +567,7 @@ img {
 }
 
 .prose {
-  padding-bottom: clamp(56px, 9vw, 104px);
+  padding-bottom: clamp(36px, 5vw, 64px);
   max-width: 72ch;
 }
 
@@ -592,7 +618,7 @@ img {
 
 .site-footer {
   border-top: 1px solid var(--line);
-  padding: clamp(40px, 6vw, 64px) 0 clamp(44px, 6vw, 72px);
+  padding: clamp(24px, 3vw, 36px) 0 clamp(28px, 4vw, 44px);
 }
 
 /* The wordmark appears once on the page, in the header, so the footer leads
@@ -625,10 +651,13 @@ img {
 }
 
 .footer-legal {
-  margin-top: 36px;
-  font-size: 15px;
+  margin-top: 22px;
+  /* One step down from the links above it, and italic, so the legal line
+     reads as a note rather than as more navigation. */
+  font-size: 14px;
+  font-style: italic;
   color: var(--gray);
-  line-height: 1.8;
+  line-height: 1.7;
 }
 
 .footer-legal a {
@@ -637,35 +666,70 @@ img {
 
 /* ---------- Narrow screens ---------- */
 
-@media (max-width: 860px) {
-  .screen-row,
-  .steps {
-    grid-template-columns: 1fr;
-  }
-
-  /* Art above copy, rather than a column too narrow to read either in. */
+@media (max-width: 768px) {
+  /*
+   * One column, in the order the markup already has: lead, pill, How it
+   * works, screens, Knowt Tag.
+   */
+  .top-grid,
   .tag-inner {
     grid-template-columns: 1fr;
   }
 
+  .top-how {
+    margin-top: 8px;
+  }
+
   .tag-art {
-    max-width: 320px;
+    width: 150px;
     margin-inline: auto;
   }
 
-  /* Stacked, so the stagger is dropped rather than left pushing rows apart. */
-  .screen:nth-child(1),
-  .screen:nth-child(3) {
-    transform: none;
+  .tag-copy {
+    text-align: center;
+  }
+
+  .tag-copy p {
+    margin-inline: auto;
+  }
+
+  /*
+   * The three stay on one line and scroll sideways. Squeezing them three
+   * across at this width leaves each caption three words wide, which is
+   * worse than a swipe.
+   */
+  .screen-row {
+    width: auto;
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+    /*
+     * Scrolls inside the page gutters rather than bleeding past them. An
+     * earlier version used a negative margin with matching padding to run the
+     * row to the screen edge, and the padding did not hold on a scroll
+     * container: the first frame landed at x 0 while every other element on
+     * the page started at 24. The third frame still gets clipped at the right
+     * gutter, which is enough to show it scrolls.
+     */
+    scrollbar-width: none;
+  }
+
+  .screen-row::-webkit-scrollbar {
+    display: none;
   }
 
   .screen {
-    max-width: 320px;
-    margin-inline: auto;
+    flex: 0 0 176px;
+    scroll-snap-align: start;
   }
+}
 
-  .screen figcaption {
-    max-width: none;
-    text-align: center;
+@media (max-width: 420px) {
+  /* Keeps "on your mind." on one line at the narrowest width shipped. */
+  .top-lead h1 {
+    font-size: 31px;
   }
 }

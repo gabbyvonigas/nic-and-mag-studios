@@ -55,8 +55,7 @@
       <a class="brand" href="/" aria-label="MindKnowt home">
         <img src="/assets/wordmark.png" alt="MindKnowt" width="104" height="59" />
       </a>
-      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-menu">
-        Menu
+      <button class="nav-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="site-menu">
         <span class="nav-toggle-bars" aria-hidden="true"></span>
       </button>
     </div>
@@ -80,15 +79,63 @@
   </nav>
 
   <main id="main">
-    <section class="hero">
+    <!-- Hero and How it works share one row on wide screens and stack under
+         768px. The DOM order is the stacked order, so nothing relies on grid
+         reordering, which would read out of sequence to a screen reader. -->
+    <section class="top">
+      <div class="wrap top-grid">
+        <div class="top-lead">
+          <h1>One less thing<br /><span class="nowrap">on your mind.</span></h1>
+          <p>
+            MindKnowt gives all those little things taking up space in your head
+            somewhere else to live. Set a Knowt, place a Knowt Tag where the task
+            lives, and when it's time, one simple tap closes the loop.
+          </p>
+          <p class="hero-status">Coming soon to the App Store</p>
+        </div>
+
+        <div class="top-how">
+          <h2 class="section-head">How it works</h2>
+          <ol class="steps">
+            <li>
+              <h3>Stick</h3>
+              <p>Put a Knowt Tag where the task lives.</p>
+            </li>
+            <li>
+              <h3>Set</h3>
+              <p>Create your Knowt and choose when you want the nudge.</p>
+            </li>
+            <li>
+              <h3>Tap</h3>
+              <p>When it's time, tap your phone to the Knowt Tag. Done. Logged and closed.</p>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="screens" aria-label="Screens from the app">
       <div class="wrap">
-        <h1>One less thing on your mind.</h1>
-        <p>
-          MindKnowt gives all those little things taking up space in your head
-          somewhere else to live. Set a Knowt, place a Knowt Tag where the task
-          lives, and when it's time, one simple tap closes the loop.
-        </p>
-        <p class="hero-status">Coming soon to the App Store</p>
+        <div class="screen-row">
+          <figure class="screen">
+            <div class="screen-frame">
+              <img src="/assets/screens/daily.png" alt="The Daily screen, showing today's Knowts and how many are done." width="804" height="1748" />
+            </div>
+            <figcaption>Daily shows what is due today and nothing else.</figcaption>
+          </figure>
+          <figure class="screen">
+            <div class="screen-frame">
+              <img src="/assets/screens/knowts.png" alt="The Knowts screen, showing Knowts grouped by category." width="804" height="1748" />
+            </div>
+            <figcaption>Knowts groups every Knowt by category and Knowt Tag.</figcaption>
+          </figure>
+          <figure class="screen">
+            <div class="screen-frame">
+              <img src="/assets/screens/log.png" alt="The Log screen, showing what has been closed out and when." width="804" height="1748" />
+            </div>
+            <figcaption>Log keeps the record, with no streaks to break.</figcaption>
+          </figure>
+        </div>
       </div>
     </section>
 
@@ -109,49 +156,6 @@
             keep track of.
           </p>
         </div>
-      </div>
-    </section>
-
-    <section class="screens" aria-label="Screens from the app">
-      <div class="wrap screen-row">
-        <figure class="screen">
-          <div class="screen-frame">
-            <img src="/assets/screens/daily.png" alt="The Daily screen, showing today's Knowts and how many are done." width="804" height="1748" />
-          </div>
-          <figcaption>Daily shows what is due today and nothing else.</figcaption>
-        </figure>
-        <figure class="screen">
-          <div class="screen-frame">
-            <img src="/assets/screens/knowts.png" alt="The Knowts screen, showing Knowts grouped by category." width="804" height="1748" />
-          </div>
-          <figcaption>Knowts groups every Knowt by category and Knowt Tag.</figcaption>
-        </figure>
-        <figure class="screen">
-          <div class="screen-frame">
-            <img src="/assets/screens/log.png" alt="The Log screen, showing what has been closed out and when." width="804" height="1748" />
-          </div>
-          <figcaption>Log keeps the record, with no streaks to break.</figcaption>
-        </figure>
-      </div>
-    </section>
-
-    <section class="how">
-      <div class="wrap">
-        <h2 class="section-head">How it works</h2>
-        <ol class="steps">
-          <li>
-            <h3>Stick</h3>
-            <p>Put a Knowt Tag where the task lives.</p>
-          </li>
-          <li>
-            <h3>Set</h3>
-            <p>Create your Knowt and choose when you want the nudge.</p>
-          </li>
-          <li>
-            <h3>Tap</h3>
-            <p>When it's time, tap your phone to the Knowt Tag. Done. Logged and closed.</p>
-          </li>
-        </ol>
       </div>
     </section>
   </main>
