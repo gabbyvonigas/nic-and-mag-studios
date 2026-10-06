@@ -31,6 +31,11 @@ site/
 No build step, no framework, no analytics, no trackers, no cookie banner, no
 email capture. The app makes a privacy promise and the site keeps it.
 
+Contact everywhere on the site is `hello@mindknowt.com`, a mailbox on the
+site's own domain rather than the studio's. It is live and tested, which
+matters because Apple checks it during organization verification and it is the
+only address the site gives.
+
 ## Brand
 
 Taken from the app, not re-picked.
@@ -63,9 +68,6 @@ Two deliberate differences from the app, both noted in the CSS:
    file saying so. The comment is not rendered on the page.
 3. **Check the dates.** Both legal pages say October 6, 2026, the date they
    were written. Change them to the date they actually go live.
-4. **Confirm the email routes.** Every page shows `hello@mindknowt.com`, which
-   is a mailbox on the site's own domain rather than the studio's. It needs to
-   be receiving mail before Apple checks it.
-5. **Add the App Store link when the app ships.** The hero says "Coming soon to
+4. **Add the App Store link when the app ships.** The hero says "Coming soon to
    the App Store" as a plain line of text with no badge and no link, on
    purpose. Replace that one element in `index.html`.
