@@ -1,7 +1,8 @@
 # App screenshots
 
-Drop real screenshots in here over the placeholders. Keep the filenames and
-the aspect ratio and no code changes are needed.
+These are real screenshots from the app, not placeholders. Replacing them is a
+file swap: keep the filenames and the aspect ratio and no code changes are
+needed.
 
 | File | Screen | Caption on the site |
 |---|---|---|

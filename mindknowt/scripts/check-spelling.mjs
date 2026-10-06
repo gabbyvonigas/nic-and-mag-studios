@@ -131,9 +131,30 @@ function compiled() {
   }));
 }
 
+/**
+ * Names this project does not get to spell.
+ *
+ * `aria-labelledby` is a W3C attribute name with two Ls. It is not our copy
+ * and changing it would break the markup, so it is blanked before the rules
+ * run rather than excused afterwards: the rest of the line is still checked,
+ * and a real "labelled" sitting next to one is still caught.
+ *
+ * Replaced with the same number of characters so the reported column still
+ * points at the right place.
+ */
+const FIXED_VOCABULARY = [/aria-labelledby/gi];
+
+function maskFixedVocabulary(line) {
+  let out = line;
+  for (const re of FIXED_VOCABULARY) {
+    out = out.replace(re, (found) => ' '.repeat(found.length));
+  }
+  return out;
+}
+
 function findInText(text, rules) {
   const hits = [];
-  const lines = text.split('\n');
+  const lines = text.split('\n').map(maskFixedVocabulary);
   for (const [index, line] of lines.entries()) {
     for (const rule of rules) {
       rule.re.lastIndex = 0;
