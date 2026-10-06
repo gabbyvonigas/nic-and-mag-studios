@@ -55,19 +55,17 @@ Two deliberate differences from the app, both noted in the CSS:
 
 ## Before this goes live
 
-1. **Set the domain.** Every absolute URL is the literal `REPLACE-WITH-DOMAIN`.
-   See DEPLOY.md for the one-line replacement.
-2. **Replace the phone screenshots.** `assets/screens/` holds placeholders.
+1. **Replace the phone screenshots.** `assets/screens/` holds placeholders.
    Keep the filenames and the 402 by 874 aspect ratio and nothing else changes.
    See the README in that folder.
-3. **Have the legal pages reviewed.** Privacy and Terms are first drafts
+2. **Have the legal pages reviewed.** Privacy and Terms are first drafts
    written by this session, each marked with an HTML comment at the top of the
    file saying so. The comment is not rendered on the page.
-4. **Check the dates.** Both legal pages say October 6, 2026, the date they
+3. **Check the dates.** Both legal pages say October 6, 2026, the date they
    were written. Change them to the date they actually go live.
-5. **Confirm the email routes.** Every page shows
-   `hello@nicandmagstudios.com`. It needs to reach a real inbox before Apple
-   checks it.
-6. **Add the App Store link when the app ships.** The hero says "Coming soon to
+4. **Confirm the email routes.** Every page shows `hello@mindknowt.com`, which
+   is a mailbox on the site's own domain rather than the studio's. It needs to
+   be receiving mail before Apple checks it.
+5. **Add the App Store link when the app ships.** The hero says "Coming soon to
    the App Store" as a plain line of text with no badge and no link, on
    purpose. Replace that one element in `index.html`.

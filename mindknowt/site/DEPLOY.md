@@ -12,25 +12,21 @@ extra cost.
 There is no GitHub Actions workflow involved. Netlify's own GitHub integration
 watches the repo, so pushing to `main` republishes within seconds.
 
-## Before the first deploy: set the domain
+## The domain
 
-Every absolute URL on the site is currently the literal string
-`REPLACE-WITH-DOMAIN`. That is deliberate, so a placeholder cannot be mistaken
-for a real address. One pass replaces them:
+The site is built for **mindknowt.com**. Every absolute URL, the canonical
+links, the Open Graph tags, the organization JSON-LD, `robots.txt` and
+`sitemap.xml` all point at it.
+
+If it ever moves, those are the places to change, and this finds them:
 
 ```bash
 cd site
-grep -rl 'REPLACE-WITH-DOMAIN' . | xargs sed -i '' 's/REPLACE-WITH-DOMAIN/yourdomain.com/g'
-# on Linux, drop the '' after -i
-grep -rn 'REPLACE-WITH-DOMAIN' .   # must return nothing
+grep -rn 'mindknowt\.com' . --include='*.html' --include='*.xml' --include='*.txt'
 ```
 
-It appears in `index.html`, `privacy/index.html`, `terms/index.html`,
-`support/index.html`, `robots.txt` and `sitemap.xml`, in canonical links, the
-Open Graph tags and the organization JSON-LD.
-
-Relative links are used everywhere else, so the site works correctly on the
-Netlify preview address before the domain is pointed at it.
+Relative links are used everywhere else, so the site renders correctly on the
+Netlify preview address before DNS is pointed at it.
 
 ## Setting it up on Netlify
 

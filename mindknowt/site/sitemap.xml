@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://REPLACE-WITH-DOMAIN/</loc><priority>1.0</priority></url>
-  <url><loc>https://REPLACE-WITH-DOMAIN/privacy/</loc><priority>0.5</priority></url>
-  <url><loc>https://REPLACE-WITH-DOMAIN/terms/</loc><priority>0.5</priority></url>
-  <url><loc>https://REPLACE-WITH-DOMAIN/support/</loc><priority>0.8</priority></url>
+  <url><loc>https://mindknowt.com/</loc><priority>1.0</priority></url>
+  <url><loc>https://mindknowt.com/privacy/</loc><priority>0.5</priority></url>
+  <url><loc>https://mindknowt.com/terms/</loc><priority>0.5</priority></url>
+  <url><loc>https://mindknowt.com/support/</loc><priority>0.8</priority></url>
 </urlset>
