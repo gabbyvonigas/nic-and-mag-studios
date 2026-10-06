@@ -115,9 +115,14 @@ const EXCLUDED = new Set([
   'package-lock.json',
   'yarn.lock',
   'pnpm-lock.yaml',
+  // A vendored license, which has to be distributed exactly as written. The
+  // SIL Open Font License says "programme" and we do not get to correct it.
+  'site/assets/fonts/OFL.txt',
 ]);
 
-const EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|json|md|txt)$/;
+// html and css are here because the marketing site's copy is user facing
+// text like any other, and the rule is everywhere, not everywhere in src.
+const EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|json|md|txt|html|css)$/;
 
 function compiled() {
   return RULES.map((rule) => ({
