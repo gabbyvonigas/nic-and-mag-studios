@@ -121,6 +121,52 @@ export function PlusSign({
 }
 
 /**
+ * A closed padlock, for a line about what happens to someone's details.
+ *
+ * Body and shackle, both from borders: a filled rounded rectangle with a half
+ * ring sitting on it, drawn as a box with its bottom border left off. The
+ * shackle overlaps the body by a hair so no seam shows between them at small
+ * sizes, which is the only size this is used at.
+ */
+export function LockIcon({
+  size = 12,
+  color = theme.color.textMuted,
+  thickness = 1.5,
+}: {
+  size?: number;
+  color?: string;
+  thickness?: number;
+}) {
+  const bodyHeight = size * 0.62;
+  const shackleWidth = size * 0.58;
+
+  return (
+    <View accessible={false} style={{ alignItems: 'center' }}>
+      <View
+        style={{
+          width: shackleWidth,
+          height: size * 0.45,
+          borderWidth: thickness,
+          borderBottomWidth: 0,
+          borderColor: color,
+          borderTopLeftRadius: shackleWidth / 2,
+          borderTopRightRadius: shackleWidth / 2,
+          marginBottom: -thickness / 2,
+        }}
+      />
+      <View
+        style={{
+          width: size,
+          height: bodyHeight,
+          borderRadius: thickness * 1.5,
+          backgroundColor: color,
+        }}
+      />
+    </View>
+  );
+}
+
+/**
  * NFC arcs, the same shape as the app icon's.
  *
  * Three quarter circles of increasing size, each a ring with only one corner

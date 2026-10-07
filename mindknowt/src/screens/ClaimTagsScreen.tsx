@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, SubScreenHeader } from '../components/ui';
+import { LockIcon } from '../components/icons';
 import { isShopConfigured } from '../shop/config';
 import {
   claimState,
@@ -101,6 +102,21 @@ export function ClaimTagsScreen() {
 
   const taken = state !== 'unclaimed';
 
+  /**
+   * Sits directly above whatever sends someone to checkout, because that is the
+   * moment they are about to type an address, and an assurance given anywhere
+   * later is an assurance given too late.
+   */
+  const privacyNote = (
+    <View style={styles.privacy}>
+      <LockIcon size={12} color={theme.color.textMuted} />
+      <Text style={styles.privacyText}>
+        We use your address only to ship your Knowt Tags. We never sell it or
+        share it for marketing.
+      </Text>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -121,12 +137,15 @@ export function ClaimTagsScreen() {
                 Offering it again is the honest answer to someone who closed it
                 halfway rather than pretending to know they did not. */}
             {state === 'opened' ? (
-              <Button
-                label="Open checkout again"
-                variant="secondary"
-                disabled={!configured || busy}
-                onPress={claim}
-              />
+              <>
+                {privacyNote}
+                <Button
+                  label="Open checkout again"
+                  variant="secondary"
+                  disabled={!configured || busy}
+                  onPress={claim}
+                />
+              </>
             ) : null}
           </>
         ) : (
@@ -158,6 +177,7 @@ export function ClaimTagsScreen() {
 
         {taken ? null : (
           <View style={styles.footer}>
+            {privacyNote}
             <Button
               label={busy ? 'Opening checkout' : 'Send them to me'}
               disabled={!configured || busy}
@@ -208,6 +228,21 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     lineHeight: 20,
     color: theme.color.warningText,
+  },
+  privacy: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
+    // The lock is drawn from its top edge and the text from its cap height, so
+    // a couple of points down lines the two up by eye.
+    paddingTop: 2,
+  },
+  privacyText: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.xs,
+    lineHeight: 17,
+    color: theme.color.textMuted,
   },
   footer: { gap: theme.spacing.sm, marginTop: theme.spacing.sm },
 });
