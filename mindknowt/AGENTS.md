@@ -328,6 +328,47 @@ Anything beyond text and color therefore needs a patched or forked
 no `ios/` directory, so the target needs a config plugin too. Do not promise
 Lock Screen layout work as part of an ordinary rebuild.
 
+## Custom alarm sounds, before anyone commissions audio
+
+`expo-alarm-kit` already carries a `soundName` all the way from JavaScript to
+`AlertConfiguration.AlertSound.named(soundName)`, falling back to `.default`.
+Our wrapper never passes one, which is why every alarm uses the system default.
+The type is ActivityKit's, reused by AlarmKit.
+
+Researched October 2026, because the audio has to be licensed or made before
+any of it can be used:
+
+- **Format.** CoreAudio formats work: `.caf`, `.wav`, `.m4a`, `.mp3`. `.aiff` is
+  reported not to. `.caf` is what the confirmed-working reports use.
+- **Length.** Under 30 seconds. Longer files do not play.
+- **Naming.** Pass the filename *with* its extension, `"tone.caf"`, not
+  `"tone"`. Apple's own WWDC example omits it, and without it you silently get
+  the default sound with no error thrown. The name must match exactly.
+- **Location.** The app's main bundle. Apple's documentation also names
+  `Library/Sounds` in the app's data container; that one is repeatedly reported
+  not to work, so do not plan around it.
+- **History.** Custom sounds were broken outright in iOS 26.0, playing a system
+  error tone instead. Fixed around 26.0.1 and reported working since. Our
+  deployment target is 26.1, so we are above that window, but the feature has a
+  shaky record and belongs on a device before it is believed.
+
+Two things are unverified and change what is worth commissioning, so test them
+on hardware with one throwaway file first:
+
+- Whether a custom sound **loops**. The default alarm sound repeats; a custom
+  one was reported to play once and stop. That decides whether the tones are
+  short chimes or thirty second beds, and this app's whole premise is an alarm
+  that keeps going until a tag is scanned.
+- Whether a custom sound **stops when Stop is pressed**. One report says it
+  carries on.
+
+There is no system ringtone picker in AlarmKit, so "let people choose" can only
+ever mean choosing among tones we ship.
+
+Bundling them is a config plugin's job. This is a CNG project with no `ios/`
+directory, there is no `plugins/` directory yet, and `app.json` has no field for
+arbitrary bundle resources.
+
 ## Platform boundaries
 
 `react-native-nfc-manager` is imported in exactly one file, and
