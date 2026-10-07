@@ -495,6 +495,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
+    ...theme.font.tabular,
   },
   entryMeta: {
     flexDirection: 'row',

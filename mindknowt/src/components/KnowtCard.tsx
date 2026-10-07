@@ -235,6 +235,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
+    ...theme.font.tabular,
   },
   thirdRow: {
     flexDirection: 'row',
@@ -251,6 +252,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.sm,
+    ...theme.font.tabular,
   },
   check: { alignItems: 'center', justifyContent: 'center' },
   bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },

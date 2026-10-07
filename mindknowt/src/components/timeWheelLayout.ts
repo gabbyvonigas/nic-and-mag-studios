@@ -64,6 +64,39 @@ export function wheelPadding(size: WheelSize): number {
   return ((size.rows - 1) / 2) * size.itemHeight;
 }
 
+/**
+ * The visible height of a column, which is the whole control's height.
+ *
+ * This has to be set on the ScrollView, not left to resolve itself. A
+ * ScrollView with no height takes one from its content, and the three columns
+ * hold 12, 60 and 2 values, so they came out three different heights. Every
+ * offset below is measured from the top of the frame, so a column with the
+ * wrong frame draws its selected value somewhere other than the highlight, and
+ * by a different amount for different values.
+ */
+export function columnHeight(size: WheelSize): number {
+  return size.itemHeight * size.rows;
+}
+
+/** Where the highlight band's top edge sits inside the control. */
+export function highlightTop(size: WheelSize): number {
+  return wheelPadding(size);
+}
+
+/** Where a column comes to rest when `index` is the selected value. */
+export function restOffset(size: WheelSize, index: number): number {
+  return index * size.itemHeight;
+}
+
+/** Where the row for `index` is drawn, given how far the column has scrolled. */
+export function rowTopInFrame(
+  size: WheelSize,
+  index: number,
+  scrollY: number,
+): number {
+  return wheelPadding(size) + index * size.itemHeight - scrollY;
+}
+
 /** Where a column sits from the left edge of the control. */
 export function columnOffset(
   size: WheelSize,

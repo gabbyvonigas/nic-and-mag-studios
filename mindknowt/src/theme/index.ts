@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, type TextStyle } from 'react-native';
 
 import { CATEGORY_COLORS } from './categoryColors';
 import { palette } from './palette';
@@ -8,6 +8,9 @@ import { palette } from './palette';
  * finalized, so nothing outside this file should hardcode a hex value or a
  * font family; screens consume semantic tokens only.
  */
+
+/** Spread into any style that renders a clock time. See `font.tabular`. */
+const TABULAR: TextStyle = { fontVariant: ['tabular-nums'] };
 
 export const theme = {
   color: {
@@ -91,6 +94,16 @@ export const theme = {
       medium: Platform.select({ ios: '.AppleSystemUIFontRounded', default: undefined }),
       bold: Platform.select({ ios: '.AppleSystemUIFontRounded', default: undefined }),
     },
+    /**
+     * Fixed width digits, for anything that shows a time.
+     *
+     * The rounded family's digits are proportional, so "1" is visibly narrower
+     * than "0" and the colon in "2:53" sits in a different place than the one
+     * in "1:16". Spread this into any style that renders a clock time. It
+     * changes nothing about letters, so it is safe on a style that holds a
+     * whole sentence with a time inside it.
+     */
+    tabular: TABULAR,
     mono: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
     size: {
       // Everything below the header steps went up one notch: rounded runs

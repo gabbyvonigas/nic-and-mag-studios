@@ -728,6 +728,7 @@ const styles = StyleSheet.create({
   rowNext: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.sm,
+    ...theme.font.tabular,
   },
 
   section: { marginBottom: theme.spacing.lg },

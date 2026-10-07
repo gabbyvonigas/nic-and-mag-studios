@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Card, Pill, SubScreenHeader } from '../components/ui';
 import { resyncAlarmsQuietly } from '../alarms';
-import { AlarmIcon, ExpandSign, ScanIcon } from '../components/icons';
+import { AlarmIcon, ChevronRight, ExpandSign, ScanIcon } from '../components/icons';
 import { completeOccurrence } from '../knowts/completeOccurrence';
 import { openOccurrence } from '../knowts/completions';
 import { MODE_CHOICES, modeChoice, modeLabel } from '../knowts/modes';
@@ -198,6 +198,14 @@ export function KnowtDetailScreen() {
     });
   })();
 
+  /**
+   * Where Edit goes. The Schedules card goes to the same place through the same
+   * function on purpose: two call sites navigating to "the editor" by hand is
+   * how they end up on different screens after a rename.
+   */
+  const openEditor = () =>
+    navigation.navigate('EditKnowt', { knowtId: knowt.id });
+
   const checkIn = async () => {
     // Spec section 3: a completion with no alarm pending is a valid check-in,
     // which is why the schedule can still come out null here.
@@ -229,9 +237,7 @@ export function KnowtDetailScreen() {
             <Pressable
               accessibilityRole="button"
               hitSlop={12}
-              onPress={() =>
-                navigation.navigate('EditKnowt', { knowtId: knowt.id })
-              }>
+              onPress={openEditor}>
               <Text style={styles.editLink}>Edit</Text>
             </Pressable>
           }
@@ -413,13 +419,29 @@ export function KnowtDetailScreen() {
           </Pressable>
         ) : (
           knowt.schedules.map((schedule) => (
-            <Card key={schedule.id}>
-              <Text style={styles.cardTitle}>
-                {formatTime(schedule.time)}
-                {schedule.label ? ` · ${schedule.label}` : ''}
-              </Text>
-              <Text style={styles.body}>{describeRepeat(schedule)}</Text>
-            </Card>
+            // The card was the one part of this screen that showed a schedule
+            // and did nothing when tapped, which left Edit at the top right as
+            // the only way in. The chevron is there so it reads as a way in
+            // before it is tapped rather than after.
+            <Pressable
+              key={schedule.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit the ${formatTime(schedule.time)} schedule`}
+              onPress={openEditor}
+              style={({ pressed }) => [pressed && styles.pressed]}>
+              <Card>
+                <View style={styles.scheduleRow}>
+                  <View style={styles.scheduleMain}>
+                    <Text style={styles.cardTitle}>
+                      {formatTime(schedule.time)}
+                      {schedule.label ? ` · ${schedule.label}` : ''}
+                    </Text>
+                    <Text style={styles.body}>{describeRepeat(schedule)}</Text>
+                  </View>
+                  <ChevronRight size={18} />
+                </View>
+              </Card>
+            </Pressable>
           ))
         )}
 
@@ -557,10 +579,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginTop: theme.spacing.md,
   },
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  scheduleMain: { flex: 1 },
   cardTitle: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.lg,
     color: theme.color.textPrimary,
+    ...theme.font.tabular,
   },
   body: {
     fontFamily: theme.font.body,

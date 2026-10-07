@@ -1,15 +1,24 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, View } from 'react-native';
 
 import { theme } from '../theme';
 
 /**
- * Icons drawn from plain views.
+ * The app's icons.
  *
- * There is no icon font in this project, and adding one pulls in expo-font,
- * which is native and would turn every JS-only change into a twenty minute
- * rebuild. Unicode glyphs are not an option either: the obvious gear and
- * chevron characters get replaced by color emoji on iOS, which breaks both the
- * look and the no-emoji rule. So they are shapes.
+ * The ones that stand for a real thing (a clock, a scan, a tag, a lock) are
+ * Ionicons. The rest are still drawn from plain views, because a plus, a
+ * chevron and a check are two rectangles each and a glyph buys nothing.
+ *
+ * Ionicons costs no native rebuild, which is worth writing down because this
+ * file used to say the opposite. `@expo/vector-icons` is pure JavaScript, and
+ * the `expo-font` module it loads its font through is already linked: it is a
+ * dependency of `expo` itself, so autolinking has always picked it up. The font
+ * file is a JS asset and arrives over Metro like any other.
+ *
+ * Every icon keeps the same props it had when it was a drawing, so call sites
+ * did not have to change. `thickness` is accepted and ignored by the Ionicons
+ * backed ones, because a font has one weight per glyph.
  */
 
 /** Back chevron. A square with two borders, turned on its corner. */
@@ -120,93 +129,36 @@ export function PlusSign({
   );
 }
 
-/**
- * A closed padlock, for a line about what happens to someone's details.
- *
- * Body and shackle, both from borders: a filled rounded rectangle with a half
- * ring sitting on it, drawn as a box with its bottom border left off. The
- * shackle overlaps the body by a hair so no seam shows between them at small
- * sizes, which is the only size this is used at.
- */
+/** A closed padlock, for a line about what happens to someone's details. */
 export function LockIcon({
   size = 12,
   color = theme.color.textMuted,
-  thickness = 1.5,
 }: {
   size?: number;
   color?: string;
+  /** Accepted and ignored: a font has one weight per glyph. */
   thickness?: number;
 }) {
-  const bodyHeight = size * 0.62;
-  const shackleWidth = size * 0.58;
-
-  return (
-    <View accessible={false} style={{ alignItems: 'center' }}>
-      <View
-        style={{
-          width: shackleWidth,
-          height: size * 0.45,
-          borderWidth: thickness,
-          borderBottomWidth: 0,
-          borderColor: color,
-          borderTopLeftRadius: shackleWidth / 2,
-          borderTopRightRadius: shackleWidth / 2,
-          marginBottom: -thickness / 2,
-        }}
-      />
-      <View
-        style={{
-          width: size,
-          height: bodyHeight,
-          borderRadius: thickness * 1.5,
-          backgroundColor: color,
-        }}
-      />
-    </View>
-  );
+  return <Ionicons name="lock-closed-outline" size={size} color={color} />;
 }
 
 /**
- * NFC arcs, the same shape as the app icon's.
+ * A knowt with a physical tag attached.
  *
- * Three quarter circles of increasing size, each a ring with only one corner
- * of its border painted, so they nest as radiating arcs. It marks a knowt that
- * has a physical tag attached, which is a different question from whether it
- * is in Scan mode: a tagged knowt can still be Alarm Only.
+ * A tag rather than the radio arcs the drawing used. Ionicons has no NFC
+ * glyph, and the question this answers is whether a tag is attached, not
+ * whether a radio is transmitting.
  */
 export function NfcIcon({
-  size = 14,
-  color = theme.color.textSecondary,
-  thickness = 1.6,
+  size = 20,
+  color = theme.color.textPrimary,
 }: {
   size?: number;
   color?: string;
+  /** Accepted and ignored: a font has one weight per glyph. */
   thickness?: number;
 }) {
-  return (
-    <View style={[styles.iconBox, { width: size, height: size }]}>
-      {[0.42, 0.72, 1].map((scale) => {
-        const arc = size * scale;
-        return (
-          <View
-            key={scale}
-            style={{
-              position: 'absolute',
-              left: 0,
-              bottom: 0,
-              width: arc,
-              height: arc,
-              borderRadius: arc,
-              borderWidth: thickness,
-              borderColor: 'transparent',
-              borderTopColor: color,
-              borderRightColor: color,
-            }}
-          />
-        );
-      })}
-    </View>
-  );
+  return <Ionicons name="pricetag-outline" size={size} color={color} />;
 }
 
 /**
@@ -310,129 +262,30 @@ const styles = StyleSheet.create({
   absolute: { position: 'absolute' },
 });
 
-/**
- * Scan mark, in the shape iOS uses for scanning: four corner brackets framing
- * a subject. Built from four L shapes, each a square with two borders, rotated
- * into position, with wave arcs in the middle standing for the tag being read.
- */
+/** Scanning a tag to stop an alarm, which is the whole product. */
 export function ScanIcon({
   size = 20,
   color = theme.color.textPrimary,
-  thickness = 2,
 }: {
   size?: number;
   color?: string;
+  /** Accepted and ignored: a font has one weight per glyph. */
   thickness?: number;
 }) {
-  const arm = size * 0.32;
-  const corners = [
-    { top: 0, left: 0, rotate: '0deg' },
-    { top: 0, right: 0, rotate: '-90deg' },
-    { bottom: 0, right: 0, rotate: '180deg' },
-    { bottom: 0, left: 0, rotate: '90deg' },
-  ];
-
-  return (
-    <View style={[styles.iconBox, { width: size, height: size }]}>
-      {corners.map((corner, index) => {
-        const { rotate, ...position } = corner;
-        return (
-          <View
-            key={index}
-            style={[
-              styles.absolute,
-              position,
-              {
-                width: arm,
-                height: arm,
-                borderLeftWidth: thickness,
-                borderTopWidth: thickness,
-                borderColor: color,
-                transform: [{ rotate }],
-              },
-            ]}
-          />
-        );
-      })}
-      {/* Two bars for the signal between the brackets. */}
-      <View
-        style={{
-          width: thickness,
-          height: size * 0.34,
-          borderRadius: thickness,
-          backgroundColor: color,
-          marginRight: size * 0.12,
-        }}
-      />
-      <View
-        style={[
-          styles.absolute,
-          {
-            width: thickness,
-            height: size * 0.2,
-            borderRadius: thickness,
-            backgroundColor: color,
-            marginLeft: size * 0.14,
-          },
-        ]}
-      />
-    </View>
-  );
+  return <Ionicons name="scan-outline" size={size} color={color} />;
 }
 
-/**
- * Alarm mark. A bell is not honestly drawable from rectangles, so this is a
- * clock face instead: a ring with two hands. It reads as "it rings at a time",
- * which is what Alarm Only means.
- */
+/** Alarm. Used on the Alarm Only mode, and wherever a schedule has a time. */
 export function AlarmIcon({
   size = 20,
   color = theme.color.textPrimary,
-  thickness = 2,
 }: {
   size?: number;
   color?: string;
+  /** Accepted and ignored: a font has one weight per glyph. */
   thickness?: number;
 }) {
-  return (
-    <View style={[styles.iconBox, { width: size, height: size }]}>
-      <View
-        style={{
-          width: size * 0.86,
-          height: size * 0.86,
-          borderRadius: size * 0.43,
-          borderWidth: thickness,
-          borderColor: color,
-        }}
-      />
-      {/* Hour hand, upright. */}
-      <View
-        style={[
-          styles.absolute,
-          {
-            width: thickness,
-            height: size * 0.26,
-            backgroundColor: color,
-            borderRadius: thickness,
-            marginBottom: size * 0.26,
-          },
-        ]}
-      />
-      {/* Minute hand, to the right. */}
-      <View
-        style={[
-          styles.absolute,
-          {
-            width: size * 0.22,
-            height: thickness,
-            backgroundColor: color,
-            borderRadius: thickness,
-            marginLeft: size * 0.22,
-          },
-        ]}
-      />
-    </View>
-  );
+  return <Ionicons name="alarm-outline" size={size} color={color} />;
 }
 
 /** Outlined circle with a tick. Replaces the Done pill on cards. */
@@ -478,4 +331,15 @@ export function CheckIcon({
       />
     </View>
   );
+}
+
+/** Points at where a row goes. For sections that are tappable as a whole. */
+export function ChevronRight({
+  size = 18,
+  color = theme.color.textMuted,
+}: {
+  size?: number;
+  color?: string;
+}) {
+  return <Ionicons name="chevron-forward" size={size} color={color} />;
 }

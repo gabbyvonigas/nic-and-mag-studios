@@ -596,6 +596,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.lg,
     color: theme.color.textPrimary,
+    ...theme.font.tabular,
   },
   scheduleRepeat: {
     fontFamily: theme.font.face.regular,

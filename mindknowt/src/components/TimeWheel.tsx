@@ -11,6 +11,7 @@ import {
 import {
   COMPACT,
   FULL,
+  columnHeight,
   indexFromOffset,
   partsOf,
   timeFrom,
@@ -79,7 +80,20 @@ function Column({
       // flexGrow and flexShrink are pinned on purpose. ScrollView composes its
       // own base style underneath this one, and that base sets both to 1, so a
       // width alone is only a flex basis and every column stretches.
-      style={{ width, flexGrow: 0, flexShrink: 0 }}
+      //
+      // The height is pinned for the same reason, and this is the one that was
+      // missing. An unpinned ScrollView takes its height from its content, and
+      // the three columns hold 12, 60 and 2 values, so they resolved to three
+      // different frame heights. `contentOffset` is measured from the top of
+      // the frame, so the selected row landed at a different place on screen in
+      // each column, and by a different amount depending on the value. That is
+      // the minute reading higher than the hour next to it.
+      style={{
+        width,
+        height: columnHeight(size),
+        flexGrow: 0,
+        flexShrink: 0,
+      }}
       contentContainerStyle={{ paddingVertical: wheelPadding(size) }}
       showsVerticalScrollIndicator={false}
       snapToInterval={size.itemHeight}
@@ -94,9 +108,10 @@ function Column({
       {values.map((value, i) => (
         <View key={value} style={[styles.item, { height: size.itemHeight }]}>
           <Text
+            allowFontScaling={false}
             style={[
               styles.itemText,
-              { fontSize: size.fontSize },
+              { fontSize: size.fontSize, lineHeight: size.itemHeight },
               i === index && styles.itemTextOn,
             ]}>
             {value}
@@ -131,7 +146,7 @@ export function TimeWheel({
     <View
       style={[
         styles.wheel,
-        { height: size.itemHeight * size.rows, width: wheelWidth(size) },
+        { height: columnHeight(size), width: wheelWidth(size) },
       ]}>
       {/* The selection band spans the control, not the page. It sat at
           left: 0, right: 0 of a full width parent, which drew a bar across the
@@ -154,10 +169,21 @@ export function TimeWheel({
         />
         {/* Not a column. It is the thing that makes the three wheels read as
             one time rather than three numbers. */}
-        <View style={[styles.separator, { width: size.separatorWidth }]}>
-          <Text style={[styles.separatorText, { fontSize: size.fontSize }]}>
-            :
-          </Text>
+        <View
+          style={[
+            styles.separator,
+            { width: size.separatorWidth, paddingTop: wheelPadding(size) },
+          ]}>
+          <View style={[styles.item, { height: size.itemHeight }]}>
+            <Text
+              allowFontScaling={false}
+              style={[
+                styles.separatorText,
+                { fontSize: size.fontSize, lineHeight: size.itemHeight },
+              ]}>
+              :
+            </Text>
+          </View>
         </View>
         <Column
           label="Minute"
@@ -194,16 +220,24 @@ const styles = StyleSheet.create({
   itemText: {
     fontFamily: theme.font.face.regular,
     color: theme.color.textMuted,
+    textAlign: 'center',
+    // Digits are proportional by default in this family, so "1" is narrower
+    // than "0" and a two digit minute shifts as it changes. Tabular figures
+    // are one width, which is what keeps 16 and 08 in the same place.
+    ...theme.font.tabular,
   },
   itemTextOn: {
     fontFamily: theme.font.face.medium,
     color: theme.color.textPrimary,
   },
-  // Centered on the control, which is the selected row, because the wheel is
-  // an odd number of rows tall.
-  separator: { alignItems: 'center', justifyContent: 'center' },
+  // Built as a row in the same stack the columns use, rather than centered on
+  // the control. Centering two different ways and hoping they agree is what
+  // left the colon sitting off the digits' baseline.
+  separator: { alignItems: 'center' },
   separatorText: {
     fontFamily: theme.font.face.medium,
     color: theme.color.textPrimary,
+    textAlign: 'center',
+    ...theme.font.tabular,
   },
 });

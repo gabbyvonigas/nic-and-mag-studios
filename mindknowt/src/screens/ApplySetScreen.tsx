@@ -15,7 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Pill, ScreenHeader } from '../components/ui';
 import { PlusSign } from '../components/icons';
-import { describeRepeat, formatTime, type RepeatType } from '../db';
+import { categoryShades } from '../theme';
+import { describeRepeat, type RepeatType } from '../db';
 import { resyncAlarmsQuietly } from '../alarms';
 import { applySet, previewSet, type SetPreview, type SetSelection } from '../sets';
 import { theme } from '../theme';
@@ -174,6 +175,23 @@ export function ApplySetScreen() {
             Anything added together arrives as a draft, waiting for a time.
           </Text>
 
+          {/* At the top, because someone who already knows this list does not
+              hold their thing should not have to scroll past twelve presets to
+              find that out. Outlined and dashed: it adds nothing by itself. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={addLabel}
+            onPress={() =>
+              navigation.navigate('SetupKnowt', {
+                name: '',
+                categoryId: preview.category?.id ?? null,
+              })
+            }
+            style={({ pressed }) => [styles.addRow, pressed && styles.pressed]}>
+            <PlusSign size={14} color={theme.color.textSecondary} />
+            <Text style={styles.addLabel}>{addLabel}</Text>
+          </Pressable>
+
           {preview.entries.map((entry) => {
             const isSelected = !!selected[entry.knowt.name];
             return (
@@ -206,9 +224,38 @@ export function ApplySetScreen() {
                         {entry.knowt.notes}
                       </Text>
                     ) : null}
-                    {entry.duplicateOf ? (
-                      <Pill label="Already exists" />
-                    ) : null}
+                    <View style={styles.entryTags}>
+                      {entry.category ? (
+                        <View
+                          style={[
+                            styles.chip,
+                            {
+                              backgroundColor: categoryShades(entry.category)
+                                .fill,
+                            },
+                          ]}>
+                          <View
+                            style={[
+                              styles.chipDot,
+                              {
+                                backgroundColor: categoryShades(entry.category)
+                                  .color,
+                              },
+                            ]}
+                          />
+                          <Text
+                            style={[
+                              styles.chipText,
+                              { color: categoryShades(entry.category).ink },
+                            ]}>
+                            {entry.category.name}
+                          </Text>
+                        </View>
+                      ) : null}
+                      {entry.duplicateOf ? (
+                        <Pill label="Already exists" />
+                      ) : null}
+                    </View>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`Set up ${entry.knowt.name} now`}
@@ -228,27 +275,6 @@ export function ApplySetScreen() {
             );
           })}
 
-          {/* The way out of a list that is never going to hold everything.
-              Someone looking at Household maintenance for the thing they
-              actually want has already decided which category it belongs to,
-              and sending them back to Add a knowt to say so again is work the
-              app can do for them.
-
-              Outlined and dashed rather than filled, because it adds nothing by
-              itself: it is a door, not one more knowt to tick. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={addLabel}
-            onPress={() =>
-              navigation.navigate('SetupKnowt', {
-                name: '',
-                categoryId: preview.category?.id ?? null,
-              })
-            }
-            style={({ pressed }) => [styles.addRow, pressed && styles.pressed]}>
-            <PlusSign size={14} color={theme.color.textSecondary} />
-            <Text style={styles.addLabel}>{addLabel}</Text>
-          </Pressable>
         </ScrollView>
 
         <View style={styles.footer}>
@@ -388,6 +414,26 @@ const styles = StyleSheet.create({
     color: theme.color.textMuted,
   },
   repeatTextOn: { color: theme.color.textPrimary },
+  entryTags: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: theme.spacing.xs,
+    marginTop: 2,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  chipDot: { width: 6, height: 6, borderRadius: 3 },
+  chipText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.xs,
+  },
   addRow: {
     flexDirection: 'row',
     alignItems: 'center',

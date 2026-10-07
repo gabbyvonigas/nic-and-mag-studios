@@ -577,6 +577,7 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     lineHeight: 20,
     color: theme.color.textMuted,
+    ...theme.font.tabular,
   },
   stepBody: { gap: theme.spacing.sm },
   input: {

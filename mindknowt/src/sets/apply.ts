@@ -37,6 +37,12 @@ export type SetEntryPreview = {
   knowt: StarterKnowt;
   /** Name of an existing knowt this would duplicate, if any. */
   duplicateOf: string | null;
+  /**
+   * The category this one knowt lands in, which is not always the set's. A
+   * set is filed under the category most of it carries, so the few that differ
+   * are exactly the ones worth marking on the row.
+   */
+  category: CategoryRow | null;
 };
 
 export type SetPreview = {
@@ -61,8 +67,15 @@ export async function previewSet(setId: string): Promise<SetPreview | null> {
   const existing = await listKnowts();
   const byName = new Map(existing.map((k) => [k.name.trim().toLowerCase(), k.name]));
 
-  const key = setCategoryKey(set);
-  const category = key ? await findCategoryByKey(key) : null;
+  // One lookup per distinct category rather than one per knowt: a set of
+  // twelve usually names a single category, and this is on the way into a
+  // screen.
+  const keys = [...new Set(set.knowts.map((k) => k.category).filter(Boolean))];
+  const rows = await Promise.all(keys.map((k) => findCategoryByKey(k)));
+  const byKey = new Map(keys.map((k, i) => [k, rows[i] ?? null]));
+
+  const setKey = setCategoryKey(set);
+  const category = setKey ? (byKey.get(setKey) ?? null) : null;
 
   return {
     set,
@@ -70,6 +83,7 @@ export async function previewSet(setId: string): Promise<SetPreview | null> {
     entries: set.knowts.map((knowt) => ({
       knowt,
       duplicateOf: byName.get(knowt.name.trim().toLowerCase()) ?? null,
+      category: byKey.get(knowt.category) ?? null,
     })),
   };
 }

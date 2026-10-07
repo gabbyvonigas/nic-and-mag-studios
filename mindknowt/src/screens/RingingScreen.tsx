@@ -460,6 +460,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.body,
     fontSize: theme.font.size.md,
     color: theme.color.textSecondary,
+    ...theme.font.tabular,
   },
   location: {
     fontFamily: theme.font.body,

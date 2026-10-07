@@ -98,6 +98,18 @@ A JS-only change hot-reloads over Metro in seconds. Anything that adds or
 changes a native module needs a fresh `eas build`, which costs the user ~20
 minutes. Always state which kind a change is.
 
+**A package with no native code is a JS change, whatever it ships.**
+`@expo/vector-icons` was put off for months as "needs a rebuild" and did not.
+It is pure JavaScript: no `ios/`, no podspec, no `expo-module.config.json`. It
+loads its font through `expo-font`, which was already linked, because
+`expo-font` is a dependency of `expo` itself and autolinking has always found
+it at `node_modules/expo/node_modules/expo-font`. The `.ttf` is a JS asset and
+arrives over Metro like an image.
+
+Check before claiming a rebuild: `npx expo-modules-autolinking search` lists
+what is actually linked. If the list is the same before and after an install,
+the existing dev client can run it.
+
 ## Copy rules
 
 **American English only. Everywhere, permanently.**
