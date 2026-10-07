@@ -252,7 +252,7 @@ export function PeriodPanel({
       <View style={styles.tiles}>
         <StatTile
           value={`${summary.completions}`}
-          label="knowts completed"
+          label="Knowts completed"
           tint={theme.color.tileMint}
           ink={theme.color.tileMintInk}
           change={previous?.completions ?? null}

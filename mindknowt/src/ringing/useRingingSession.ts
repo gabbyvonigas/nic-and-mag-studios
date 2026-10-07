@@ -162,7 +162,7 @@ export function useRingingSession(
       setScanning(false);
       setMessage({
         tone: 'danger',
-        text: 'This knowt has no tag attached, so it cannot be scanned.',
+        text: 'This Knowt has no tag attached, so it cannot be scanned.',
       });
       return false;
     }

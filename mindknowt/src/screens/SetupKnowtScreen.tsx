@@ -183,7 +183,7 @@ export function SetupKnowtScreen() {
       if (owner) {
         // Interrupts here, at the scan. A banner at the top of this form is
         // invisible from the bottom of it, which is where this button lives.
-        const move = await askToReassign(owner.name, name.trim() || 'this knowt');
+        const move = await askToReassign(owner.name, name.trim() || 'this Knowt');
         if (!move) return;
         // Held, not written: the knowt does not exist yet. Save does the move,
         // so backing out now leaves the other knowt with its tag.

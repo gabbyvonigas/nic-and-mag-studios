@@ -26,7 +26,7 @@ export function askToDelete(knowtName: string): Promise<boolean> {
 export function sayTagFreed(): void {
   Alert.alert(
     'Tag freed',
-    'It is ready to use on another knowt. Scan it while setting one up.',
+    'It is ready to use on another Knowt. Scan it while setting one up.',
     [{ text: 'Got it' }],
   );
 }

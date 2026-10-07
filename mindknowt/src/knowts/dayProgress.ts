@@ -22,7 +22,7 @@ export function stanceFor(offsetDays: number): DayStance {
 /** The "3 of 5 knowts complete" line, or its equivalent when there are none. */
 export function progressCount(done: number, total: number): string {
   if (total === 0) return 'Nothing scheduled';
-  return `${done} of ${total} knowt${total === 1 ? '' : 's'} complete`;
+  return `${done} of ${total} Knowt${total === 1 ? '' : 's'} complete`;
 }
 
 /**

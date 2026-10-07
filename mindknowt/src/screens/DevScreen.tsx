@@ -278,14 +278,14 @@ export function DevScreen() {
           }
         />
 
-        <Text style={styles.sectionTitle}>Ring a knowt in 1 minute</Text>
+        <Text style={styles.sectionTitle}>Ring a Knowt in 1 minute</Text>
         <Text style={styles.hint}>
           Arms a one-off alarm so the ringing screen and the scan-to-stop loop
           can be exercised without waiting for a real schedule. This used to sit
           on the knowt itself, where it was not something anyone needed.
         </Text>
         {(knowts ?? []).length === 0 ? (
-          <Text style={styles.hint}>No knowts to ring.</Text>
+          <Text style={styles.hint}>No Knowts to ring.</Text>
         ) : (
           (knowts ?? []).map((knowt) => (
             <Pressable

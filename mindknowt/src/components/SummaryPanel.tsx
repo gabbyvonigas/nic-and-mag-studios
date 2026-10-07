@@ -116,7 +116,7 @@ function GapCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${count} knowt${count === 1 ? '' : 's'} without ${noun}`}
+      accessibilityLabel={`${count} Knowt${count === 1 ? '' : 's'} without ${noun}`}
       onPress={onPress}
       style={({ pressed }) => [styles.gap, pressed && styles.gapPressed]}>
       <Text style={styles.gapCount}>{count}</Text>

@@ -252,7 +252,7 @@ export function CategoriesScreen() {
     const detail =
       count === 0
         ? 'Nothing is in it.'
-        : `${count} knowt${count === 1 ? '' : 's'} will keep everything else and just lose the category.`;
+        : `${count} Knowt${count === 1 ? '' : 's'} will keep everything else and just lose the category.`;
 
     Alert.alert(`Delete ${category.name}?`, detail, [
       { text: 'Keep it', style: 'cancel' },

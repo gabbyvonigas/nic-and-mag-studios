@@ -123,7 +123,7 @@ export async function loadMonthLog(
       knowtId: row.knowt_id,
       // A knowt deleted outright takes its name with it, but the completion
       // is still real, so it is shown rather than dropped.
-      knowtName: row.knowt_name ?? 'Deleted knowt',
+      knowtName: row.knowt_name ?? 'Deleted Knowt',
       completedAt: row.completed_at as number,
       method: (row.method ?? 'tap') as EventMethod,
       snoozeCount: row.snooze_count,

@@ -49,7 +49,7 @@ export default function App() {
     try {
       await seedIfEmpty();
     } catch (err) {
-      setError({ stage: 'Adding the example knowts', message: describe(err) });
+      setError({ stage: 'Adding the example Knowts', message: describe(err) });
       setReady(true);
       return;
     }

@@ -55,10 +55,10 @@ type KnowtsRoute = RouteProp<TabParamList, 'AllKnowts'>;
 
 /** What the list says when a filter has narrowed it to nothing. */
 function emptyMessage(filter: KnowtFilter): string {
-  if (filter.kind === 'no-schedule') return 'Every knowt has a schedule.';
-  if (filter.kind === 'no-tag') return 'Every knowt has a tag attached.';
+  if (filter.kind === 'no-schedule') return 'Every Knowt has a schedule.';
+  if (filter.kind === 'no-tag') return 'Every Knowt has a tag attached.';
   if (filter.kind === 'category') return 'Nothing in this category yet.';
-  return 'No knowts yet.';
+  return 'No Knowts yet.';
 }
 
 /** One category filter. Rendered in a horizontal strip, so it never wraps. */
@@ -544,7 +544,7 @@ export function AllKnowtsScreen() {
             {visible.length === 0 ? (
               <EmptyState
                 message={emptyMessage(filter)}
-                actionLabel={filter.kind === 'all' ? 'Add a knowt' : undefined}
+                actionLabel={filter.kind === 'all' ? 'Add a Knowt' : undefined}
                 onAction={
                   filter.kind === 'all'
                     ? () => navigation.navigate('AddKnowt')
@@ -578,7 +578,7 @@ export function AllKnowtsScreen() {
 
             <Stash
               title="Tags in use"
-              note="Every knowt with a tag attached. Open one to free its tag or swap it."
+              note="Every Knowt with a tag attached. Open one to free its tag or swap it."
               knowts={tagged ?? []}
               countWhenClosed={false}
               expanded={!!openStash.tagged}

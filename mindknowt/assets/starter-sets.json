@@ -4,7 +4,7 @@
     {
       "id": "morning-essentials",
       "name": "Morning essentials",
-      "description": "The things you only notice you forgot once you are already out the door.",
+      "description": "Keys, phone, wallet, and the little things to grab before you head out.",
       "knowts": [
         {
           "name": "Gym bag",
@@ -83,7 +83,7 @@
     {
       "id": "household-maintenance",
       "name": "Household maintenance",
-      "description": "Filters, batteries, and the systems that quietly need attention.",
+      "description": "Filters, batteries, and upkeep around the house.",
       "knowts": [
         {
           "name": "Air filter",
@@ -156,7 +156,7 @@
     {
       "id": "kitchen-food",
       "name": "Kitchen and food",
-      "description": "What expires, what needs cleaning, and what needs restocking.",
+      "description": "Expiration dates, cleaning, and what needs restocking.",
       "knowts": [
         {
           "name": "Fridge clean-out",
@@ -370,7 +370,7 @@
     {
       "id": "prescriptions-medical",
       "name": "Prescriptions and medical",
-      "description": "Doses, refills, and appointments, kept generic on purpose.",
+      "description": "Doses, refills, and medical appointments.",
       "knowts": [
         {
           "name": "Take medication",
@@ -634,7 +634,7 @@
     {
       "id": "pets",
       "name": "Pets",
-      "description": "Feeding, care, and the appointments that keep them well.",
+      "description": "Feeding, grooming, and vet appointments.",
       "knowts": [
         {
           "name": "Feed",

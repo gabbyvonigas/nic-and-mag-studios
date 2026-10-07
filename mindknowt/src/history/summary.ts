@@ -324,7 +324,7 @@ export function summarizeMonth(input: {
       const knowt = knowtById.get(knowtId);
       return {
         knowtId,
-        name: knowt?.name ?? 'Deleted knowt',
+        name: knowt?.name ?? 'Deleted Knowt',
         category: knowt?.category ?? null,
         snoozes: count,
       };
@@ -362,7 +362,7 @@ export function summarizeMonth(input: {
       const knowt = knowtById.get(knowtId);
       return {
         knowtId,
-        name: knowt?.name ?? 'Deleted knowt',
+        name: knowt?.name ?? 'Deleted Knowt',
         category: knowt?.category ?? null,
         misses: count,
       };

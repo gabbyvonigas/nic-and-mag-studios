@@ -8,8 +8,7 @@ import { Icon, categoryIconName } from '../components/Icon';
 import { EmptyState, SubScreenHeader } from '../components/ui';
 import { listCategories } from '../db';
 import type { CategoryRow } from '../db';
-import { listSets, presentedCategoryKey, setIcon } from '../sets';
-import type { StarterSet } from '../sets';
+import { groupSetsByCategory, listSets, setIcon } from '../sets';
 import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -39,24 +38,10 @@ export function BrowseSetsScreen() {
     }, []),
   );
 
-  // The category order the Knowts screen uses, which is the order the rows
-  // come back in. Anything whose category is not installed sorts last.
-  const groups: { category: CategoryRow | null; sets: StarterSet[] }[] = [];
-  const byKey = new Map<string, StarterSet[]>();
-  for (const set of sets) {
-    const key = presentedCategoryKey(set) ?? '';
-    const bucket = byKey.get(key);
-    if (bucket) bucket.push(set);
-    else byKey.set(key, [set]);
-  }
-  for (const category of categories ?? []) {
-    const mine = byKey.get(category.key ?? '');
-    if (mine && mine.length > 0) groups.push({ category, sets: mine });
-  }
-  const placed = new Set((categories ?? []).map((c) => c.key ?? ''));
-  for (const [key, mine] of byKey) {
-    if (!placed.has(key)) groups.push({ category: null, sets: mine });
-  }
+  // Grouped in `sets/presentation.ts`, which also decides the React key. The
+  // screen inventing one is how seven groups ended up sharing `other` on the
+  // first render, before the categories had loaded.
+  const groups = groupSetsByCategory(sets, categories ?? []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -64,16 +49,16 @@ export function BrowseSetsScreen() {
         <SubScreenHeader
           onBack={() => navigation.goBack()}
           title="Presets"
-          subtitle="Ready-made knowts you can edit after adding."
+          subtitle="Ready-made Knowts you can edit after adding."
         />
 
         {sets.length === 0 ? (
           <EmptyState message="No starter sets are bundled yet." />
         ) : (
-          groups.map(({ category, sets: inGroup }) => {
+          groups.map(({ category, key: groupKey, sets: inGroup }) => {
             const shades = categoryShades(category);
             return (
-              <View key={category?.id ?? 'other'} style={styles.section}>
+              <View key={groupKey} style={styles.section}>
                 <View style={styles.sectionHead}>
                   <View
                     style={[styles.headBadge, { backgroundColor: shades.fill }]}>
@@ -95,7 +80,7 @@ export function BrowseSetsScreen() {
                     <Pressable
                       key={set.id}
                       accessibilityRole="button"
-                      accessibilityLabel={`${set.name}, ${count} knowt${count === 1 ? '' : 's'}`}
+                      accessibilityLabel={`${set.name}, ${count} Knowt${count === 1 ? '' : 's'}`}
                       onPress={() =>
                         navigation.navigate('ApplySet', { setId: set.id })
                       }
@@ -116,23 +101,26 @@ export function BrowseSetsScreen() {
                       </View>
 
                       <View style={styles.tileMain}>
-                        <Text style={styles.tileName}>{set.name}</Text>
-                        {/* Two full lines, and no tail. A description cut off
-                            mid word tells you less than the words it dropped. */}
+                        <View style={styles.tileTop}>
+                          <Text style={styles.tileName}>{set.name}</Text>
+                          <View style={styles.countPill}>
+                            <Text style={styles.countText}>{count}</Text>
+                          </View>
+                          <Icon
+                            name="forward"
+                            size={16}
+                            color={theme.color.textMuted}
+                          />
+                        </View>
+                        {/* Full width under the top row rather than squeezed
+                            between the mark and the pill. In the narrow column
+                            a description of seventy characters ran to three
+                            lines, and there is no tail to cut: a description
+                            trimmed mid word tells you less than the words it
+                            dropped. */}
                         <Text style={styles.tileDescription}>
                           {set.description}
                         </Text>
-                      </View>
-
-                      <View style={styles.tileEnd}>
-                        <View style={styles.countPill}>
-                          <Text style={styles.countText}>{count}</Text>
-                        </View>
-                        <Icon
-                          name="forward"
-                          size={16}
-                          color={theme.color.textMuted}
-                        />
                       </View>
                     </Pressable>
                   );
@@ -183,7 +171,7 @@ const styles = StyleSheet.create({
   },
   tile: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: theme.spacing.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.sm,
@@ -198,8 +186,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tileMain: { flex: 1, gap: 2 },
+  tileMain: { flex: 1, gap: 3 },
+  tileTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
   tileName: {
+    flex: 1,
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.md,
     color: theme.color.textPrimary,
@@ -210,7 +204,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: theme.color.textSecondary,
   },
-  tileEnd: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs },
   countPill: {
     minWidth: 24,
     paddingHorizontal: 7,

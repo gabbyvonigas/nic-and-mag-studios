@@ -498,7 +498,7 @@ export function HomeScreen() {
             total > 0 ? null : (
               <EmptyState
                 message="Nothing scheduled."
-                actionLabel="Add a knowt"
+                actionLabel="Add a Knowt"
                 onAction={() => navigation.navigate('AddKnowt')}
               />
             )

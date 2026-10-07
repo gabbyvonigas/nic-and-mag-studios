@@ -413,6 +413,34 @@ as long as it had been on a screen that was not a white card.
 Check a fill against the surface it lands on before trusting it, and prefer a
 border for anything that has to read on both the page and a card.
 
+## A swipe is stolen by default
+
+`PanResponder`'s `onPanResponderTerminationRequest` returns true unless you say
+otherwise, so any other responder may take the gesture mid swipe. The list is a
+ScrollView and it asks. The row then got `onPanResponderTerminate`, sprang back
+to zero, and closed itself: Delete flashed and vanished, every time.
+
+Two lines fix it, and both are needed: refuse the request, and
+`onShouldBlockNativeResponder` so the list does not scroll under a swipe that
+has already started. Terminating must also return the row to the state it was
+actually in, not to shut.
+
+Which row is open lives in `swipeRegistry.ts`, module state, so only one is ever
+open and an unmounting row releases its claim. Never let a row assume it is the
+only one.
+
+## "Knowt" is capitalized in copy and lowercase in code
+
+Every user-facing string says Knowt and Knowts. Identifiers, table names, route
+paths, file names and JSON field names stay lowercase.
+
+A blanket rewrite will get this wrong, and did: it capitalized import paths, the
+`knowts` table in `schema.ts`, the `knowts` deep link segment, and inside test
+files a property key and a helper function, because a regex matching between
+quotes happily matches across two separate quoted strings on one line. Capitalize
+inside the literal only, skip `${...}` expressions, and read the diff before
+trusting it.
+
 ## Platform boundaries
 
 `react-native-nfc-manager` is imported in exactly one file, and

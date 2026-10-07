@@ -469,7 +469,7 @@ export async function setMode(knowtId: string, mode: KnowtMode): Promise<void> {
 
   if (mode !== 'open' && !knowt.tag_uid) {
     throw new ModeUnavailableError(
-      'Scan Knowt needs a tag. Add a tag to this knowt first.',
+      'Scan Knowt needs a tag. Add a tag to this Knowt first.',
     );
   }
 
@@ -546,7 +546,7 @@ export async function updateKnowt(
 
   if (fields.name !== undefined) {
     const name = fields.name.trim();
-    if (!name) throw new Error('A knowt needs a name.');
+    if (!name) throw new Error('A Knowt needs a name.');
     sets.push('name = ?');
     args.push(name);
   }

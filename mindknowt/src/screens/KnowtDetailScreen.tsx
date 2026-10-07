@@ -113,7 +113,7 @@ export function KnowtDetailScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.content}>
           <SubScreenHeader onBack={() => navigation.goBack()} />
-          <Text style={styles.body}>That knowt no longer exists.</Text>
+          <Text style={styles.body}>That Knowt no longer exists.</Text>
         </View>
       </SafeAreaView>
     );

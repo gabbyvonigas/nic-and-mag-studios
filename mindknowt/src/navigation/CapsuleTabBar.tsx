@@ -80,7 +80,7 @@ export function CapsuleTabBar({ state, descriptors, navigation }: BottomTabBarPr
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Add a knowt"
+        accessibilityLabel="Add a Knowt"
         onPress={() => rootNavigation.navigate('AddKnowt')}
         style={({ pressed }) => [styles.add, pressed && styles.addPressed]}>
         <Icon name="plus" role="header" color={theme.color.onAccent} />

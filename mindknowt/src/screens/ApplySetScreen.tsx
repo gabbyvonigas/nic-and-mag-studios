@@ -120,8 +120,8 @@ export function ApplySetScreen() {
   // the knowt actually gets. A set whose category is not installed says the
   // plain thing instead of naming something that will not be applied.
   const addLabel = preview.category
-    ? `Add a custom knowt to ${preview.category.name}`
-    : 'Add a custom knowt';
+    ? `Add a custom Knowt to ${preview.category.name}`
+    : 'Add a custom Knowt';
 
   // Select all skips what already exists, because adding a second copy of a
   // knowt someone already has is never what the control meant. The label says
@@ -188,7 +188,7 @@ export function ApplySetScreen() {
               })
             }
             style={({ pressed }) => [styles.addRow, pressed && styles.pressed]}>
-            <Icon name="plus" size={14} color={theme.color.textSecondary} />
+            <Icon name="plus" size={16} color={theme.color.onHighlight} />
             <Text style={styles.addLabel}>{addLabel}</Text>
           </Pressable>
 
@@ -281,8 +281,8 @@ export function ApplySetScreen() {
           <Button
             label={
               chosenCount === 0
-                ? 'Select knowts to add'
-                : `Add ${chosenCount} knowt${chosenCount === 1 ? '' : 's'}`
+                ? 'Select Knowts to add'
+                : `Add ${chosenCount} Knowt${chosenCount === 1 ? '' : 's'}`
             }
             disabled={!ready || saving}
             onPress={() => void apply()}
@@ -434,23 +434,26 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.xs,
   },
+  // The brand lime, solid, with the ink text that goes on it. It was outlined
+  // and dashed, which said "optional extra" about the one control on this
+  // screen that is not a preset.
   addRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
     marginTop: theme.spacing.sm,
-    paddingVertical: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
     borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: theme.color.border,
+    borderColor: theme.color.highlight,
     borderRadius: theme.radius.md,
+    backgroundColor: theme.color.highlight,
   },
   addLabel: {
     flex: 1,
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.md,
-    color: theme.color.textPrimary,
+    color: theme.color.onHighlight,
   },
   footer: {
     paddingHorizontal: theme.spacing.xl,

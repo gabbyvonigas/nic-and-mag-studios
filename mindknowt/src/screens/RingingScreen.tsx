@@ -218,7 +218,7 @@ export function RingingScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.missing}>
-          <Text style={styles.body}>That knowt no longer exists.</Text>
+          <Text style={styles.body}>That Knowt no longer exists.</Text>
           <Button label="Back to today" onPress={leave} />
         </View>
       </SafeAreaView>
