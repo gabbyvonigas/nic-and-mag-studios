@@ -42,6 +42,16 @@ export async function recordPendingAlarm(args: {
 }
 
 /**
+ * How long a fired one-shot is kept before being pruned.
+ *
+ * Launch housekeeping used to delete a one-shot the instant its time passed,
+ * which threw away the record of the alarm the app was being opened by. The
+ * ringing gate asks whether a test ring or a re-fire just went off, so that
+ * record has to outlive the firing by longer than it takes to answer.
+ */
+const FIRED_GRACE_MS = 5 * 60_000;
+
+/**
  * Drops one-shot rows whose time has passed. They rang, so they are no longer
  * pending.
  *
@@ -55,7 +65,7 @@ export async function prunePastAlarms(now = Date.now()): Promise<number> {
   const result = await db.runAsync(
     `DELETE FROM pending_alarms
       WHERE fires_at <= ? AND kind IN ('refire', 'snooze', 'test')`,
-    now,
+    now - FIRED_GRACE_MS,
   );
   return result.changes;
 }
@@ -137,6 +147,45 @@ export async function takePendingForKnowt(
     await db.runAsync(`DELETE FROM pending_alarms WHERE ${where}`, ...args);
   }
   return rows;
+}
+
+/**
+ * The one-shot records for a knowt, whether or not their time has passed.
+ *
+ * `listPendingForKnowt` only answers what is still ahead, which cannot tell the
+ * app why it was just opened. A test ring or a re-fire that went off thirty
+ * seconds ago is exactly the thing being asked about.
+ */
+export async function listOneShotsForKnowt(
+  knowtId: string,
+): Promise<PendingAlarmRow[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<PendingAlarmRow>(
+    `SELECT * FROM pending_alarms
+      WHERE knowt_id = ? AND kind IN ('refire', 'snooze', 'test')
+      ORDER BY fires_at`,
+    knowtId,
+  );
+}
+
+/**
+ * Moves a record's expected firing without touching the alarm itself.
+ *
+ * A recurring weekly alarm's signature does not include its next time, because
+ * that time moves every week without the alarm changing. The record was
+ * therefore stamped once and never again, so `fires_at` sat in the past
+ * forever and every query that asks what is still ahead stopped seeing it.
+ */
+export async function touchPendingAlarm(
+  id: string,
+  firesAt: number,
+): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE pending_alarms SET fires_at = ? WHERE id = ?',
+    firesAt,
+    id,
+  );
 }
 
 /** Forgets every pending record. Pairs with a cancel-everything recovery. */

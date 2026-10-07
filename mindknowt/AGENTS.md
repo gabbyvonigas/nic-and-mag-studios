@@ -222,12 +222,48 @@ interval alarm that is ignored outright will not re-arm until the app is opened.
 There is no background execution, so that limitation is real, not an oversight.
 
 Sync compares a signature before touching anything. Do not "simplify" it into
-cancelling and re-arming everything each run: with a pre-1.0 alarm module, a
+canceling and re-arming everything each run: with a pre-1.0 alarm module, a
 cancel that succeeds followed by a schedule that fails loses the alarm.
 
-Completing a knowt clears its one-shots only (`cancelKnowtOneShots`). Cancelling
-everything would kill the recurring alarm, so doing today's 8:00 am would stop
-tomorrow's.
+Sync reads what has been completed before deciding what to arm, so an
+occurrence that has been done is not armed again. Completing today's 9:00 am at
+seven used to leave its own alarm standing, and re-arming chose the same 9:00 am
+over again, because the time had not passed yet.
+
+Completing a knowt clears its one-shots (`cancelKnowtOneShots`) and resyncs.
+Never cancel everything: that would kill the recurring alarm, so doing today's
+8:00 am would stop tomorrow's. Every path that records a completion goes through
+`completeOccurrence`, not `logCompletion`. `logCompletion` writes a history row
+and touches no alarms, which is exactly the bug that let a checked-off knowt
+ring: Daily's tap and Detail's check-in both called it directly.
+
+A completion has to name the occurrence it covers, or none of this works. A
+completion with no `schedule_id` is a person saying they did the thing, which is
+worth recording but does not identify a firing, so it never stands an alarm
+down.
+
+Taking a completion back (`undoCompletion`) puts an occurrence back in play and
+must resync, or "not done" also means "and it will not remind you".
+
+**A recurring alarm cannot skip one occurrence.** `scheduleRepeatingAlarm` hands
+AlarmKit an `Alarm.Schedule.Relative` with a time and a set of weekdays. There
+is no start date and no exclusion list, so the system computes every firing
+itself and today's 9:00 am rings whether or not it was checked off at seven.
+Canceling and re-arming cannot fake it either: re-arming the same daily
+recurrence still produces today's 9:00 am.
+
+So the fix is split. Alarms armed one occurrence at a time are stood down by
+sync. For recurring ones the sound cannot be stopped, and the app instead
+declines to open the Ringing screen and demand a tag scan for something already
+done (`src/ringing/ringGate.ts`, rule in `src/knowts/completions.ts`).
+
+The gate fails open everywhere it is unsure: an unknown knowt, a read that
+threw, a firing with nothing due, or a re-fire, snooze or test ring, which are
+asked for by name and are not answered by this morning's completion. A
+suppressed ring that should have sounded is the app failing at its only job.
+That last case is why `prunePastAlarms` keeps a fired one-shot for five minutes:
+deleting it the instant its time passed threw away the record of the alarm the
+app was being opened by.
 
 ## The dev build draws things this project does not
 

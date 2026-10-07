@@ -2,9 +2,12 @@ import {
   deletePendingAlarm,
   listScheduledAlarmRecords,
   recordPendingAlarm,
+  touchPendingAlarm,
 } from '../db/pendingAlarms';
+import { completionWindowStart, listCompletionsSince } from '../db/events';
 import { listKnowts } from '../db/knowts';
 import { requiresScan } from '../knowts/modes';
+import { completedOccurrences, isOccurrenceDone } from '../knowts/completions';
 import { nextOccurrence, weeklyDaysFor } from '../db/scheduling';
 import type { KnowtWithDetail, PendingAlarmRow, ScheduleRow } from '../db/types';
 import { alarmScheduler } from './AlarmScheduler';
@@ -28,6 +31,12 @@ import { alarmScheduler } from './AlarmScheduler';
  * after anything that changes a schedule, and is safe to run repeatedly: an
  * alarm whose signature still matches is left alone rather than torn down and
  * rebuilt, so a launch does not churn every alarm on the phone.
+ *
+ * It also runs after a completion, and reads what has been completed before
+ * deciding what to arm. An occurrence that has been done is not armed again:
+ * checking off the 9:00 am knowt at seven used to leave its own alarm standing,
+ * and re-arming simply chose the same 9:00 am over again, because the time had
+ * not passed yet.
  */
 
 export type SyncResult = {
@@ -79,11 +88,28 @@ export function signatureOf(
   return parts.join('|');
 }
 
-/** What this schedule should have armed right now, or null for nothing. */
-function desiredFor(schedule: ScheduleRow, now: Date): DesiredAlarm | null {
+/**
+ * What this schedule should have armed right now, or null for nothing.
+ *
+ * Exported for the same reason `signatureOf` is: whether a completed
+ * occurrence gets armed again is decided here, and it is the difference
+ * between an alarm that rings for something already done and one that does
+ * not.
+ */
+export function desiredFor(
+  schedule: ScheduleRow,
+  now: Date,
+  done: ReadonlySet<string>,
+): DesiredAlarm | null {
   if (!schedule.enabled) return null;
 
-  const nextAt = nextOccurrence(schedule, now);
+  // Only a completion that named this schedule counts. A check-in with no
+  // schedule is ambiguous about which occurrence it covers, and guessing wrong
+  // here means an alarm that never rings, which is worse than one that rings
+  // for something already done.
+  const nextAt = nextOccurrence(schedule, now, (day) =>
+    isOccurrenceDone(done, schedule.id, day),
+  );
   if (!nextAt) return null;
 
   const weekdays = weeklyDaysFor(schedule);
@@ -146,6 +172,9 @@ export async function syncScheduledAlarms(now = new Date()): Promise<SyncResult>
 
   const knowts = await listKnowts();
   const records = await listScheduledAlarmRecords();
+  const done = completedOccurrences(
+    await listCompletionsSince(completionWindowStart(now)),
+  );
 
   const byKey = new Map<string, PendingAlarmRow>();
   for (const row of records) {
@@ -168,7 +197,7 @@ export async function syncScheduledAlarms(now = new Date()): Promise<SyncResult>
       const existing = byKey.get(key);
       byKey.delete(key);
 
-      const desired = desiredFor(schedule, now);
+      const desired = desiredFor(schedule, now, done);
 
       if (!desired) {
         if (existing) {
@@ -180,6 +209,14 @@ export async function syncScheduledAlarms(now = new Date()): Promise<SyncResult>
 
       const signature = signatureOf(knowt, schedule, desired);
       if (existing && existing.signature === signature) {
+        // The alarm is right, but a recurring one's recorded time is not: its
+        // signature leaves the next firing out, so the row was stamped once at
+        // arm time and then sat in the past forever, invisible to every query
+        // that asks what is still ahead. Correcting the record touches nothing
+        // on the phone.
+        if (existing.fires_at !== desired.nextAt.getTime()) {
+          await touchPendingAlarm(existing.id, desired.nextAt.getTime());
+        }
         continue;
       }
 

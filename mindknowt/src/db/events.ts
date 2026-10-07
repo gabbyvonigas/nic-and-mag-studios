@@ -81,6 +81,28 @@ export async function setEventNote(
   await db.runAsync('UPDATE events SET note = ? WHERE id = ?', note, eventId);
 }
 
+/**
+ * Completed events from a moment onward.
+ *
+ * Which occurrence each one covers is decided in `knowts/completions.ts`, from
+ * `fired_at` where there is one. The window is therefore read generously: a
+ * completion stamped just after midnight belongs to the previous day, and
+ * excluding it here would arm an alarm for something already done.
+ */
+export async function listCompletionsSince(from: number): Promise<EventRow[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<EventRow>(
+    `SELECT * FROM events
+      WHERE completed_at IS NOT NULL AND completed_at >= ?`,
+    from,
+  );
+}
+
+/** The window `listCompletionsSince` is asked for: today, and the day before. */
+export function completionWindowStart(now = new Date()): number {
+  return startOfDay(now).getTime() - DAY_MS;
+}
+
 export async function getEvent(eventId: string): Promise<EventRow | null> {
   const db = await getDatabase();
   return db.getFirstAsync<EventRow>('SELECT * FROM events WHERE id = ?', eventId);

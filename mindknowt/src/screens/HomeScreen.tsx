@@ -23,7 +23,6 @@ import {
   listSnoozed,
   listUpcoming,
   listWeekMarks,
-  logCompletion,
   toISODate,
   type DashboardCard,
   type DayMark,
@@ -31,6 +30,7 @@ import {
   type UpcomingEntry,
 } from '../db';
 import { useQuery } from '../db/useQuery';
+import { completeOccurrence } from '../knowts/completeOccurrence';
 import {
   progressCount,
   progressLine,
@@ -388,7 +388,9 @@ export function HomeScreen() {
   );
 
   const complete = async (card: DashboardCard) => {
-    await logCompletion({
+    // Naming the schedule is what stands the alarm down. Without it the 9:00 am
+    // alarm went on ringing for a card checked off at seven.
+    await completeOccurrence({
       knowtId: card.knowt.id,
       scheduleId: card.schedule?.id ?? null,
       method: 'tap',

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { resyncAlarmsQuietly } from '../alarms';
 import { CategoryDot } from '../components/KnowtCard';
 import { PeriodPanel, PeriodToggle } from '../components/PeriodPanel';
 import { SummaryPanel } from '../components/SummaryPanel';
@@ -261,6 +262,11 @@ export function LogScreen() {
           onPress: () =>
             void (async () => {
               await undoCompletion(completion.eventId);
+              // Sync skips occurrences that have been completed, so taking a
+              // completion back puts one back in play and it has to be armed
+              // again. Without this, "not done" quietly meant "and it will not
+              // remind you either".
+              await resyncAlarmsQuietly();
               await reload();
               await reloadSummary();
             })(),

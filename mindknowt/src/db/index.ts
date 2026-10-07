@@ -1,7 +1,9 @@
 export {
   addSnooze,
   completeRinging,
+  completionWindowStart,
   getEvent,
+  listCompletionsSince,
   setEventNote,
   startRinging,
   sweepMissed,
@@ -100,12 +102,14 @@ export {
 export {
   clearAllPendingAlarms,
   deletePendingAlarm,
+  listOneShotsForKnowt,
   listPendingAlarms,
   listPendingForKnowt,
   listScheduledAlarmRecords,
   prunePastAlarms,
   recordPendingAlarm,
   takePendingForKnowt,
+  touchPendingAlarm,
 } from './pendingAlarms';
 export { SCHEMA_VERSION } from './schema';
 export {

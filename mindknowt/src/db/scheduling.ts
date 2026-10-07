@@ -218,6 +218,13 @@ function hoursMinutes(time: string): { hour: number; minute: number } | null {
 export function nextOccurrence(
   schedule: ScheduleRow,
   now = new Date(),
+  /**
+   * Whether a day's occurrence has already been accounted for and must not be
+   * armed. Without it, completing today's 9:00 am at seven re-armed the same
+   * 9:00 am: the occurrence is still in the future, so the walk below picked it
+   * straight back up and the alarm rang for something already done.
+   */
+  isDone?: (day: Date) => boolean,
 ): Date | null {
   if (!schedule.enabled) return null;
   const hm = hoursMinutes(schedule.time);
@@ -230,6 +237,7 @@ export function nextOccurrence(
       now.getDate() + offset,
     );
     if (!isDueOn(schedule, day)) continue;
+    if (isDone?.(day)) continue;
 
     const at = new Date(
       day.getFullYear(),

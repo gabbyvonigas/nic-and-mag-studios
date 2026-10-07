@@ -21,8 +21,16 @@ export const navigationRef = createNavigationContainerRef<RootStackParamList>();
  *
  * Re-entering for the same knowt is ignored, so a foreground transition while
  * the screen is already up does not rebuild it underneath the person.
+ *
+ * The schedule is resolved before navigating, because the payload does not
+ * carry one. Without it the screen could not say which occurrence was ringing,
+ * and the scan that stopped the alarm was recorded against no schedule, so
+ * Daily went on showing the knowt as not done.
  */
-export function navigateToRinging(knowtId: string): boolean {
+export function navigateToRinging(
+  knowtId: string,
+  scheduleId: string | null = null,
+): boolean {
   if (!navigationRef.isReady()) return false;
 
   const current = navigationRef.getCurrentRoute();
@@ -37,7 +45,7 @@ export function navigateToRinging(knowtId: string): boolean {
     index: 1,
     routes: [
       { name: 'Tabs' },
-      { name: 'Ringing', params: { knowtId } },
+      { name: 'Ringing', params: { knowtId, scheduleId: scheduleId ?? undefined } },
     ],
   });
   return true;

@@ -13,6 +13,7 @@ import { publishLaunch } from './src/alarms/launchStore';
 import { destroyDatabase, getDatabase, seedIfEmpty, sweepMissed } from './src/db';
 import { linking } from './src/navigation/linking';
 import { navigateToRinging, navigationRef } from './src/navigation/navigationRef';
+import { resolveRinging } from './src/ringing/ringGate';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { Button } from './src/components/ui';
 import { theme } from './src/theme';
@@ -95,13 +96,22 @@ export default function App() {
    * natively, so this must not be duplicated elsewhere. Everything else reads
    * the published copy. The payload carries the knowt id, which is how the
    * alarm selects which Ringing screen to open.
+   *
+   * A recurring alarm cannot skip an occurrence, so one can fire for something
+   * already checked off. The screen that demands a tag scan is not opened for
+   * it. The payload is still published either way: the dev harness reports what
+   * fired, and suppressing a screen is not the same as hiding the firing.
    */
   useEffect(() => {
     const consume = async () => {
       const launch = await alarmScheduler.consumeLaunch();
       if (!launch) return;
       publishLaunch(launch);
-      if (launch.payload) navigateToRinging(launch.payload);
+      if (!launch.payload) return;
+      const target = await resolveRinging(launch.payload);
+      if (target.present) {
+        navigateToRinging(launch.payload, target.scheduleId);
+      }
     };
 
     void consume();

@@ -20,6 +20,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Pill, SubScreenHeader } from '../components/ui';
 import { resyncAlarmsQuietly } from '../alarms';
 import { AlarmIcon, ExpandSign, ScanIcon } from '../components/icons';
+import { completeOccurrence } from '../knowts/completeOccurrence';
+import { openOccurrence } from '../knowts/completions';
 import { MODE_CHOICES, modeChoice, modeLabel } from '../knowts/modes';
 import {
   archiveKnowt,
@@ -35,7 +37,6 @@ import {
   getKnowt,
   isDueOn,
   listEvents,
-  logCompletion,
   ModeUnavailableError,
   setMode,
   setPinned,
@@ -198,8 +199,22 @@ export function KnowtDetailScreen() {
   })();
 
   const checkIn = async () => {
-    // Spec section 3: a completion with no alarm pending is a valid check-in.
-    await logCompletion({ knowtId: knowt.id, scheduleId: null, method: 'tap' });
+    // Spec section 3: a completion with no alarm pending is a valid check-in,
+    // which is why the schedule can still come out null here.
+    //
+    // When one of today's occurrences is what is being checked in against,
+    // though, it has to be named. Recording every check-in against no schedule
+    // meant Daily went on showing the knowt as not done and the alarm armed for
+    // it went on ringing.
+    const open = openOccurrence({
+      schedules: knowt.schedules,
+      events: events ?? [],
+    });
+    await completeOccurrence({
+      knowtId: knowt.id,
+      scheduleId: open?.id ?? null,
+      method: 'tap',
+    });
     await reloadEvents();
   };
 
