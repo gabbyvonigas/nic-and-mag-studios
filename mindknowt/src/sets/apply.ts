@@ -9,7 +9,9 @@ import {
   type RepeatType,
 } from '../db';
 import { parseStarterSets } from './parse';
+import { setCategoryKey } from './category';
 import type { StarterKnowt, StarterSet } from './types';
+import type { CategoryRow } from '../db';
 
 const parsed = parseStarterSets(bundled);
 
@@ -40,6 +42,12 @@ export type SetEntryPreview = {
 export type SetPreview = {
   set: StarterSet;
   entries: SetEntryPreview[];
+  /**
+   * The category this list belongs to, resolved to the real row so the screen
+   * can name it the way the rest of the app does and hand its id to the setup
+   * flow. Null when the set names a category that is not installed.
+   */
+  category: CategoryRow | null;
 };
 
 /**
@@ -53,8 +61,12 @@ export async function previewSet(setId: string): Promise<SetPreview | null> {
   const existing = await listKnowts();
   const byName = new Map(existing.map((k) => [k.name.trim().toLowerCase(), k.name]));
 
+  const key = setCategoryKey(set);
+  const category = key ? await findCategoryByKey(key) : null;
+
   return {
     set,
+    category,
     entries: set.knowts.map((knowt) => ({
       knowt,
       duplicateOf: byName.get(knowt.name.trim().toLowerCase()) ?? null,

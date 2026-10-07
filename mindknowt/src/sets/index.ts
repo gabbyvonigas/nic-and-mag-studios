@@ -9,6 +9,7 @@ export {
   type SetEntryPreview,
   type SetPreview,
 } from './apply';
+export { setCategoryKey } from './category';
 export { parseStarterSets } from './parse';
 export type {
   ParseResult,

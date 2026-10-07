@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Pill, ScreenHeader } from '../components/ui';
+import { PlusSign } from '../components/icons';
 import { describeRepeat, formatTime, type RepeatType } from '../db';
 import { resyncAlarmsQuietly } from '../alarms';
 import { applySet, previewSet, type SetPreview, type SetSelection } from '../sets';
@@ -113,6 +114,13 @@ export function ApplySetScreen() {
   };
 
   const chosenCount = preview.entries.filter((e) => selected[e.knowt.name]).length;
+
+  // Named after the category rather than the set, because the category is what
+  // the knowt actually gets. A set whose category is not installed says the
+  // plain thing instead of naming something that will not be applied.
+  const addLabel = preview.category
+    ? `Add a custom knowt to ${preview.category.name}`
+    : 'Add a custom knowt';
 
   // Select all skips what already exists, because adding a second copy of a
   // knowt someone already has is never what the control meant. The label says
@@ -219,6 +227,28 @@ export function ApplySetScreen() {
               </View>
             );
           })}
+
+          {/* The way out of a list that is never going to hold everything.
+              Someone looking at Household maintenance for the thing they
+              actually want has already decided which category it belongs to,
+              and sending them back to Add a knowt to say so again is work the
+              app can do for them.
+
+              Outlined and dashed rather than filled, because it adds nothing by
+              itself: it is a door, not one more knowt to tick. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={addLabel}
+            onPress={() =>
+              navigation.navigate('SetupKnowt', {
+                name: '',
+                categoryId: preview.category?.id ?? null,
+              })
+            }
+            style={({ pressed }) => [styles.addRow, pressed && styles.pressed]}>
+            <PlusSign size={14} color={theme.color.textSecondary} />
+            <Text style={styles.addLabel}>{addLabel}</Text>
+          </Pressable>
         </ScrollView>
 
         <View style={styles.footer}>
@@ -358,6 +388,24 @@ const styles = StyleSheet.create({
     color: theme.color.textMuted,
   },
   repeatTextOn: { color: theme.color.textPrimary },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
+  },
+  addLabel: {
+    flex: 1,
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
   footer: {
     paddingHorizontal: theme.spacing.xl,
     paddingBottom: theme.spacing.sm,

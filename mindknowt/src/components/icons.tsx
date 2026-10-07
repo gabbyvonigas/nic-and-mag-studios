@@ -84,6 +84,42 @@ export function ExpandSign({
   );
 }
 
+/** A plus, for rows that add something. Two bars, same build as `ExpandSign`. */
+export function PlusSign({
+  size = 16,
+  color = theme.color.textSecondary,
+  thickness = 2,
+}: {
+  size?: number;
+  color?: string;
+  thickness?: number;
+}) {
+  return (
+    <View
+      accessible={false}
+      style={[styles.iconBox, { width: size, height: size }]}>
+      <View
+        style={{
+          position: 'absolute',
+          width: size,
+          height: thickness,
+          borderRadius: thickness,
+          backgroundColor: color,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          width: thickness,
+          height: size,
+          borderRadius: thickness,
+          backgroundColor: color,
+        }}
+      />
+    </View>
+  );
+}
+
 /**
  * NFC arcs, the same shape as the app icon's.
  *
