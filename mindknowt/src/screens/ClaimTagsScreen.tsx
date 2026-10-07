@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, SubScreenHeader } from '../components/ui';
-import { LockIcon } from '../components/icons';
+import { Icon } from '../components/Icon';
 import { isShopConfigured } from '../shop/config';
 import {
   claimState,
@@ -109,7 +109,7 @@ export function ClaimTagsScreen() {
    */
   const privacyNote = (
     <View style={styles.privacy}>
-      <LockIcon size={12} color={theme.color.textMuted} />
+      <Icon name="lock" size={12} color={theme.color.textMuted} />
       <Text style={styles.privacyText}>
         We use your address only to ship your Knowt Tags. We never sell it or
         share it for marketing.

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CategoryIcon } from '../components/CategoryIcon';
-import { CheckIcon, ExpandSign } from '../components/icons';
+import { Icon } from '../components/Icon';
 import { KnowtCard } from '../components/KnowtCard';
 import { ProgressRing } from '../components/ProgressRing';
 import { EmptyState, TabHeader } from '../components/ui';
@@ -143,7 +143,7 @@ function DateStrip({
         accessibilityLabel="Previous week"
         hitSlop={10}
         onPress={() => onShiftWeek(-1)}>
-        <Text style={styles.stripArrow}>{'‹'}</Text>
+        <Icon name="back" size={16} color={theme.color.textSecondary} />
       </Pressable>
 
       <View style={styles.strip}>
@@ -197,7 +197,7 @@ function DateStrip({
         accessibilityLabel="Next week"
         hitSlop={10}
         onPress={() => onShiftWeek(1)}>
-        <Text style={styles.stripArrow}>{'›'}</Text>
+        <Icon name="forward" size={16} color={theme.color.textSecondary} />
       </Pressable>
     </View>
   );
@@ -283,7 +283,7 @@ function UpcomingSection({
         onPress={onToggle}
         style={({ pressed }) => [styles.upcomingHead, pressed && styles.pressed]}>
         <Text style={styles.upcomingTitle}>Upcoming</Text>
-        <ExpandSign expanded={expanded} size={14} />
+        <Icon name={expanded ? 'collapse' : 'expand'} size={14} color={theme.color.textSecondary} />
       </Pressable>
 
       {expanded
@@ -459,7 +459,7 @@ export function HomeScreen() {
                   Partial progress keeps the count, because there the number
                   is the thing worth knowing. */}
               {total > 0 && done >= total ? (
-                <CheckIcon size={24} color={theme.color.textPrimary} />
+                <Icon name="check" size={24} color={theme.color.textPrimary} />
               ) : (
                 <Text style={styles.ringText}>{total === 0 ? '0' : done}</Text>
               )}

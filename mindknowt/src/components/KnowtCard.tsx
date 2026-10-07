@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { AlarmIcon, CheckIcon, ScanIcon } from './icons';
+import { Icon } from './Icon';
 import { requiresScan } from '../knowts/modes';
 import type { KnowtMode } from '../db/types';
 import { theme, type CategoryShades } from '../theme';
@@ -149,9 +149,9 @@ export function KnowtCard({
       <View style={styles.body}>
         <View style={styles.titleRow}>
           {requiresScan(mode) ? (
-            <ScanIcon size={14} color={shades.ink} thickness={1.5} />
+            <Icon name="scan" size={14} color={shades.ink} />
           ) : (
-            <AlarmIcon size={14} color={theme.color.textMuted} thickness={1.5} />
+            <Icon name="alarm" size={14} color={theme.color.textMuted} />
           )}
           <Text
             numberOfLines={1}
@@ -186,10 +186,10 @@ export function KnowtCard({
           hitSlop={10}
           onPress={onComplete}
           style={({ pressed }) => [styles.check, pressed && styles.pressed]}>
-          <CheckIcon
+          <Icon
+            name={done ? 'circleCheck' : 'circle'}
             size={26}
             color={done ? shades.color : theme.color.border}
-            filled={done}
           />
         </Pressable>
       ) : null}

@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 
-import { ChevronLeft } from './icons';
+import { Icon } from './Icon';
 import { monthGrid } from '../knowts/occurrences';
 import { theme } from '../theme';
 
@@ -61,7 +61,7 @@ export function MonthCalendar({
           hitSlop={12}
           onPress={() => onShiftMonth(-1)}
           style={({ pressed }) => [styles.arrow, pressed && styles.pressed]}>
-          <ChevronLeft size={18} color={theme.color.textSecondary} />
+          <Icon name="back" size={18} color={theme.color.textSecondary} />
         </Pressable>
 
         <Text style={styles.title}>
@@ -73,12 +73,8 @@ export function MonthCalendar({
           accessibilityLabel="Next month"
           hitSlop={12}
           onPress={() => onShiftMonth(1)}
-          style={({ pressed }) => [
-            styles.arrow,
-            styles.arrowNext,
-            pressed && styles.pressed,
-          ]}>
-          <ChevronLeft size={18} color={theme.color.textSecondary} />
+          style={({ pressed }) => [styles.arrow, pressed && styles.pressed]}>
+          <Icon name="forward" size={18} color={theme.color.textSecondary} />
         </Pressable>
       </View>
 
@@ -157,8 +153,6 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xs,
   },
   arrow: { padding: 6 },
-  // The same glyph turned around, rather than a second one to keep in step.
-  arrowNext: { transform: [{ rotate: '180deg' }] },
   pressed: { opacity: 0.6 },
   title: {
     fontFamily: theme.font.face.medium,

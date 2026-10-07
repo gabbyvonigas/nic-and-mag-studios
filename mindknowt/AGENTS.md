@@ -381,6 +381,38 @@ Bundling them is a config plugin's job. This is a CNG project with no `ios/`
 directory, there is no `plugins/` directory yet, and `app.json` has no field for
 arbitrary bundle resources.
 
+## One icon set, one component
+
+Every glyph goes through `src/components/Icon.tsx`. Ionicons, outline, sized by
+role rather than by a number at the call site. **Do not import Ionicons anywhere
+else and do not build an icon out of views.** If a glyph is missing, add a name
+to `ICONS`.
+
+This exists because the alternative was tried. Icons were drawn from plain
+views, one at a time, and they drifted exactly as you would expect: a filled
+heart beside an outlined house beside a clock with its own stroke weight, all
+nominally the same size and none of them matching. Chevrons were worse, being
+three different things at once: a rotated bordered square, a `'\u203a'` in a
+`Text`, and in one place the same glyph turned 180 degrees to mean the other
+direction.
+
+The one exception to outline is the completion control on a card, where an
+empty ring and a solid tick is how done reads at a glance.
+
+Sizes come from `ICON_SIZE`: `hint` 12, `row` 16, `button` 20, `header` 22,
+`tile` 24. Pass `role`, not `size`, unless there is a reason.
+
+## The selection bar was invisible, not missing
+
+`theme.color.surfaceMuted` and `theme.color.background` are the same value,
+`#F4F5F6`. Anything filled with `surfaceMuted` and placed on the page
+background is painted in the color behind it. The time wheel's selection band
+was reported as gone and had in fact been drawn, in page gray on page gray, for
+as long as it had been on a screen that was not a white card.
+
+Check a fill against the surface it lands on before trusting it, and prefer a
+border for anything that has to read on both the page and a card.
+
 ## Platform boundaries
 
 `react-native-nfc-manager` is imported in exactly one file, and

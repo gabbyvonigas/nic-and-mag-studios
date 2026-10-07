@@ -20,7 +20,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resyncAlarmsQuietly } from '../alarms';
-import { AlarmIcon, ScanIcon } from '../components/icons';
+import { Icon } from '../components/Icon';
 import { PriorityBars } from '../components/KnowtCard';
 import { Button, SubScreenHeader } from '../components/ui';
 import { MODE_CHOICES, modeChoice } from '../knowts/modes';
@@ -272,9 +272,9 @@ export function EditKnowtScreen() {
                 ]}>
                 <View style={styles.optionHead}>
                   {option.value === 'strict' ? (
-                    <ScanIcon size={18} color={optionTint(on, blocked)} />
+                    <Icon name="scan" size={18} color={optionTint(on, blocked)} />
                   ) : (
-                    <AlarmIcon size={18} color={optionTint(on, blocked)} />
+                    <Icon name="alarm" size={18} color={optionTint(on, blocked)} />
                   )}
                   <Text
                     style={[
@@ -346,7 +346,7 @@ export function EditKnowtScreen() {
                     {schedule.enabled ? '' : ', paused'}
                   </Text>
                 </View>
-                <Text style={styles.chevron}>{'›'}</Text>
+                <Icon name="forward" color={theme.color.textMuted} />
               </Pressable>
             ))
           )}

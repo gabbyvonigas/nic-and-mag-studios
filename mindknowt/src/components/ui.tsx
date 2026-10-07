@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { ChevronLeft, GearIcon } from './icons';
+import { Icon } from './Icon';
 import { theme } from '../theme';
 
 /**
@@ -77,7 +77,7 @@ export function TabHeader({
           hitSlop={12}
           onPress={onSettings}
           style={({ pressed }) => [styles.tabGear, pressed && styles.pressed]}>
-          <GearIcon />
+          <Icon name="gear" role="header" />
         </Pressable>
       </View>
 
@@ -193,7 +193,7 @@ export function SubScreenHeader({
           hitSlop={12}
           onPress={onBack}
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <ChevronLeft />
+          <Icon name="back" role="header" />
           <Text style={styles.backLabel}>{backLabel}</Text>
         </Pressable>
         {/* Its own slot, so neither control can grow across the other however

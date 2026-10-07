@@ -97,6 +97,20 @@ export function rowTopInFrame(
   return wheelPadding(size) + index * size.itemHeight - scrollY;
 }
 
+/**
+ * The vertical center of the selected row, measured inside the column's frame.
+ *
+ * This is the number that has to be the same in all three columns. It takes
+ * the index so that it can be wrong: if anything about a column's layout ever
+ * depends on how many values it holds, this stops being constant and the test
+ * that compares the three columns fails.
+ */
+export function selectedRowCenter(size: WheelSize, index: number): number {
+  return (
+    rowTopInFrame(size, index, restOffset(size, index)) + size.itemHeight / 2
+  );
+}
+
 /** Where a column sits from the left edge of the control. */
 export function columnOffset(
   size: WheelSize,

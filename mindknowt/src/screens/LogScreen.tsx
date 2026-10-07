@@ -31,6 +31,7 @@ import {
   shiftRange,
   type PeriodKind,
 } from '../history/period';
+import { Icon } from '../components/Icon';
 import { useQuery } from '../db/useQuery';
 import { countWithoutSchedule, countWithoutTag } from '../knowts/knowtFilter';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
@@ -166,9 +167,10 @@ function CategoryBlock({
           {name}
         </Text>
         <Text style={styles.blockCount}>{count}</Text>
-        <Text style={[styles.chevron, expanded && styles.chevronOpen]}>
-          {'›'}
-        </Text>
+        <Icon
+          name={expanded ? 'collapse' : 'expand'}
+          color={theme.color.textMuted}
+        />
       </Pressable>
 
       {expanded ? (
@@ -299,7 +301,7 @@ export function LogScreen() {
             accessibilityLabel="Previous"
             hitSlop={12}
             onPress={() => setAnchor(shiftRange(range, -1))}>
-            <Text style={styles.stepArrow}>{'‹'}</Text>
+            <Icon name="back" size={16} color={theme.color.textSecondary} />
           </Pressable>
           <Text style={styles.stepLabel}>{range.label}</Text>
           <Pressable
@@ -309,9 +311,13 @@ export function LogScreen() {
             disabled={atLatest}
             hitSlop={12}
             onPress={() => setAnchor(shiftRange(range, 1))}>
-            <Text style={[styles.stepArrow, atLatest && styles.stepArrowOff]}>
-              {'›'}
-            </Text>
+            <Icon
+              name="forward"
+              size={16}
+              color={
+                atLatest ? theme.color.border : theme.color.textSecondary
+              }
+            />
           </Pressable>
         </View>
       </View>

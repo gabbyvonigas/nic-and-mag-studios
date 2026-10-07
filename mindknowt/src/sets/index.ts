@@ -10,6 +10,7 @@ export {
   type SetPreview,
 } from './apply';
 export { setCategoryKey } from './category';
+export { presentedCategoryKey, setIcon } from './presentation';
 export { parseStarterSets } from './parse';
 export type {
   ParseResult,

@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resyncAlarmsQuietly } from '../alarms';
-import { AlarmIcon, ScanIcon } from '../components/icons';
+import { Icon } from '../components/Icon';
 import { TimeWheel } from '../components/TimeWheel';
 import { Button, SubScreenHeader } from '../components/ui';
 import {
@@ -440,7 +440,7 @@ export function SetupKnowtScreen() {
                   mode === 'strict' && styles.modeCardOn,
                   !tagUid && styles.modeCardOff,
                 ]}>
-                <ScanIcon
+                <Icon name="scan"
                   size={20}
                   color={
                     !tagUid
@@ -448,8 +448,7 @@ export function SetupKnowtScreen() {
                       : mode === 'strict'
                         ? theme.color.onHighlight
                         : theme.color.textPrimary
-                  }
-                />
+                  } />
                 <Text
                   style={[
                     styles.modeLabel,
@@ -465,14 +464,13 @@ export function SetupKnowtScreen() {
                 accessibilityState={{ selected: mode !== 'strict' }}
                 onPress={() => setMode('open')}
                 style={[styles.modeCard, mode !== 'strict' && styles.modeCardOn]}>
-                <AlarmIcon
+                <Icon name="alarm"
                   size={20}
                   color={
                     mode !== 'strict'
                       ? theme.color.onHighlight
                       : theme.color.textPrimary
-                  }
-                />
+                  } />
                 <Text
                   style={[
                     styles.modeLabel,

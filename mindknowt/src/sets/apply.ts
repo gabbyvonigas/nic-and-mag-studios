@@ -9,7 +9,7 @@ import {
   type RepeatType,
 } from '../db';
 import { parseStarterSets } from './parse';
-import { setCategoryKey } from './category';
+import { presentedCategoryKey } from './presentation';
 import type { StarterKnowt, StarterSet } from './types';
 import type { CategoryRow } from '../db';
 
@@ -74,8 +74,10 @@ export async function previewSet(setId: string): Promise<SetPreview | null> {
   const rows = await Promise.all(keys.map((k) => findCategoryByKey(k)));
   const byKey = new Map(keys.map((k, i) => [k, rows[i] ?? null]));
 
-  const setKey = setCategoryKey(set);
-  const category = setKey ? (byKey.get(setKey) ?? null) : null;
+  const setKey = presentedCategoryKey(set);
+  const category = setKey
+    ? (byKey.get(setKey) ?? (await findCategoryByKey(setKey)))
+    : null;
 
   return {
     set,

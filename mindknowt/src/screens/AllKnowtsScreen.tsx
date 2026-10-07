@@ -19,7 +19,7 @@ import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import { CategoryDot } from '../components/KnowtCard';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { ExpandSign, NfcIcon, PinIcon } from '../components/icons';
+import { Icon } from '../components/Icon';
 import { EmptyState, TabHeader } from '../components/ui';
 import { SwipeToDelete } from '../components/SwipeToDelete';
 import {
@@ -179,14 +179,14 @@ function KnowtRow({
 
       <View style={styles.rowText}>
         <View style={styles.rowTitle}>
-          {pinned ? <PinIcon size={11} color={shades.ink} /> : null}
+          {pinned ? <Icon name="pin" size={11} color={shades.ink} /> : null}
           <Text
             numberOfLines={1}
             ellipsizeMode="tail"
             style={[styles.rowName, { color: shades.ink }]}>
             {knowt.name}
           </Text>
-          {knowt.tag_uid ? <NfcIcon size={12} color={shades.ink} /> : null}
+          {knowt.tag_uid ? <Icon name="tag" size={12} color={shades.ink} /> : null}
         </View>
         {knowt.location_note ? (
           <Text numberOfLines={1} style={styles.rowWhere}>
@@ -245,7 +245,7 @@ function CategorySection({
         <CategoryIcon icon={icon} shades={shades} size={22} />
         <Text style={[styles.sectionName, { color: shades.ink }]}>{name}</Text>
         <Text style={styles.sectionCount}>{knowts.length}</Text>
-        <ExpandSign expanded={expanded} size={14} />
+        <Icon name={expanded ? 'collapse' : 'expand'} size={14} color={theme.color.textSecondary} />
       </Pressable>
 
       {expanded
@@ -314,7 +314,7 @@ function Stash({
         {countWhenClosed || expanded ? (
           <Text style={styles.stashCount}>{knowts.length}</Text>
         ) : null}
-        <ExpandSign expanded={expanded} size={14} />
+        <Icon name={expanded ? 'collapse' : 'expand'} size={14} color={theme.color.textSecondary} />
       </Pressable>
 
       {expanded ? (

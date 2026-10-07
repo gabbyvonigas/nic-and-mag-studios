@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Card, Pill, SubScreenHeader } from '../components/ui';
 import { resyncAlarmsQuietly } from '../alarms';
-import { AlarmIcon, ChevronRight, ExpandSign, ScanIcon } from '../components/icons';
+import { Icon } from '../components/Icon';
 import { completeOccurrence } from '../knowts/completeOccurrence';
 import { openOccurrence } from '../knowts/completions';
 import { MODE_CHOICES, modeChoice, modeLabel } from '../knowts/modes';
@@ -351,9 +351,9 @@ export function KnowtDetailScreen() {
                   blocked && styles.modeChipBlocked,
                 ]}>
                 {choice.value === 'strict' ? (
-                  <ScanIcon size={16} color={tint} />
+                  <Icon name="scan" size={16} color={tint} />
                 ) : (
-                  <AlarmIcon size={16} color={tint} />
+                  <Icon name="alarm" size={16} color={tint} />
                 )}
                 <Text
                   style={[
@@ -438,7 +438,7 @@ export function KnowtDetailScreen() {
                     </Text>
                     <Text style={styles.body}>{describeRepeat(schedule)}</Text>
                   </View>
-                  <ChevronRight size={18} />
+                  <Icon name="forward" size={18} />
                 </View>
               </Card>
             </Pressable>
@@ -459,7 +459,7 @@ export function KnowtDetailScreen() {
                 pressed && styles.pressed,
               ]}>
               <Text style={styles.sectionTitle}>History</Text>
-              <ExpandSign expanded={historyOpen} size={14} />
+              <Icon name={historyOpen ? 'collapse' : 'expand'} size={14} color={theme.color.textSecondary} />
             </Pressable>
 
             {historyOpen

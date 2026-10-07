@@ -2,6 +2,8 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { Icon } from '../components/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { theme } from '../theme';
@@ -81,7 +83,7 @@ export function CapsuleTabBar({ state, descriptors, navigation }: BottomTabBarPr
         accessibilityLabel="Add a knowt"
         onPress={() => rootNavigation.navigate('AddKnowt')}
         style={({ pressed }) => [styles.add, pressed && styles.addPressed]}>
-        <Text style={styles.addGlyph}>+</Text>
+        <Icon name="plus" role="header" color={theme.color.onAccent} />
       </Pressable>
     </View>
   );
@@ -148,10 +150,4 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
   },
   addPressed: { opacity: 0.85 },
-  addGlyph: {
-    fontFamily: theme.font.face.light,
-    fontSize: 30,
-    lineHeight: 34,
-    color: theme.color.onPrimary,
-  },
 });

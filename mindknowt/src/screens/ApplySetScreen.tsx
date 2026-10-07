@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Pill, ScreenHeader } from '../components/ui';
-import { PlusSign } from '../components/icons';
+import { Icon } from '../components/Icon';
 import { categoryShades } from '../theme';
 import { describeRepeat, type RepeatType } from '../db';
 import { resyncAlarmsQuietly } from '../alarms';
@@ -188,7 +188,7 @@ export function ApplySetScreen() {
               })
             }
             style={({ pressed }) => [styles.addRow, pressed && styles.pressed]}>
-            <PlusSign size={14} color={theme.color.textSecondary} />
+            <Icon name="plus" size={14} color={theme.color.textSecondary} />
             <Text style={styles.addLabel}>{addLabel}</Text>
           </Pressable>
 
