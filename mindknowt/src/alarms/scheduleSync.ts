@@ -8,7 +8,13 @@ import { completionWindowStart, listCompletionsSince } from '../db/events';
 import { listKnowts } from '../db/knowts';
 import { requiresScan } from '../knowts/modes';
 import { completedOccurrences, isOccurrenceDone } from '../knowts/completions';
-import { nextOccurrence, weeklyDaysFor } from '../db/scheduling';
+import {
+  isDueOn,
+  minutesOf,
+  nextOccurrence,
+  weekdayOf,
+  weeklyDaysFor,
+} from '../db/scheduling';
 import type { KnowtWithDetail, PendingAlarmRow, ScheduleRow } from '../db/types';
 import { alarmScheduler } from './AlarmScheduler';
 
@@ -84,6 +90,11 @@ export function signatureOf(
     // its time is part of what makes it stale. A weekly alarm is not: its next
     // firing moves every week without the alarm itself changing.
     desired.mode === 'once' ? String(desired.nextAt.getTime()) : '',
+    // The days actually handed to the system, which are not always the days the
+    // schedule stores: today comes out of the set when today is already done.
+    // Leaving this out meant the reduced alarm looked identical to the full one
+    // and sync left the old alarm in place, still set to ring.
+    desired.mode === 'weekly' ? desired.weekdays.join(',') : '',
   ];
   return parts.join('|');
 }
@@ -116,10 +127,46 @@ export function desiredFor(
   if (weekdays) {
     const [hour, minute] = schedule.time.split(':').map(Number);
     if (hour === undefined || minute === undefined) return null;
-    return { mode: 'weekly', hour, minute, weekdays, nextAt };
+
+    // AlarmKit works out every firing of a recurrence itself, from a time and a
+    // set of weekdays, with no start date and no exclusion list. Handing it a
+    // week with today left out is the only way to make it skip today, and
+    // skipping today is the only way a knowt checked off at seven does not
+    // sound at nine.
+    //
+    // Nothing is stored to undo this. The day is left out only while the
+    // conditions below hold, so the first sync after the time has passed asks
+    // the same question, gets a different answer, and puts the day back.
+    const armed = skipsToday(schedule, now, done)
+      ? weekdays.filter((day) => day !== weekdayOf(now))
+      : weekdays;
+
+    if (armed.length > 0) {
+      return { mode: 'weekly', hour, minute, weekdays: armed, nextAt };
+    }
+    // A schedule that rings on a single weekday has nothing left to recur on
+    // once that day comes out. Falling through arms the next occurrence on its
+    // own, and the recurrence comes back with the next sync.
   }
 
   return { mode: 'once', nextAt };
+}
+
+/**
+ * Whether today has to come out of a recurrence.
+ *
+ * Only when today's occurrence is done and its time has not come yet. Once the
+ * time passes there is nothing left to suppress: the recurrence's next firing
+ * is tomorrow's either way, and taking the day out would cost next week's.
+ */
+function skipsToday(
+  schedule: ScheduleRow,
+  now: Date,
+  done: ReadonlySet<string>,
+): boolean {
+  if (!isDueOn(schedule, now)) return false;
+  if (!isOccurrenceDone(done, schedule.id, now)) return false;
+  return minutesOf(schedule.time) > now.getHours() * 60 + now.getMinutes();
 }
 
 async function cancelRecord(row: PendingAlarmRow): Promise<void> {

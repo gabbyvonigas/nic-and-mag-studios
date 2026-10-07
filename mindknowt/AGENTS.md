@@ -245,17 +245,34 @@ down.
 Taking a completion back (`undoCompletion`) puts an occurrence back in play and
 must resync, or "not done" also means "and it will not remind you".
 
-**A recurring alarm cannot skip one occurrence.** `scheduleRepeatingAlarm` hands
-AlarmKit an `Alarm.Schedule.Relative` with a time and a set of weekdays. There
-is no start date and no exclusion list, so the system computes every firing
-itself and today's 9:00 am rings whether or not it was checked off at seven.
-Canceling and re-arming cannot fake it either: re-arming the same daily
-recurrence still produces today's 9:00 am.
+**A recurring alarm is skipped by taking the day out of the week.**
+`scheduleRepeatingAlarm` hands AlarmKit an `Alarm.Schedule.Relative` with a time
+and a set of weekdays. There is no start date and no exclusion list, so the
+system computes every firing itself and re-arming the same daily recurrence
+still produces today's 9:00 am. The only lever is the weekday set, so today's
+weekday comes out of it while today's occurrence is done and its time has not
+come yet (`skipsToday` in `scheduleSync.ts`).
 
-So the fix is split. Alarms armed one occurrence at a time are stood down by
-sync. For recurring ones the sound cannot be stopped, and the app instead
-declines to open the Ringing screen and demand a tag scan for something already
-done (`src/ringing/ringGate.ts`, rule in `src/knowts/completions.ts`).
+Nothing is stored to undo that. The day is left out only while those conditions
+hold, so the first sync after the time has passed asks the same question, gets a
+different answer, and puts the day back. Do not add a flag for it.
+
+**The armed weekdays are part of the signature.** They are not always the days
+the schedule stores, and without them in the signature a reduced alarm looks
+identical to the full one, so sync leaves the old alarm standing and it rings.
+
+A schedule that rings on a single weekday has nothing left to recur on once that
+day comes out, so it falls back to arming the next occurrence on its own. The
+recurrence returns with the next sync.
+
+The worst case is bounded and visible: if the app is never opened again, a daily
+knowt keeps ringing on the other six days and only that one weekday is missed.
+That is the price of the exclusion, and it is better than the alarm stopping.
+
+The Ringing screen is gated as well (`src/ringing/ringGate.ts`, rule in
+`src/knowts/completions.ts`). Belt and braces: it covers the single-weekday
+fallback, the window before a sync restores the day, and any firing the
+exclusion did not reach.
 
 The gate fails open everywhere it is unsure: an unknown knowt, a read that
 threw, a firing with nothing due, or a re-fire, snooze or test ring, which are
