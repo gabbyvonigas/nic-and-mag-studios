@@ -39,7 +39,7 @@ import {
 } from '../knowts/occurrences';
 import { REPEAT_PRESETS, shapeFor, type RepeatPresetId } from '../knowts/repeats';
 import { askToReassign } from '../knowts/tagConflict';
-import { NfcScanError, nfcReader } from '../nfc';
+import { nfcFailureMessage, nfcReader } from '../nfc';
 import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -192,8 +192,8 @@ export function SetupKnowtScreen() {
       setTagUid(tag.rawUid);
       setMode('strict');
     } catch (err) {
-      if (err instanceof NfcScanError && err.reason === 'canceled') return;
-      setNotice(err instanceof Error ? err.message : String(err));
+      const failure = nfcFailureMessage(err);
+      if (failure) setNotice(failure.text);
     } finally {
       setScanning(false);
     }

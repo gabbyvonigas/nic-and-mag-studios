@@ -10,6 +10,16 @@ export function createUnsupportedReader(note: string): NfcReader {
     async isAvailable() {
       return false;
     },
+    async probe() {
+      return {
+        ndefReadingAvailable: false,
+        tagReadingAvailable: false,
+        enabled: false,
+        started: false,
+        sessionOpen: false,
+        notes: [note],
+      };
+    },
     async init() {
       // Nothing to start.
     },

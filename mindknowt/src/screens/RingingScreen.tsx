@@ -191,9 +191,19 @@ export function RingingScreen() {
     // that can simply be dismissed is an interruption, not a shortcut.
     if (!requiresScan(knowt.mode) || !knowt.tag_uid) return;
 
-    autoScanned.current = true;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    /**
+     * The "once" claim is made here rather than when the effect runs, which is
+     * the fix for a scan that could be lost entirely. The effect depends on
+     * `knowt`, `finish` and `scanToStop`, so any of them changing tears down
+     * the AppState listener below and re-runs this; claiming the scan up front
+     * meant the re-run saw the claim, returned early, and left nothing
+     * subscribed and nothing scheduled. Claiming it at the moment a scan is
+     * actually scheduled still allows exactly one, and cannot lose it.
+     */
     const start = () => {
+      if (autoScanned.current) return;
+      autoScanned.current = true;
       timer = setTimeout(() => void finish(scanToStop), AUTO_SCAN_DELAY_MS);
     };
 

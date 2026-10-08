@@ -14,6 +14,7 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { EditKnowtScreen } from '../screens/EditKnowtScreen';
 import { EditScheduleScreen } from '../screens/EditScheduleScreen';
 import { KnowtDetailScreen } from '../screens/KnowtDetailScreen';
+import { NfcCheckScreen } from '../screens/NfcCheckScreen';
 import { RingingScreen } from '../screens/RingingScreen';
 import { ScanScreen } from '../screens/ScanScreen';
 import { CategoriesScreen } from '../screens/CategoriesScreen';
@@ -83,6 +84,7 @@ export function RootNavigator() {
       <Stack.Screen name="Legal" component={LegalScreen} />
       <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
       <Stack.Screen name="NfcHarness" component={ScanScreen} />
+      <Stack.Screen name="NfcCheck" component={NfcCheckScreen} />
       <Stack.Screen name="AlarmHarness" component={AlarmScreen} />
     </Stack.Navigator>
   );

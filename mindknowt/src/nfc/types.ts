@@ -32,6 +32,19 @@ export type NfcFailureReason =
   | 'unsupported'
   | 'busy'
   | 'no-uid'
+  /**
+   * The platform never opened a reader session, so no sheet appeared and
+   * nothing was ever going to.
+   *
+   * This is its own reason because it is the one failure that produced no
+   * error at all. On iOS `NFCTagReaderSession`'s initializer returns nil when
+   * the app is not entitled to read tags, and the library's native code then
+   * calls `beginSession` on nil and stores the callback it will never invoke.
+   * The JavaScript promise simply never settles: no sheet, no rejection, and a
+   * Scan button stuck reading "Scanning" because the state that disables it is
+   * cleared in a `finally` that never runs.
+   */
+  | 'no-session'
   | 'unknown';
 
 export class NfcScanError extends Error {
@@ -62,9 +75,44 @@ export type ScanOptions = {
   expectLabel?: string;
 };
 
+/**
+ * What the platform says about its own NFC, read one field at a time.
+ *
+ * Exists because a scan that silently does nothing is unanswerable from the
+ * app's own logs. Every field is something the platform reports rather than
+ * something this app believes, so the Dev screen can state what is true of the
+ * build that is actually installed.
+ */
+export type NfcDiagnostics = {
+  /** NDEF reading, which is what a general "is NFC supported" asks. */
+  ndefReadingAvailable: boolean;
+  /**
+   * Tag reading. This is the one that matters: every scan in this app opens a
+   * tag reader session, and a build with no NFC entitlement cannot open one.
+   */
+  tagReadingAvailable: boolean;
+  /**
+   * Whether NFC is switched on.
+   *
+   * Meaningful on Android. On iOS there is no user-facing NFC switch and the
+   * library returns true unconditionally, so it is reported rather than
+   * trusted: a true here says nothing about whether a scan will work.
+   */
+  enabled: boolean;
+  /** Whether the stack accepted being started. */
+  started: boolean;
+  /** Whether a session is open right now. A stuck one rejects the next scan. */
+  sessionOpen: boolean;
+  /** Whatever the probe itself could not determine, in its own words. */
+  notes: string[];
+};
+
 export interface NfcReader {
   /** Whether this device can scan at all. Must not throw. */
   isAvailable(): Promise<boolean>;
+
+  /** Everything the platform will say about its NFC. Must not throw. */
+  probe(): Promise<NfcDiagnostics>;
 
   /** Prepare the underlying stack. Call once before the first `scanTag`. */
   init(): Promise<void>;

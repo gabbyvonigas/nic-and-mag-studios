@@ -69,5 +69,6 @@ export type RootStackParamList = {
   Legal: undefined;
   LegalDocument: { document: LegalDocument };
   NfcHarness: undefined;
+  NfcCheck: undefined;
   AlarmHarness: undefined;
 };

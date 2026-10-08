@@ -1,4 +1,5 @@
 export { nfcReader } from './NfcReader';
+export { nfcFailureMessage, type NfcFailureMessage } from './failureText';
 export { useNfcScanner } from './useNfcScanner';
 export type {
   NfcAvailability,
@@ -8,6 +9,7 @@ export type {
 export {
   formatUid,
   NfcScanError,
+  type NfcDiagnostics,
   type NfcFailureReason,
   type NfcReader,
   type ScannedTag,

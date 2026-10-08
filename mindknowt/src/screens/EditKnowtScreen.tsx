@@ -43,7 +43,7 @@ import {
   type KnowtMode,
 } from '../db';
 import { askToReassign, askToUnassign } from '../knowts/tagConflict';
-import { NfcScanError, nfcReader } from '../nfc';
+import { nfcFailureMessage, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
 import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -125,13 +125,10 @@ export function EditKnowtScreen() {
       await attachTag(params.knowtId, tag.rawUid);
       await reload();
     } catch (err) {
-      if (err instanceof NfcScanError && err.reason === 'canceled') {
-        // Backing out is not a failure.
-      } else if (err instanceof NfcScanError && err.reason === 'canceled') {
-        // Backing out is not a failure.
-      } else {
-        setError(err instanceof Error ? err.message : String(err));
-      }
+      // Null only for backing out of the sheet, which is not a failure. Every
+      // other reason says what happened; the copy is in `nfc/failureText.ts`.
+      const failure = nfcFailureMessage(err);
+      if (failure) setError(failure.text);
     } finally {
       setScanning(false);
     }

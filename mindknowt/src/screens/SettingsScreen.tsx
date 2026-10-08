@@ -90,8 +90,7 @@ export function SettingsScreen() {
             here and what it does before it is pressed. */}
         <View style={styles.section}>
           <Text style={styles.pitch}>
-            Until our own Knowt Tags are back in stock, you can order more
-            here!
+            Order more tags below until our Knowt Tags are back in stock.
           </Text>
 
           <Pressable

@@ -381,8 +381,16 @@ export function DevScreen() {
         )}
 
         <Text style={styles.sectionTitle}>Hardware harnesses</Text>
+        {/* First, because it is the one that answers why a scan did nothing.
+            It reports what the system says about its own NFC rather than what
+            the app assumes, and it scans with no alarm in the way. */}
         <Button
-          label="NFC"
+          label="NFC check"
+          variant="secondary"
+          onPress={() => navigation.navigate('NfcCheck')}
+        />
+        <Button
+          label="NFC scan history"
           variant="secondary"
           onPress={() => navigation.navigate('NfcHarness')}
         />

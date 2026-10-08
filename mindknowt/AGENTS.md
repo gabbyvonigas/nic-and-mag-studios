@@ -430,6 +430,77 @@ as long as it had been on a screen that was not a white card.
 Check a fill against the surface it lands on before trusting it, and prefer a
 border for anything that has to read on both the page and a card.
 
+## A scan that does nothing settles nothing
+
+Reported as "the alarm opened the Knowt, the app never asked me to scan, and
+tapping Scan did nothing, with no error". All three are one failure.
+
+On iOS `requestTechnology` does not resolve when the reader sheet opens. It
+stores the callback and resolves only once a tag is read or the session closes.
+The native code builds the session with
+
+    tagSession = [[NFCTagReaderSession alloc]
+                  initWithPollingOption:pollFlags delegate:self queue:...];
+    [tagSession beginSession];
+    techRequestCallback = callback;
+
+and that initializer **returns nil** when the app is not entitled to read tags.
+`beginSession` on nil is a no-op, the callback is kept anyway, no delegate ever
+fires, and the promise never settles. Nothing throws, so nothing is caught.
+
+Then the screen: `scanning` is cleared in a `finally`, which never runs, and
+the Scan button is `disabled={scanning}` with the label `'Scanning'`. So the
+auto-scan silently hung, the button went gray and read Scanning, and pressing
+it did nothing because it was disabled. One hang, three symptoms.
+
+The fix is a signal, not a timeout of the whole scan: a session that is up and
+waiting for a tag must be allowed to wait as long as iOS wants.
+`isTagSessionAvailableIOS` reports whether a session object exists, which is
+exactly what separates "the sheet is open" from "there was never going to be a
+sheet". `scanTag` starts the request without awaiting it, waits
+`SESSION_CHECK_MS`, and fails with reason `no-session` if no session exists by
+then. A pre-flight `isSupported('iso15693')` catches the same condition sooner.
+
+`isSupported('')` and `isSupported('Ndef')` report
+`NFCNDEFReaderSession.readingAvailable`. Every other tech string reports
+`NFCTagReaderSession.readingAvailable`, and **that** is the class every scan in
+this app opens, so that is the one to ask. `isAvailable()` requires both. The
+library's `index.d.ts` declares `isSupported()` with no arguments and
+`isTagSessionAvailableIOS` as returning the `Boolean` wrapper; both
+declarations are wrong against `src/NfcManager.js`, and they are narrowed once
+in `NfcReader.ios.ts` rather than cast at each call.
+
+**The entitlement cannot be read from JavaScript**, so do not claim to check
+it. What can be read is whether the system will let a tag session exist, which
+is what the entitlement decides. Dev tools, NFC check reports that line, plus
+NDEF availability, whether a session is stuck open, and a scan with no alarm in
+the way.
+
+The copy for every failure is in `nfc/failureText.ts`, one place, because a
+scan is started from five screens and each had written its own version. Exactly
+one reason is silent, `canceled`, because backing out of the sheet is not a
+failure. Two screens also had the same `canceled` branch written twice, an
+`else if` that could never be reached.
+
+The config is right and has always been right: `expo config --type introspect`
+generates `com.apple.developer.nfc.readersession.formats` as `[NDEF, TAG]`
+alongside the App Group, and `NFCReaderUsageDescription` (no `NS` prefix on
+that key). `nfcconfig.test.ts` asserts it, because `ios.entitlements` in
+`app.json` carries only the App Group and a merge that dropped the plugin's
+keys would look exactly like a correct `app.json`. What cannot be checked from
+here is whether the **installed build's provisioning profile** carries the NFC
+Tag Reading capability. The App Group entitlement was added in `80dd023`, which
+is the build after the one NFC was proven on, and a profile regenerated for a
+capability change is the one way this could have regressed without a line of
+NFC code changing.
+
+**The once-only claim goes where the thing happens.** The Ringing screen's
+auto-scan effect depends on `knowt`, `finish` and `scanToStop`. Setting
+`autoScanned.current = true` when the effect ran meant a re-run saw the claim,
+returned early, and left the AppState listener torn down with nothing
+scheduled: the alarm opened the screen and then never asked for a tag. The flag
+is set inside `start()` now, where a scan is actually scheduled.
+
 ## A full screen modal's only way out is a handler
 
 `Ringing` is presented with `presentation: 'fullScreenModal'` and

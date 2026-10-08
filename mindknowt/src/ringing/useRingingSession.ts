@@ -15,38 +15,17 @@ import {
   type KnowtWithDetail,
 } from '../db';
 import { requiresScan } from '../knowts/modes';
-import { NfcScanError, nfcReader } from '../nfc';
+import { nfcFailureMessage, nfcReader } from '../nfc';
 
+/**
+ * Same shape as an NFC failure message, because that is what it almost always
+ * is. The copy for every scan failure lives in `nfc/failureText.ts`, one place
+ * for every screen that can start a scan.
+ */
 export type RingingMessage = {
   tone: 'warn' | 'danger';
   text: string;
 };
-
-function scanFailureText(err: unknown): RingingMessage | null {
-  if (!(err instanceof NfcScanError)) {
-    return {
-      tone: 'danger',
-      text: err instanceof Error && err.message ? err.message : String(err),
-    };
-  }
-  switch (err.reason) {
-    case 'canceled':
-      // Backing out of the sheet is not a failure; the alarm simply continues.
-      return null;
-    case 'wrong-tag':
-      // Already shown inside the scan sheet. Repeated here because the sheet
-      // is gone by the time the screen renders again.
-      return { tone: 'danger', text: err.message };
-    case 'timeout':
-      return { tone: 'warn', text: 'No tag was detected. Hold it to the top of the phone.' };
-    case 'radio-disabled':
-      return { tone: 'danger', text: 'NFC is turned off. Turn it on, then scan again.' };
-    case 'unsupported':
-      return { tone: 'danger', text: 'This device cannot scan tags.' };
-    default:
-      return { tone: 'danger', text: err.message };
-  }
-}
 
 /**
  * Owns one ringing session, including the part that makes the product work:
@@ -207,7 +186,7 @@ export function useRingingSession(
 
       return await resolve('scan');
     } catch (err) {
-      const failure = scanFailureText(err);
+      const failure = nfcFailureMessage(err);
       if (failure && mounted.current) setMessage(failure);
       return false;
     } finally {
