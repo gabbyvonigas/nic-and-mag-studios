@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../components/ui';
 import { HoldToConfirm } from '../components/HoldToConfirm';
-import { TimeWheel } from '../components/TimeWheel';
+import { TimePicker } from '../components/TimePicker';
 import { describeRepeat, formatTime } from '../db';
 import { canScan, requiresScan } from '../knowts/modes';
 import { useRingingSession } from '../ringing/useRingingSession';
@@ -377,7 +377,7 @@ export function RingingScreen() {
                   />
 
                   <Text style={styles.overrideLabel}>Done at</Text>
-                  <TimeWheel compact value={doneAt} onChange={setDoneAt} />
+                  <TimePicker compact value={doneAt} onChange={setDoneAt} />
 
                   <HoldToConfirm
                     label={`Hold to mark done at ${formatTime(doneAt)}`}

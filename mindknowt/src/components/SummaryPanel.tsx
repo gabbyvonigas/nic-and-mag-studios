@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { daysLabel, doneLabel, scopeNoun } from '../history/periodLabels';
 import type { RangeSummary } from '../history/range';
 import { categoryShades, METHOD_COLORS, theme } from '../theme';
 
@@ -137,9 +138,12 @@ function GapCard({
 
 export function SummaryPanel({
   summary,
+  scope,
   gaps,
 }: {
   summary: RangeSummary;
+  /** Which span is on the toggle, so the labels can name it. */
+  scope: { kind: 'day' | 'week' | 'month'; isCurrent: boolean };
   /** The two gap cards. Omitted where the panel is not the Log. */
   gaps?: {
     withoutTag: number;
@@ -155,7 +159,8 @@ export function SummaryPanel({
     return (
       <View style={styles.empty}>
         <Text style={styles.emptyText}>
-          Nothing recorded this month yet. It fills in as you go.
+          Nothing recorded {scopeNoun(scope.kind, scope.isCurrent)} yet. It
+          fills in as you go.
         </Text>
       </View>
     );
@@ -166,7 +171,7 @@ export function SummaryPanel({
       <View style={styles.tiles}>
         <Tile
           value={`${summary.completions}`}
-          label="done this month"
+          label={doneLabel(scope.kind, scope.isCurrent)}
           tint={METHOD_COLORS.scan}
         />
         <Tile
@@ -176,7 +181,7 @@ export function SummaryPanel({
         />
         <Tile
           value={`${summary.activeDays}`}
-          label={`of ${summary.daysElapsed || summary.daysInRange} days`}
+          label={daysLabel(summary.daysElapsed || summary.daysInRange)}
           tint={METHOD_COLORS.override}
         />
       </View>

@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resyncAlarmsQuietly } from '../alarms';
 import { Icon } from '../components/Icon';
-import { TimeWheel } from '../components/TimeWheel';
+import { TimePicker } from '../components/TimePicker';
 import { Button, SubScreenHeader } from '../components/ui';
 import {
   createKnowt,
@@ -349,7 +349,7 @@ export function SetupKnowtScreen() {
                   }
                 />
 
-                <TimeWheel value={time} onChange={setTime} />
+                <TimePicker value={time} onChange={setTime} />
                 <View style={styles.chips}>
                   {REPEAT_PRESETS.map((option) => {
                     const on = preset === option.id;

@@ -40,3 +40,38 @@ export function durationLabel(minutes: number): string {
   if (rest === 0) return `${hours} hr`;
   return `${hours} hr ${rest} min`;
 }
+
+/**
+ * How a card names the span it is counting.
+ *
+ * The Log's first tile said "done this month" in every view, including Day,
+ * because the panel grew up around the month and the label was a constant. It
+ * follows the toggle now, and it says "that" rather than "this" when the span
+ * being read is not the one happening.
+ */
+export function scopeNoun(
+  kind: 'day' | 'week' | 'month',
+  isCurrent: boolean,
+): string {
+  const which = isCurrent ? 'this' : 'that';
+  if (kind === 'day') return isCurrent ? 'today' : 'that day';
+  return `${which} ${kind}`;
+}
+
+/** "done today", "done this week", "done that month". */
+export function doneLabel(
+  kind: 'day' | 'week' | 'month',
+  isCurrent: boolean,
+): string {
+  return `done ${scopeNoun(kind, isCurrent)}`;
+}
+
+/**
+ * "of 5 days", and "of 1 day" rather than "of 1 days".
+ *
+ * A Day view counts one, so the plural was wrong in the one view that was most
+ * recently added.
+ */
+export function daysLabel(count: number): string {
+  return `of ${count} day${count === 1 ? '' : 's'}`;
+}

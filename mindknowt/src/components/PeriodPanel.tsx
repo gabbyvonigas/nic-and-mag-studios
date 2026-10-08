@@ -220,7 +220,16 @@ function FactCard({
   return (
     <View style={[styles.card, styles.factCard]}>
       <Text style={styles.cardTitle}>{title}</Text>
-      <Text style={styles.factValue}>{value}</Text>
+      {/* One line, always. "8am to 10am" and "Under a minute" are different
+          lengths and the two cards sit side by side, so a wrap on one of them
+          made the pair ragged. Shrinking is the lesser of the two. */}
+      <Text
+        style={styles.factValue}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}>
+        {value}
+      </Text>
       <Text style={styles.factNote}>{note}</Text>
     </View>
   );
@@ -291,7 +300,7 @@ export function PeriodPanel({
           }
         />
         <FactCard
-          title="Average time to complete"
+          title="Avg time to complete"
           value={
             summary.averageMinutes === null
               ? '-'
@@ -465,17 +474,26 @@ const styles = StyleSheet.create({
   },
 
   facts: { flexDirection: 'row', gap: theme.spacing.sm },
-  factCard: { flex: 1, gap: theme.spacing.xs },
+  // The only two cards on this screen that are tinted. The lime says these
+  // are the readings worth looking at rather than the raw counts above.
+  factCard: {
+    flex: 1,
+    gap: theme.spacing.xs,
+    backgroundColor: theme.color.highlightTint,
+  },
   factValue: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.lg,
     color: theme.color.textPrimary,
+    ...theme.font.tabular,
   },
   factNote: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.xs,
     lineHeight: 15,
-    color: theme.color.textMuted,
+    // Charcoal rather than the muted gray: on the lime tint the gray is 4.22,
+    // which is under the floor for text this size.
+    color: theme.color.textSecondary,
   },
 
   catRow: {

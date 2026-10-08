@@ -53,6 +53,8 @@ export const ICONS = {
 
   // Controls.
   gear: 'settings-outline',
+  /** Leaving the app, for a link that opens somewhere else. */
+  openLink: 'open-outline',
   plus: 'add',
   check: 'checkmark',
   /**

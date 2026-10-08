@@ -35,10 +35,27 @@ A third example, found the same way: a vertical `ScrollView` carries
 `flexGrow: 1, flexShrink: 1` in its own `baseVertical` style, and
 `ScrollView.js` applies it with `StyleSheet.compose(baseStyle, props.style)`.
 A caller's `style` only wins for properties it actually sets, so `width: 72` on
-a column became a flex basis and every column stretched to fill its row. The
-time picker's three wheels ended up 116pt apart and stopped reading as a single
-time. Pin `flexGrow: 0` and `flexShrink: 0` whenever a ScrollView needs a fixed
-size in a flex row.
+a column became a flex basis and every column stretched to fill its row. Pin
+`flexGrow: 0` and `flexShrink: 0` whenever a ScrollView needs a fixed size in a
+flex row.
+
+## An animated scrollTo fires the event that called it
+
+The time picker was three snapping `ScrollView`s, and it froze the app. The
+settle handler was bound to `onMomentumScrollEnd` and called
+`scrollTo({ animated: true })` with no "already there" guard. On iOS an
+animated `scrollTo` ends by firing `onMomentumScrollEnd`, so every settle
+scheduled another one, nothing converged, and three columns did it at once
+until the JS thread stopped answering.
+
+It is gone. Time is picked with `@react-native-community/datetimepicker` in
+`display="spinner"`, which is UIKit's own wheel: the snapping, the am and pm
+wrap and the touch handling are not ours to get wrong. What that costs is type:
+a spinner draws its own font and size, so the rounded family does not reach it.
+`textColor` is honored and is set; the surface around it is ours.
+
+If a scroll handler ever has to reposition its own scroll view again, guard on
+the offset actually being wrong and use `animated: false`.
 
 ## An absolutely positioned layer measures its parent, not its sibling
 
@@ -498,6 +515,24 @@ left in place with their tests rather than deleted in passing.
 The two gap cards, Knowts without a tag and Knowts without a schedule, are
 present tense on purpose. A Knowt has a tag now or it does not; scoping that to
 a span would be answering a different question.
+
+## ON HOLD until Apple org approval
+
+Nothing in this list gets touched until the Apple Developer organization
+account for Nic & Mag Studios LLC is approved. Each of them either needs that
+team to exist or is not worth polishing until it does.
+
+- Sign in with Apple.
+- iCloud and CloudKit sync.
+- Moving the bundle id `com.nicandmag.mindknowt` to the new team.
+- The App Store Small Business Program.
+- The Paid Apps agreement, banking and tax.
+- The free tag Shopify claim: the Storefront token in `.env.local`, a zero cost
+  shipping rate, and activating the free pack product.
+
+The claim screen and the Shopify code already written stay as they are. Do not
+change `Your first 5 tags`, the claim flow, the checkout, or anything about
+accounts, sign-in or sync.
 
 ## v1.1, deliberately not built
 

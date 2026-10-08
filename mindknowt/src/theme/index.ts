@@ -28,6 +28,8 @@ export const theme = {
     /** The neon. Fill only, with `onHighlight` text over it. */
     highlight: palette.neon,
     onHighlight: palette.ink,
+    /** The neon, softened, for a panel rather than a control. */
+    highlightTint: palette.neonTint,
 
     textPrimary: palette.ink,
     textSecondary: palette.charcoal,

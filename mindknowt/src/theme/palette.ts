@@ -31,6 +31,13 @@ export const palette = {
    * 1.19 against white, so it never carries text and never draws a thin line.
    */
   neon: '#D9FA3C',
+  /**
+   * The neon at about forty percent over white. For a panel that should read
+   * as lime without the full strength color fighting the text on it. Near
+   * black reads at 16.85 on it and charcoal at 8.12; the muted gray does not,
+   * at 4.22, so it is not used there.
+   */
+  neonTint: '#E9FB9C',
 
   /**
    * Every bar, arc and fill in a chart. Deliberately not `ink`: a solid black

@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resyncAlarmsQuietly } from '../alarms';
 import { Button, SubScreenHeader } from '../components/ui';
-import { TimeWheel } from '../components/TimeWheel';
+import { TimePicker } from '../components/TimePicker';
 import {
   addSchedule,
   deleteSchedule,
@@ -247,7 +247,7 @@ export function EditScheduleScreen() {
           ) : null}
 
           <Text style={styles.label}>Time</Text>
-          <TimeWheel value={time} onChange={setTime} />
+          <TimePicker value={time} onChange={setTime} />
 
           <Text style={styles.label}>How often</Text>
           <View style={styles.chips}>

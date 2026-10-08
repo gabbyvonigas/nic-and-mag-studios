@@ -23,6 +23,7 @@ values that are live in the app.
 | `surface` | `#FFFFFF` | Cards. The only white in the app. |
 | `primary` | `#111111` | Primary buttons, icons, headings, body text. Near black, not pure black. |
 | `highlight` | `#D9FA3C` | Neon yellow green. Highlights, active states, key numbers. Nothing else. |
+| `highlightTint` | `#E9FB9C` | The neon softened, about forty percent over white. For a panel that should read as lime behind text, which the full strength neon cannot. |
 | `charcoal` | `#3A3A3A` | Secondary text. Where `primary` would be too heavy. |
 | `gray` | `#6E7479` | Third level text, where charcoal is still too heavy. |
 | `lightGray` | `#DCDFE3` | Dividers, borders, disabled and inactive states. Distinct from `background`. |
@@ -38,6 +39,8 @@ Contrast, measured, so these are not guesses:
 | `primary` on `surface` | 18.88 | Any size. |
 | `primary` on `background` | 16.30 | Any size. |
 | `primary` on `highlight` | 15.91 | Any size. This is the only text allowed on neon. |
+| `primary` on `highlightTint` | 16.85 | Any size. |
+| `textSecondary` on `highlightTint` | 8.12 | Any size. The muted gray is 4.22 and is not used on it. |
 | `surface` on `primary` | 18.88 | Any size. Primary button text. |
 | `charcoal` on `surface` | 11.37 | Any size. |
 | `charcoal` on `background` | 10.18 | Any size. |

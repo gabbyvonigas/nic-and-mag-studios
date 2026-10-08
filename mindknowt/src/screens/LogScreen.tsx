@@ -361,6 +361,7 @@ export function LogScreen() {
               <Text style={styles.sectionTitle}>Summary</Text>
               <SummaryPanel
                 summary={summary}
+                scope={{ kind: periodKind, isCurrent: atLatest }}
                 gaps={{
                   withoutTag: countWithoutTag(allKnowts ?? []),
                   withoutSchedule: countWithoutSchedule(allKnowts ?? []),
