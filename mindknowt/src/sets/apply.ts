@@ -109,9 +109,9 @@ export type SetSelection = {
 export async function applySet(
   setId: string,
   selections: SetSelection[],
-): Promise<{ created: number }> {
+): Promise<{ created: number; knowtIds: string[] }> {
   const set = getSet(setId);
-  if (!set) return { created: 0 };
+  if (!set) return { created: 0, knowtIds: [] };
 
   const byName = new Map(
     selections.map((s) => [s.name.trim().toLowerCase(), s]),
@@ -121,6 +121,7 @@ export async function applySet(
   // Schedules that count from a start date anchor to the day the set is applied.
   const startDate = toISODate(new Date());
   let created = 0;
+  const knowtIds: string[] = [];
 
   for (const knowt of chosen) {
     const selection = byName.get(knowt.name.trim().toLowerCase());
@@ -131,9 +132,13 @@ export async function applySet(
       name: knowt.name,
       icon: knowt.icon ?? undefined,
       mode: 'open',
-      // Added in a batch, so none of these has been given a time. A draft is
-      // exactly that state: started, not finished, and unable to ring.
-      isDraft: times.length === 0,
+      // A real Knowt, never a draft. These used to be created as drafts when
+      // no time had been chosen, and `listKnowts` hides drafts, so adding a
+      // preset created something that did not appear on the screen it then
+      // navigated to. It looked like the preset had vanished. The time is
+      // asked for immediately afterwards instead, and a Knowt with no schedule
+      // is a state the app already shows and filters for.
+      isDraft: false,
       suggestedMode: knowt.suggestedMode,
       categoryId: category?.id ?? null,
       locationNote: knowt.locationNote,
@@ -174,7 +179,8 @@ export async function applySet(
     }
 
     created += 1;
+    knowtIds.push(knowtId);
   }
 
-  return { created };
+  return { created, knowtIds };
 }

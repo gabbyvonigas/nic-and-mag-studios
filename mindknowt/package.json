@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "patch-package": "^8.0.1",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -30,7 +31,8 @@
     "web": "expo start --web",
     "verify": "npm run check:spelling && tsc --noEmit && expo export --platform ios --output-dir .expo/verify-export",
     "check:spelling": "node scripts/check-spelling.mjs --self-test && node scripts/check-spelling.mjs",
-    "hooks:install": "node scripts/install-hooks.mjs"
+    "hooks:install": "node scripts/install-hooks.mjs",
+    "postinstall": "patch-package"
   },
   "private": true
 }

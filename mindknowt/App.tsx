@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, Text, View, type AppStateStatus } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -13,7 +13,8 @@ import { publishLaunch } from './src/alarms/launchStore';
 import { destroyDatabase, getDatabase, seedIfEmpty, sweepMissed } from './src/db';
 import { linking } from './src/navigation/linking';
 import { navigateToRinging, navigationRef } from './src/navigation/navigationRef';
-import { resolveRinging } from './src/ringing/ringGate';
+import { resolveResumeRinging, resolveRinging } from './src/ringing/ringGate';
+import { importSnoozesQuietly } from './src/alarms/importSnoozes';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { Button } from './src/components/ui';
 import { theme } from './src/theme';
@@ -63,6 +64,10 @@ export default function App() {
       // pending. Without this the dashboard would claim things are armed that
       // are not.
       await pruneFiredAlarms();
+      // A snooze taken on the Lock Screen never launched the app, so this is
+      // the first chance to hear about it. Before sync, because a snooze is
+      // one of the things sync reads.
+      await importSnoozesQuietly();
       // The only moment the app can put its schedules back in front of the
       // system. There is no background execution, so a schedule that is not
       // armed here is a knowt that does not ring.
@@ -102,15 +107,35 @@ export default function App() {
    * it. The payload is still published either way: the dev harness reports what
    * fired, and suppressing a screen is not the same as hiding the firing.
    */
+  // Occurrences the app has already offered to open. One attempt each: after
+  // that the screen belongs to whoever is holding the phone.
+  const offered = useRef(new Set<string>());
+
   useEffect(() => {
     const consume = async () => {
       const launch = await alarmScheduler.consumeLaunch();
-      if (!launch) return;
-      publishLaunch(launch);
-      if (!launch.payload) return;
-      const target = await resolveRinging(launch.payload);
+
+      if (launch) {
+        publishLaunch(launch);
+        if (!launch.payload) return;
+        const target = await resolveRinging(launch.payload);
+        if (target.present) {
+          navigateToRinging(launch.payload, target.scheduleId);
+        }
+        return;
+      }
+
+      // No payload. Tapping the banner or the Dynamic Island runs no App
+      // Intent, so this is what an alarm tapped rather than answered looks
+      // like. A Lock Screen snooze may also have landed, so take those in
+      // first: a snoozed Knowt counts as answered and must not be opened.
+      await importSnoozesQuietly();
+      const resume = await resolveResumeRinging(offered.current);
+      if (!resume) return;
+      offered.current.add(resume.key);
+      const target = await resolveRinging(resume.knowtId);
       if (target.present) {
-        navigateToRinging(launch.payload, target.scheduleId);
+        navigateToRinging(resume.knowtId, resume.scheduleId);
       }
     };
 

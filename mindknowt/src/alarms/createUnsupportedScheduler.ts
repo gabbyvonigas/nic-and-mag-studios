@@ -27,6 +27,12 @@ export function createUnsupportedScheduler(note: string): AlarmScheduler {
     async listScheduled() {
       return [];
     },
+    async listSnoozes() {
+      return [];
+    },
+    async clearSnooze() {
+      // Nothing was ever recorded.
+    },
     async consumeLaunch() {
       return null;
     },

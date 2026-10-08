@@ -188,6 +188,22 @@ export async function touchPendingAlarm(
   );
 }
 
+/**
+ * One record by its AlarmKit id, or null.
+ *
+ * Used when taking in a snooze the app did not perform: the import is keyed on
+ * this so running it twice cannot record one press as two snoozes.
+ */
+export async function findPendingByAlarmkitId(
+  alarmkitId: string,
+): Promise<PendingAlarmRow | null> {
+  const db = await getDatabase();
+  return db.getFirstAsync<PendingAlarmRow>(
+    'SELECT * FROM pending_alarms WHERE alarmkit_id = ?',
+    alarmkitId,
+  );
+}
+
 /** Forgets every pending record. Pairs with a cancel-everything recovery. */
 export async function clearAllPendingAlarms(): Promise<void> {
   const db = await getDatabase();

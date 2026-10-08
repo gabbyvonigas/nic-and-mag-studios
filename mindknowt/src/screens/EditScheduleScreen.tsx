@@ -32,6 +32,11 @@ import {
   type RepeatPresetId,
 } from '../knowts/repeats';
 import { useQuery } from '../db/useQuery';
+import {
+  advanceQueue,
+  showStepCounter,
+  stepLabel,
+} from '../knowts/scheduleQueue';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -114,6 +119,27 @@ export function EditScheduleScreen() {
         ? intervalOk
         : true;
 
+  /**
+   * Where to go once this Knowt is dealt with, saved or skipped.
+   *
+   * `replace` rather than `navigate`, so backing out of the fourth screen in a
+   * run does not walk back through the first three.
+   */
+  const leave = () => {
+    const next = advanceQueue(params);
+    if (next) {
+      navigation.replace('EditSchedule', {
+        knowtId: next.knowtId,
+        queue: next.queue,
+        step: next.step,
+      });
+      return;
+    }
+    // The run is over, or there never was one.
+    if (params.step) navigation.navigate('Tabs', { screen: 'AllKnowts' });
+    else navigation.goBack();
+  };
+
   const save = async () => {
     setSaving(true);
     setError(null);
@@ -152,7 +178,7 @@ export function EditScheduleScreen() {
 
       // This is when it rings, so the armed alarm is wrong until this runs.
       await resyncAlarmsQuietly();
-      navigation.goBack();
+      leave();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setSaving(false);
@@ -197,9 +223,21 @@ export function EditScheduleScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled">
           <SubScreenHeader
-            title={existingId ? 'Edit schedule' : 'New schedule'}
+            title={existingId ? 'Edit schedule' : 'When it rings'}
+            subtitle={
+              showStepCounter(params.step)
+                ? stepLabel(params.step as { index: number; total: number })
+                : undefined
+            }
             backLabel="Cancel"
-            onBack={() => navigation.goBack()}
+            onBack={
+              // Backing out of a run leaves the run, it does not walk back
+              // through it. The Knowt is already saved and simply has no
+              // schedule, which is a state the app shows and filters for.
+              params.step
+                ? () => navigation.navigate('Tabs', { screen: 'AllKnowts' })
+                : () => navigation.goBack()
+            }
           />
 
           {error ? (
@@ -319,6 +357,13 @@ export function EditScheduleScreen() {
             disabled={!canSave || saving}
             onPress={() => void save()}
           />
+          {params.step ? (
+            <Button
+              label="Skip for now"
+              variant="quiet"
+              onPress={leave}
+            />
+          ) : null}
           {existingId ? (
             <Button label="Remove schedule" variant="quiet" onPress={confirmDelete} />
           ) : null}

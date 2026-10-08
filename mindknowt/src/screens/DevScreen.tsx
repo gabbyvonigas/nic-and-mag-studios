@@ -35,6 +35,15 @@ import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+/**
+ * The throwaway tone bundled for the sound test, extension included.
+ *
+ * AlarmKit looks this up in the main bundle by exactly this string. Without the
+ * extension it silently falls back to the default and tells you nothing, which
+ * is the trap this constant exists to avoid repeating.
+ */
+const TEST_TONE = 'mindknowt-test-tone.caf';
+
 export function DevScreen() {
   const navigation = useNavigation<Nav>();
   const { data: meta, reload: reloadMeta } = useQuery(() => getAllAppMeta(), []);
@@ -274,6 +283,48 @@ export function DevScreen() {
             void (async () => {
               await clearInsightCache();
               setAlarmNotice('Insight cleared. Open Log to recompute it.');
+            })()
+          }
+        />
+
+        <Text style={styles.sectionTitle}>Sound test</Text>
+        <Text style={styles.hint}>
+          Rings in one minute with the bundled test tone instead of the system
+          default. Two things to watch, and they decide what is worth
+          commissioning: whether the tone repeats or plays once and stops, and
+          whether it stops when Stop is pressed. The file is twenty seconds, so
+          a second repeat is obvious.
+        </Text>
+        <Button
+          label={busy ? 'Arming' : 'Ring with the test tone in 1 minute'}
+          variant="secondary"
+          disabled={busy || (knowts ?? []).length === 0}
+          onPress={() =>
+            void (async () => {
+              const first = (knowts ?? [])[0];
+              if (!first) return;
+              setBusy(true);
+              try {
+                await armKnowtAlarm({
+                  knowtId: first.id,
+                  title: `${first.name} (sound test)`,
+                  firesAt: new Date(Date.now() + 60_000),
+                  kind: 'test',
+                  requiresScan: false,
+                  soundName: TEST_TONE,
+                });
+                setAlarmNotice(
+                  `${first.name} rings in one minute with ${TEST_TONE}. Lock the phone and listen for a repeat.`,
+                );
+              } catch (err) {
+                setAlarmNotice(
+                  err instanceof Error
+                    ? `${err.constructor.name}: ${err.message}`
+                    : String(err),
+                );
+              } finally {
+                setBusy(false);
+              }
             })()
           }
         />

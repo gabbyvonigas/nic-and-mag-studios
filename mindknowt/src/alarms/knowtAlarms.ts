@@ -26,6 +26,8 @@ export async function armKnowtAlarm(args: {
   kind: PendingAlarmKind;
   /** Whether stopping it needs a scan, which the Lock Screen says out loud. */
   requiresScan?: boolean;
+  /** A bundled sound file, extension included. Only the Dev sound test uses it. */
+  soundName?: string;
 }): Promise<ScheduledAlarm> {
   await cancelKnowtAlarms(args.knowtId, { scheduleId: args.scheduleId ?? null });
 
@@ -34,6 +36,7 @@ export async function armKnowtAlarm(args: {
     firesAt: args.firesAt,
     payload: args.knowtId,
     requiresScan: args.requiresScan,
+    soundName: args.soundName,
   });
 
   // Recording must not be able to lose the alarm itself, which is already

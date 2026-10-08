@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Pill, ScreenHeader } from '../components/ui';
 import { Icon } from '../components/Icon';
+import { startQueue } from '../knowts/scheduleQueue';
 import { categoryShades } from '../theme';
 import { describeRepeat, type RepeatType } from '../db';
 import { resyncAlarmsQuietly } from '../alarms';
@@ -105,10 +106,23 @@ export function ApplySetScreen() {
       const selections: SetSelection[] = preview.entries
         .filter((e) => selected[e.knowt.name])
         .map((e) => ({ name: e.knowt.name, times: [], extraSchedule: null }));
-      await applySet(params.setId, selections);
+      const { knowtIds } = await applySet(params.setId, selections);
       // A set can add a dozen schedules at once, none of them armed yet.
       await resyncAlarmsQuietly();
-      navigation.navigate('Tabs', { screen: 'AllKnowts' });
+
+      // Straight to the time for the first one. This used to land on the
+      // Knowts list, which showed nothing, because everything added here was
+      // created as a draft and that list hides drafts.
+      const first = startQueue(knowtIds);
+      if (first) {
+        navigation.navigate('EditSchedule', {
+          knowtId: first.knowtId,
+          queue: first.queue,
+          step: first.step,
+        });
+      } else {
+        navigation.navigate('Tabs', { screen: 'AllKnowts' });
+      }
     } finally {
       setSaving(false);
     }
@@ -199,6 +213,7 @@ export function ApplySetScreen() {
                 <Pressable
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: isSelected }}
+                  disabled={!!entry.duplicateOf}
                   onPress={() =>
                     setSelected((prev) => ({
                       ...prev,
@@ -253,7 +268,14 @@ export function ApplySetScreen() {
                         </View>
                       ) : null}
                       {entry.duplicateOf ? (
-                        <Pill label="Already exists" />
+                        <View style={styles.addedChip}>
+                          <Icon
+                            name="check"
+                            size={12}
+                            color={theme.color.textSecondary}
+                          />
+                          <Text style={styles.addedText}>Added</Text>
+                        </View>
                       ) : null}
                     </View>
                     <Pressable
@@ -430,6 +452,20 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   chipDot: { width: 6, height: 6, borderRadius: 3 },
+  addedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: theme.color.surfaceMuted,
+  },
+  addedText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textSecondary,
+  },
   chipText: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.xs,

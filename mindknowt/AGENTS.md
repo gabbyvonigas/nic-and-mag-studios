@@ -499,6 +499,49 @@ The two gap cards, Knowts without a tag and Knowts without a schedule, are
 present tense on purpose. A Knowt has a tag now or it does not; scoping that to
 a span would be answering a different question.
 
+## v1.1, deliberately not built
+
+- **Lock Screen and Dynamic Island countdown for a snooze.** Needs a widget
+  extension with an `ActivityConfiguration` over `AlarmAttributes<Meta>`, and
+  `Meta` is declared `struct Meta: AlarmMetadata {}` inline inside each
+  scheduling function, so no other target can name it. The fork would have to
+  hoist `Meta` to a shared type and add `countdown:` to `AlarmPresentation`,
+  and a CNG project needs a config plugin to generate the extension target.
+  The alerting UI stays system drawn either way.
+- **Live alarm state from AlarmKit.** `AlarmManager.shared.alarms` is a
+  throwing getter and the states are `.scheduled`, `.countdown`, `.paused`,
+  `.alerting`, but whether the property on `Alarm` is `state` or `mode` could
+  not be confirmed without Xcode, and a wrong guess fails the build rather than
+  degrading. Opening the right Knowt during a ring is done from the app's own
+  records instead (`resumeGate.ts`). Check the name in Xcode's completion
+  before adding it.
+- **A real tone set.** The bundled `mindknowt-test-tone.caf` is a throwaway for
+  answering the two open questions, not a product sound.
+
+## The module is patched, not forked
+
+`patches/expo-alarm-kit+0.1.11.patch` is applied by `patch-package` from the
+`postinstall` script. It covers the Swift, the compiled `build/` JavaScript and
+the `src/` TypeScript, because the package ships `build/index.js` as its entry
+and patching the source alone changes nothing at runtime.
+
+What it changes:
+
+- The snooze button's SF Symbol, `clock.badge.checkmark` to `zzz`. The label
+  was already "Snooze"; the glyph is what read as something else.
+- Snooze records in App Group storage. The snooze App Intent runs without
+  launching the app, so it writes `{alarmId, endsAt, payload}` where the app can
+  read it on its next launch. `launchAppOnSnooze` stays off: snoozing must not
+  open the app.
+- The snooze length and payload are stored when the alarm is scheduled, because
+  the intent is handed an alarm id and nothing else.
+- Dismissing clears any snooze record for that alarm.
+
+Nothing in the patch calls an Apple API that was not already being called. That
+is deliberate: there is no Swift toolchain in this environment, so a patch
+cannot be compiled here, and the blast radius of a wrong guess is a failed
+twenty minute build.
+
 ## Platform boundaries
 
 `react-native-nfc-manager` is imported in exactly one file, and

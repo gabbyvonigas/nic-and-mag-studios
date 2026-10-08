@@ -79,9 +79,27 @@ export type WeeklyScheduleRequest = {
   payload?: string | null;
 };
 
+/** A snooze the app did not perform, read back from shared storage. */
+export type ExternalSnooze = {
+  alarmkitId: string;
+  /** Milliseconds, converted from the epoch seconds the native side stores. */
+  endsAt: number;
+  /** The payload the alarm carried, which for us is the Knowt id. */
+  payload: string | null;
+};
+
 export type ScheduleRequest = {
   title: string;
   firesAt: Date;
+  /**
+   * A sound file in the app's main bundle, extension included.
+   *
+   * Omitted everywhere but the Dev screen's sound test. Nothing in the product
+   * sets this yet: whether a custom sound loops, and whether it stops when Stop
+   * is pressed, are both unanswered, and they decide what is worth
+   * commissioning. The default alarm sound is used until a device says.
+   */
+  soundName?: string;
   /** See WeeklyScheduleRequest. */
   requiresScan?: boolean;
   /** Round-tripped back through `consumeLaunch()` when the user taps Stop. */
@@ -111,6 +129,18 @@ export interface AlarmScheduler {
 
   /** Ids of alarms currently known to the platform. */
   listScheduled(): Promise<string[]>;
+
+  /**
+   * Snoozes taken outside the app, which never launched it.
+   *
+   * AlarmKit performs a Lock Screen snooze itself and the app is not told, so
+   * these are read back from shared storage the patched module writes to. The
+   * caller takes them in and clears them.
+   */
+  listSnoozes(): Promise<ExternalSnooze[]>;
+
+  /** Forgets one, once the app has recorded it. */
+  clearSnooze(alarmId: string): Promise<void>;
 
   /**
    * Returns non-null at most once per launch/dismiss. Reading it clears it, so

@@ -64,7 +64,7 @@ near-black and neon they read as dirt.
 | --- | --- | --- | --- | --- | --- |
 | `home` | Home | `#FF4D3D` | Coral red | `#C73C30` | `#FFE6E4` |
 | `daily` | Daily | `#D9FA3C` | The brand lime, exactly | `#64731C` | `#FAFEE4` |
-| `care` | Wellness | `#24C2B5` | Turquoise | `#177C74` | `#E0F6F5` |
+| `care` | Care | `#24C2B5` | Turquoise | `#177C74` | `#E0F6F5` |
 | `ritual` | Routine | `#A435F0` | Bright purple | `#A134EB` | `#F4E7FD` |
 | `go` | Activity | `#FF2D8A` | Hot pink | `#D12571` | `#FFE4F0` |
 | `admin` | Admin | `#1F5FD8` | Cobalt blue | `#1F5FD8` | `#E4ECFA` |

@@ -9,7 +9,9 @@
  */
 import { listOneShotsForKnowt } from '../db/pendingAlarms';
 import { completionWindowStart, listCompletionsSince } from '../db/events';
-import { getKnowt } from '../db/knowts';
+import { getKnowt, listKnowts } from '../db/knowts';
+import { listPendingAlarms } from '../db/pendingAlarms';
+import { pickUnansweredFiring, type ResumeTarget } from './resumeGate';
 import { firingOccurrence, shouldPresentRinging } from '../knowts/completions';
 
 export type RingingTarget = {
@@ -61,4 +63,32 @@ export async function resolveRinging(
   } catch {
     return { present: true, scheduleId: null };
   }
+}
+
+/**
+ * What to open on a foreground with no launch payload.
+ *
+ * Returns the Knowt whose alarm just went off and that nothing has answered,
+ * or null. The rule is in `resumeGate.ts` and is pure; this is the part that
+ * has to read rows.
+ */
+export async function resolveResumeRinging(
+  offered: ReadonlySet<string>,
+  now = new Date(),
+): Promise<ResumeTarget | null> {
+  try {
+    const [knowts, events, pending] = await Promise.all([
+      listKnowts(),
+      listCompletionsSince(startOfToday(now)),
+      listPendingAlarms(0),
+    ]);
+    return pickUnansweredFiring({ knowts, events, pending, now, offered });
+  } catch {
+    // Never let a guess break the launch path.
+    return null;
+  }
+}
+
+function startOfToday(now: Date): number {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 }

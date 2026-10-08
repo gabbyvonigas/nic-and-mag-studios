@@ -6,9 +6,9 @@
  * categories of the knowts in the set. That is right for most of them and
  * wrong for three, because the per knowt category says where one knowt lives
  * and the set's category is a browsing aid. Vitamins and supplements is filed
- * `daily` by its contents and belongs under Wellness; prescriptions and
+ * `daily` by its contents and belongs under Care; prescriptions and
  * medical comes out `admin` on a five to three count and belongs under
- * Wellness too; morning essentials comes out `go` and reads as Daily.
+ * Care too; morning essentials comes out `go` and reads as Daily.
  *
  * Those three are listed here rather than fixed in the content, because the
  * content is right about the knowts and only the grouping is in question.

@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 16;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -198,13 +198,24 @@ const SEASONAL_COLOR = CATEGORY_COLORS.seasonal;
 const RENAME_SQL = [
   ['ritual', 'Routine'],
   ['go', 'Activity'],
-  ['care', 'Wellness'],
+  ['care', 'Care'],
 ]
   .map(
     ([key, name]) =>
       `UPDATE categories SET name = '${name}' WHERE key = '${key}' AND is_custom = 0;`,
   )
   .join('\n');
+
+/**
+ * Wellness became Care.
+ *
+ * Matched on the key, which never changes, on `is_custom = 0`, and on the old
+ * name itself. That last one is the point: `is_custom` only says the row was
+ * shipped, not that its name is still the shipped one, and someone who renamed
+ * Wellness to something of their own must not have it replaced.
+ */
+const CARE_RENAME_SQL = `UPDATE categories SET name = 'Care'
+   WHERE key = 'care' AND is_custom = 0 AND name = 'Wellness';`;
 
 /** Data fixes that run once, after the columns for that version exist. */
 export const BACKFILLS: { to: number; sql: string }[] = [
@@ -276,6 +287,7 @@ export const BACKFILLS: { to: number; sql: string }[] = [
     sql: `UPDATE categories SET icon = 'clock'
             WHERE key = 'ritual' AND is_custom = 0 AND icon = 'sparkle';`,
   },
+  { to: 16, sql: CARE_RENAME_SQL },
 ];
 
 /** Content tables, in dependency order for a reseed. Excludes app_meta. */

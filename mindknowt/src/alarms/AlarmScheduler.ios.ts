@@ -7,6 +7,8 @@ import {
   requestAuthorization as requestAlarmAuthorization,
   scheduleAlarm,
   scheduleRepeatingAlarm,
+  getSnoozes,
+  clearSnooze as clearNativeSnooze,
 } from 'expo-alarm-kit';
 
 import { theme } from '../theme';
@@ -97,7 +99,7 @@ export const alarmScheduler: AlarmScheduler = {
     }
   },
 
-  async scheduleAt({ title, firesAt, payload, requiresScan }: ScheduleRequest) {
+  async scheduleAt({ title, firesAt, payload, requiresScan, soundName }: ScheduleRequest) {
     const id = generateUUID();
     let accepted = false;
 
@@ -108,6 +110,9 @@ export const alarmScheduler: AlarmScheduler = {
         title,
         launchAppOnDismiss: LAUNCH_APP_ON_DISMISS,
         dismissPayload: payload ?? undefined,
+        // Passed straight through to AlertSound.named(), which looks the name
+        // up in the main bundle. The extension has to be in it.
+        soundName: soundName ?? undefined,
         ...brand(requiresScan),
       });
     } catch (err) {
@@ -180,6 +185,35 @@ export const alarmScheduler: AlarmScheduler = {
       return getAllAlarms();
     } catch {
       return [];
+    }
+  },
+
+  /**
+   * Snoozes taken on the Lock Screen.
+   *
+   * The native side records these in App Group storage when the snooze intent
+   * runs, because that intent does not launch the app and the launch payload is
+   * a static that dies with the process. Epoch seconds there, milliseconds here.
+   */
+  async listSnoozes() {
+    try {
+      return getSnoozes().map((row) => ({
+        alarmkitId: row.alarmId,
+        endsAt: Math.round(row.endsAt * 1000),
+        payload: row.payload ?? null,
+      }));
+    } catch {
+      // An older build has no such function. Nothing is snoozed as far as this
+      // app can tell, which is exactly what it knew before.
+      return [];
+    }
+  },
+
+  async clearSnooze(alarmkitId: string) {
+    try {
+      clearNativeSnooze(alarmkitId);
+    } catch {
+      // Same as above: nothing to forget on a build without it.
     }
   },
 

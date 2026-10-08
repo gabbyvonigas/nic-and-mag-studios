@@ -28,7 +28,18 @@ export type RootStackParamList = {
   KnowtDetail: { knowtId: string };
   EditKnowt: { knowtId: string };
   /** Omit scheduleId to create one. */
-  EditSchedule: { knowtId: string; scheduleId?: string };
+  /**
+   * Setting a time. `queue` and `step` are the preset flow: several Knowts
+   * added together are taken through this screen one at a time, and the step
+   * says where you are in that run.
+   */
+  EditSchedule: {
+    knowtId: string;
+    scheduleId?: string;
+    /** Knowt ids still to go after this one. */
+    queue?: string[];
+    step?: { index: number; total: number };
+  };
   /**
    * The screen AlarmKit reopens the app to. Addressable by URL so it can be
    * exercised without waiting for a real alarm. See linking.ts.
