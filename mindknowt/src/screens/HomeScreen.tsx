@@ -37,6 +37,7 @@ import {
   showUpcoming,
   stanceFor,
 } from '../knowts/dayProgress';
+import { cardStatus } from '../knowts/cardStatus';
 import { showSnoozed, snoozeCountdown } from '../knowts/snoozed';
 import { midnight, offsetInDays, shiftWeeks } from '../knowts/weekStrip';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
@@ -94,23 +95,6 @@ function whenLabel(at: Date, now: Date): string {
   return `${MONTHS[at.getMonth()]} ${at.getDate()}`;
 }
 
-/** The live thing to say about a card, if there is one. */
-function statusOf(card: DashboardCard): string | null {
-  if (card.completedAt) return `Done at ${clock(card.completedAt)}`;
-  if (!card.pending) return null;
-
-  switch (card.pending.kind) {
-    case 'snooze':
-      return `Snoozed until ${clock(card.pending.fires_at)}`;
-    case 'refire':
-      return `Rings again at ${clock(card.pending.fires_at)}`;
-    case 'test':
-      return `Test alarm at ${clock(card.pending.fires_at)}`;
-    default:
-      // A scheduled alarm says nothing new: the card already shows its time.
-      return null;
-  }
-}
 
 function metaOf(card: DashboardCard): string {
   const { schedule } = card;
@@ -330,9 +314,19 @@ export function HomeScreen() {
   const offset = offsetInDays(selected, now);
   const stance = stanceFor(offset);
 
+  // A countdown that only moves when the screen is reopened is a countdown
+  // that is wrong most of the time it is being looked at. Half a minute is
+  // fine: the labels are in whole minutes, so anything finer would redraw the
+  // same text.
+  const [tick, setTick] = useState(0);
+
+  // `tick` is in here on purpose. The board carries each card's pending alarm,
+  // and a card has to stop saying "Snoozed until 1:25 pm" at 1:25 pm rather
+  // than the next time someone opens the tab. Keyed on the day alone, it did
+  // not move at all while the screen was open.
   const { data: board, loading, reload } = useQuery(
     () => listDashboard(selected),
-    [selectedIso],
+    [selectedIso, tick],
   );
   const { data: marks, reload: reloadMarks } = useQuery(
     () => listWeekMarks(selected),
@@ -343,11 +337,6 @@ export function HomeScreen() {
     [],
   );
 
-  // A countdown that only moves when the screen is reopened is a countdown
-  // that is wrong most of the time it is being looked at. Half a minute is
-  // fine: the label is in whole minutes, so anything finer would redraw the
-  // same text.
-  const [tick, setTick] = useState(0);
   const { data: snoozed, reload: reloadSnoozed } = useQuery(
     () => listSnoozed(),
     [tick],
@@ -355,13 +344,24 @@ export function HomeScreen() {
   const snoozedEntries = snoozed ?? [];
   const snoozedOn = showSnoozed({ count: snoozedEntries.length, stance });
 
+  // Anything with a countdown on it keeps the timer running: the section under
+  // the strip, and any card showing a snooze or a re-fire. Tying it to the
+  // section alone meant a snoozed card went stale whenever the section was
+  // hidden. Off on other days, where nothing counts down.
+  const live =
+    stance === 'today' &&
+    (snoozedEntries.length > 0 ||
+      (board?.today ?? []).some(
+        (card) => card.pending && card.pending.fires_at > now.getTime(),
+      ));
+
   useEffect(() => {
-    // Only while the section is on screen. A timer running behind Knowts and
-    // Log would wake the database every half minute for nobody.
-    if (!snoozedOn) return;
+    // A timer running behind Knowts and Log would wake the database every half
+    // minute for nobody.
+    if (!live) return;
     const timer = setInterval(() => setTick((value) => value + 1), 30_000);
     return () => clearInterval(timer);
-  }, [snoozedOn]);
+  }, [live]);
   const [upcomingOpen, setUpcomingOpen] = useState(true);
 
   useFocusEffect(
@@ -503,12 +503,15 @@ export function HomeScreen() {
               />
             )
           ) : (
-            remaining.map((card) => (
+            remaining.map((card) => {
+              const live = cardStatus(card, now.getTime(), clock);
+              return (
               <KnowtCard
                 key={`${card.knowt.id}:${card.schedule?.id ?? 'untimed'}`}
                 name={card.knowt.name}
                 meta={metaOf(card)}
-                status={statusOf(card)}
+                status={live?.text ?? null}
+                statusIcon={live?.icon ?? null}
                 location={card.knowt.location_note}
                 mode={card.knowt.mode}
                 priority={card.knowt.priority}
@@ -521,7 +524,8 @@ export function HomeScreen() {
                   stance === 'today' ? () => void complete(card) : undefined
                 }
               />
-            ))
+              );
+            })
           )}
         </ScrollView>
       )}

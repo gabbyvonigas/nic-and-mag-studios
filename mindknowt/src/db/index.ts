@@ -36,6 +36,7 @@ export {
   loadMonthLog,
   loadMonthSummary,
   loadPeriodPair,
+  loadRangeSummary,
   loadPeriodSummary,
   undoCompletion,
   type LogCategoryGroup,

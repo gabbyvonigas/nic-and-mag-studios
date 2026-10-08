@@ -17,14 +17,9 @@ import { CategoryDot } from '../components/KnowtCard';
 import { PeriodPanel, PeriodToggle } from '../components/PeriodPanel';
 import { SummaryPanel } from '../components/SummaryPanel';
 import { EmptyState, TabHeader } from '../components/ui';
-import {
-  loadMonthLog,
-  loadMonthSummary,
-  undoCompletion,
-  type LogCategoryGroup,
-  type LoggedCompletion,
-} from '../db';
-import { listKnowts, loadInsight, loadPeriodPair } from '../db';
+import { undoCompletion } from '../db';
+import { listKnowts, loadInsight, loadPeriodPair, loadRangeSummary } from '../db';
+import type { CompletedItem } from '../history/range';
 import {
   deltaBetween,
   rangeFor,
@@ -39,6 +34,8 @@ import type { RootStackParamList } from '../navigation/types';
 import { categoryShades, METHOD_COLORS, theme } from '../theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const MONTHS = [
   'January',
@@ -81,23 +78,31 @@ function methodColor(method: string): string {
   return METHOD_COLORS.tap;
 }
 
+/** The heading over one day's completions, on Week and Month. */
+function dayHeading(date: Date): string {
+  const today = new Date();
+  const same = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  if (same(date, today)) return 'Today';
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (same(date, yesterday)) return 'Yesterday';
+  return `${DAY_NAMES[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`;
+}
+
 function CompletionRow({
-  completion,
+  item,
   onUndo,
 }: {
-  completion: LoggedCompletion;
-  onUndo: () => void;
+  item: CompletedItem;
+  onUndo: (item: CompletedItem) => void;
 }) {
+  const completion = item;
   const tint = methodColor(completion.method);
+  const shades = categoryShades(completion.category);
 
   const detail: string[] = [];
-  if (completion.minutesToComplete !== null) {
-    detail.push(
-      completion.minutesToComplete < 1
-        ? 'answered at once'
-        : `after ${completion.minutesToComplete} min`,
-    );
-  }
   if (completion.snoozeCount > 0) {
     detail.push(
       `${completion.snoozeCount} snooze${completion.snoozeCount === 1 ? '' : 's'}`,
@@ -109,16 +114,15 @@ function CompletionRow({
       accessibilityRole="button"
       accessibilityLabel={`${completion.knowtName}, ${METHOD_WORDS[completion.method]}, ${dayLabel(completion.completedAt)}`}
       accessibilityHint="Opens the option to mark this as not done"
-      onLongPress={onUndo}
-      onPress={onUndo}
+      onLongPress={() => onUndo(item)}
+      onPress={() => onUndo(item)}
       style={({ pressed }) => [styles.entry, pressed && styles.pressed]}>
       <View style={styles.entryHead}>
+        <CategoryDot shades={shades} size={8} />
         <Text numberOfLines={1} style={styles.entryName}>
           {completion.knowtName}
         </Text>
-        <Text style={styles.entryWhen}>
-          {dayLabel(completion.completedAt)}, {clock(completion.completedAt)}
-        </Text>
+        <Text style={styles.entryWhen}>{clock(completion.completedAt)}</Text>
       </View>
 
       <View style={styles.entryMeta}>
@@ -139,54 +143,6 @@ function CompletionRow({
   );
 }
 
-function CategoryBlock({
-  group,
-  expanded,
-  onToggle,
-  onUndo,
-}: {
-  group: LogCategoryGroup;
-  expanded: boolean;
-  onToggle: () => void;
-  onUndo: (completion: LoggedCompletion) => void;
-}) {
-  const shades = categoryShades(group.category);
-  const name = group.category?.name ?? 'No category';
-  const count = group.completions.length;
-
-  return (
-    <View style={styles.block}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${name}, ${count} done`}
-        accessibilityState={{ expanded }}
-        onPress={onToggle}
-        style={({ pressed }) => [styles.blockRow, pressed && styles.pressed]}>
-        <CategoryDot shades={shades} size={10} />
-        <Text numberOfLines={1} style={[styles.blockName, { color: shades.ink }]}>
-          {name}
-        </Text>
-        <Text style={styles.blockCount}>{count}</Text>
-        <Icon
-          name={expanded ? 'collapse' : 'expand'}
-          color={theme.color.textMuted}
-        />
-      </Pressable>
-
-      {expanded ? (
-        <View style={styles.entries}>
-          {group.completions.map((completion) => (
-            <CompletionRow
-              key={completion.eventId}
-              completion={completion}
-              onUndo={() => onUndo(completion)}
-            />
-          ))}
-        </View>
-      ) : null}
-    </View>
-  );
-}
 
 export function LogScreen() {
   const navigation = useNavigation<Nav>();
@@ -197,14 +153,7 @@ export function LogScreen() {
   const [month, setMonth] = useState(today.getMonth());
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const { data: log, loading, reload } = useQuery(
-    () => loadMonthLog(year, month),
-    [year, month],
-  );
-  const { data: summary, reload: reloadSummary } = useQuery(
-    () => loadMonthSummary(year, month),
-    [year, month],
-  );
+
   // Not month scoped: a tag is attached now or it is not, whatever month is
   // being read.
   // Not period scoped: a knowt is missing a tag or a schedule now, whatever
@@ -224,6 +173,12 @@ export function LogScreen() {
     () => loadPeriodPair(range),
     [rangeKey],
   );
+  // Every card on this screen reads this one summary, so Day, Week and Month
+  // show the same screen with the numbers computed for the span on the toggle.
+  const { data: summary, loading, reload: reloadSummary } = useQuery(
+    () => loadRangeSummary(range),
+    [rangeKey],
+  );
   const { data: insight, reload: reloadInsight } = useQuery(
     () => loadInsight(),
     [],
@@ -231,12 +186,11 @@ export function LogScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void reload();
       void reloadSummary();
       void reloadTagged();
       void reloadPeriod();
       void reloadInsight();
-    }, [reload, reloadSummary, reloadTagged, reloadPeriod, reloadInsight]),
+    }, [reloadSummary, reloadTagged, reloadPeriod, reloadInsight]),
   );
 
   const step = (delta: number) => {
@@ -252,7 +206,7 @@ export function LogScreen() {
   const atCurrentMonth =
     year === today.getFullYear() && month === today.getMonth();
 
-  const confirmUndo = (completion: LoggedCompletion) => {
+  const confirmUndo = (completion: CompletedItem) => {
     Alert.alert(
       `Mark ${completion.knowtName} as not done?`,
       'It goes back to Daily and this entry is removed from the log.',
@@ -269,15 +223,28 @@ export function LogScreen() {
               // again. Without this, "not done" quietly meant "and it will not
               // remind you either".
               await resyncAlarmsQuietly();
-              await reload();
               await reloadSummary();
+              await reloadPeriod();
             })(),
         },
       ],
     );
   };
 
-  const groups = log?.groups ?? [];
+  const days = summary?.days ?? [];
+
+  /** How the empty state names the span it found nothing in. */
+  const periodNoun = atLatest
+    ? periodKind === 'day'
+      ? 'today'
+      : periodKind === 'week'
+        ? 'this week'
+        : 'this month'
+    : periodKind === 'day'
+      ? 'that day'
+      : periodKind === 'week'
+        ? 'that week'
+        : 'that month';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -348,40 +315,48 @@ export function LogScreen() {
             />
           ) : null}
 
-          {groups.length === 0 ? (
+          {days.length === 0 ? (
             <EmptyState
               message={
-                atCurrentMonth
-                  ? 'Nothing finished this month yet. Anything you check off lands here.'
-                  : 'Nothing was finished that month.'
+                atLatest
+                  ? `Nothing finished ${periodNoun} yet. Anything you check off lands here.`
+                  : `Nothing was finished ${periodNoun}.`
               }
-              actionLabel={atCurrentMonth ? 'Go to today' : undefined}
+              actionLabel={atLatest ? 'Go to today' : undefined}
               onAction={
-                atCurrentMonth
+                atLatest
                   ? () => navigation.navigate('Tabs', { screen: 'Daily' })
                   : undefined
               }
             />
           ) : (
-            groups.map((group) => {
-              const key = group.category?.id ?? 'none';
-              return (
-                <CategoryBlock
-                  key={key}
-                  group={group}
-                  expanded={!!expanded[key]}
-                  onToggle={() =>
-                    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))
-                  }
-                  onUndo={confirmUndo}
-                />
-              );
-            })
+            <>
+              <Text style={styles.sectionTitle}>Completed</Text>
+              {days.map((day) => (
+                <View key={day.iso} style={styles.day}>
+                  {/* A single day needs no heading over its own list; it is
+                      already the thing on the toggle. */}
+                  {periodKind === 'day' ? null : (
+                    <Text style={styles.dayHead}>{dayHeading(day.date)}</Text>
+                  )}
+                  {day.items.map((item) => (
+                    <CompletionRow
+                      key={item.eventId}
+                      item={item}
+                      onUndo={confirmUndo}
+                    />
+                  ))}
+                </View>
+              ))}
+            </>
           )}
 
-          {/* Month shaped by nature: follow-through, what gets put off, the
-              weekday spread. It has nothing to say about a single day. */}
-          {periodKind === 'month' && summary ? (
+          {/* Every view, not just Month. These cards were behind a
+              `periodKind === 'month'` check, which is why Day and Week showed
+              a smaller screen. The numbers come from the same range summary the
+              rest of this screen reads, so they move with the toggle and with
+              the stepper. */}
+          {summary ? (
             <>
               <Text style={styles.sectionTitle}>Summary</Text>
               <SummaryPanel
@@ -518,6 +493,13 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
     color: theme.color.textMuted,
+  },
+  day: { gap: theme.spacing.xs, marginBottom: theme.spacing.md },
+  dayHead: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+    marginTop: theme.spacing.xs,
   },
   entryNote: {
     fontFamily: theme.font.face.regular,

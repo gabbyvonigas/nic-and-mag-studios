@@ -13,6 +13,7 @@ import {
   type PeriodRange,
   type PeriodSummary,
 } from '../history/period';
+import { summarizeRange, type RangeSummary } from '../history/range';
 import type { CategoryRow, EventMethod, EventRow } from './types';
 
 /**
@@ -206,4 +207,33 @@ export async function loadPeriodPair(
     loadPeriodSummary(previousWindow(range, today), today),
   ]);
   return { current, previous };
+}
+
+/**
+ * The Log's numbers for the selected span, whichever it is.
+ *
+ * One loader for all three views. The screen used to read a month summary for
+ * its cards and a period summary for its trend panel, which is why Day and
+ * Week showed a smaller screen than Month.
+ */
+export async function loadRangeSummary(
+  range: PeriodRange,
+  today = new Date(),
+): Promise<RangeSummary> {
+  const db = await getDatabase();
+
+  const events = await db.getAllAsync<EventRow>(
+    `SELECT * FROM events
+      WHERE COALESCE(completed_at, fired_at) >= ?
+        AND COALESCE(completed_at, fired_at) < ?`,
+    range.from.getTime(),
+    range.to.getTime(),
+  );
+
+  const [knowts, categories] = await Promise.all([
+    listKnowts(),
+    listCategories(),
+  ]);
+
+  return summarizeRange({ range, knowts, categories, events, today });
 }

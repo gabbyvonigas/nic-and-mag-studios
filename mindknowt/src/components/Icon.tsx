@@ -40,6 +40,11 @@ export const ICONS = {
   gift: 'gift-outline',
   tray: 'file-tray-outline',
 
+  // Alarm states.
+  snooze: 'moon-outline',
+  ringing: 'alarm-outline',
+  test: 'flask-outline',
+
   // The things the product is about.
   alarm: 'alarm-outline',
   scan: 'scan-outline',

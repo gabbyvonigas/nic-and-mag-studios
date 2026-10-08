@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { requiresScan } from '../knowts/modes';
 import type { KnowtMode } from '../db/types';
 import { theme, type CategoryShades } from '../theme';
@@ -103,6 +103,8 @@ export type KnowtCardProps = {
   meta: string;
   /** The live thing to say. Wins over `location` when present. */
   status?: string | null;
+  /** The glyph beside the status, from the shared set. */
+  statusIcon?: IconName | null;
   location?: string | null;
   mode: KnowtMode;
   priority: number;
@@ -117,6 +119,7 @@ export function KnowtCard({
   name,
   meta,
   status,
+  statusIcon,
   location,
   mode,
   priority,
@@ -172,9 +175,16 @@ export function KnowtCard({
             {location ?? ' '}
           </Text>
           {status ? (
-            <Text numberOfLines={1} style={[styles.status, { color: shades.ink }]}>
-              {status}
-            </Text>
+            <View style={styles.statusRow}>
+              {statusIcon ? (
+                <Icon name={statusIcon} size={12} color={shades.ink} />
+              ) : null}
+              <Text
+                numberOfLines={1}
+                style={[styles.status, { color: shades.ink }]}>
+                {status}
+              </Text>
+            </View>
           ) : null}
         </View>
       </View>
@@ -247,6 +257,12 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
     color: theme.color.textMuted,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 1,
   },
   status: {
     flexShrink: 0,

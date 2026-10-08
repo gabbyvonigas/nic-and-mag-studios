@@ -441,6 +441,64 @@ quotes happily matches across two separate quoted strings on one line. Capitaliz
 inside the literal only, skip `${...}` expressions, and read the diff before
 trusting it.
 
+## What the alarm screen can and cannot be told to do
+
+Researched October 2026 against the module's Swift and Apple's material, before
+anything was built.
+
+**Opening the app puts you on the right screen only if a button was pressed.**
+`getLaunchPayload()` is set in exactly four places, all of them App Intents:
+`AlarmDismissIntent`, `AlarmDismissIntentWithLaunch`, `AlarmSnoozeIntent` and
+`AlarmSnoozeIntentWithLaunch`. Tapping the banner or the Dynamic Island runs no
+intent, so the payload is nil and the app opens wherever it last was. AlarmKit's
+`AlarmPresentation.Alert` takes a title and two buttons and has no tap action to
+hang a deep link on.
+
+The module also never reads `AlarmManager.shared.alarms` or `alarmUpdates`, so
+JavaScript cannot ask which alarm is alerting right now. `getAllAlarms()` reads
+App Group storage, which is a list of ids the app wrote, not live state. Until
+that is exposed, there is no deterministic way to answer "what is ringing".
+
+**The SF Symbols on both buttons are hardcoded**: `stop.circle` and
+`clock.badge.checkmark`, in the module, not passed from JavaScript. What can be
+set is the title, the tint color, both button labels and both label colors.
+`snoozeButtonLabel` is already "Snooze"; the clock-with-tick glyph next to it is
+the part that cannot be changed without patching the package.
+
+**A snooze taken on the Lock Screen never reaches the app.** We leave
+`launchAppOnSnooze` unset, so `AlarmSnoozeIntent` runs with
+`openAppWhenRun = false`, AlarmKit restarts its own countdown, and nothing is
+written anywhere the app can read. `launchPayload` is a static variable, not App
+Group storage, so it does not survive to the next launch either. The app's
+snooze records (`pending_alarms`, kind `snooze`) only ever come from the Ringing
+screen inside the app. Do not describe a Lock Screen snooze as visible to the
+app without fixing this first.
+
+**A live countdown needs a widget extension.** `AlarmPresentation` is built with
+`alert:` only, so the countdown and paused states have nothing to draw even
+though `secondaryButtonBehavior: .countdown` and a `postAlert` duration are both
+set. Adding `countdown:` is not enough on its own: the countdown and paused
+Live Activity views are drawn by the app's widget extension, and that extension
+needs an `ActivityConfiguration` over the same `AlarmAttributes<Meta>` the alarm
+was scheduled with. `Meta` is declared `struct Meta: AlarmMetadata {}` inline
+inside each scheduling function, so no other target can name it. The alerting UI
+is drawn by the system.
+
+## The Log has one summary, not two
+
+Every card on the Log reads `summarizeRange` for the span on the toggle. It used
+to read `summarizeMonth` for the tiles, the method row and the gap cards, behind
+a `periodKind === 'month'` check, and `summarizePeriod` for the trend panel. So
+Day and Week showed a smaller screen, and the two sets of numbers had no reason
+to agree with each other.
+
+`loadMonthLog` and `loadMonthSummary` are no longer called by anything. They are
+left in place with their tests rather than deleted in passing.
+
+The two gap cards, Knowts without a tag and Knowts without a schedule, are
+present tense on purpose. A Knowt has a tag now or it does not; scoping that to
+a span would be answering a different question.
+
 ## Platform boundaries
 
 `react-native-nfc-manager` is imported in exactly one file, and

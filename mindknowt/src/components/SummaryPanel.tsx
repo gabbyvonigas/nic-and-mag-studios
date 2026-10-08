@@ -1,10 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { MonthSummary } from '../history/summary';
+import type { RangeSummary } from '../history/range';
 import { categoryShades, METHOD_COLORS, theme } from '../theme';
 
 /**
- * The month in numbers, on the home screen.
+ * The selected span in numbers.
+ *
+ * It was the month in numbers, and only the month: the Log rendered this panel
+ * behind `periodKind === 'month'`, so Day and Week showed a smaller screen with
+ * none of it. It takes a `RangeSummary` now, which answers for any span, and
+ * the Log shows it in all three views.
  *
  * Everything here is derived from event rows the app already writes. The one
  * figure worth watching is the split between scanned, tapped and overridden:
@@ -134,7 +139,7 @@ export function SummaryPanel({
   summary,
   gaps,
 }: {
-  summary: MonthSummary;
+  summary: RangeSummary;
   /** The two gap cards. Omitted where the panel is not the Log. */
   gaps?: {
     withoutTag: number;
@@ -171,7 +176,7 @@ export function SummaryPanel({
         />
         <Tile
           value={`${summary.activeDays}`}
-          label={`of ${summary.daysElapsed || summary.daysInMonth} days`}
+          label={`of ${summary.daysElapsed || summary.daysInRange} days`}
           tint={METHOD_COLORS.override}
         />
       </View>
