@@ -30,6 +30,7 @@ import {
 } from '../db';
 import { useQuery } from '../db/useQuery';
 import { MonthCalendar } from '../components/MonthCalendar';
+import { TimingChoice } from '../components/TimingChoice';
 import {
   clockLabel,
   dayLabel,
@@ -308,24 +309,14 @@ export function SetupKnowtScreen() {
           <Step
             index={2}
             title="When it happens"
-            note="Pick a time and how often it comes back around.">
-            <Pressable
-              accessibilityRole="switch"
-              accessibilityState={{ checked: scheduled }}
-              onPress={() => {
+            note="Either it rings at a time you pick, or you scan it when you pass it.">
+            <TimingChoice
+              value={scheduled ? 'timed' : 'scan'}
+              onChange={(next) => {
                 Keyboard.dismiss();
-                setScheduled((on) => !on);
+                setScheduled(next === 'timed');
               }}
-              style={({ pressed }) => [
-                styles.toggle,
-                scheduled && styles.toggleOn,
-                pressed && styles.pressed,
-              ]}>
-              <Text
-                style={[styles.toggleText, scheduled && styles.toggleTextOn]}>
-                {scheduled ? 'Scheduled' : 'No schedule'}
-              </Text>
-            </Pressable>
+            />
 
             {scheduled ? (
               <>
@@ -419,7 +410,9 @@ export function SetupKnowtScreen() {
               </>
             ) : (
               <Text style={styles.stepNote}>
-                It will not ring on its own. You can add a time later.
+                It will sit on Daily every day under Anytime today, and stays
+                there until you scan its tag. Nothing is scheduled, so nothing
+                rings. You can give it a time later.
               </Text>
             )}
           </Step>

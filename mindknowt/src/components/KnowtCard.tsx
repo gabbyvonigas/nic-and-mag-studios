@@ -107,6 +107,12 @@ export type KnowtCardProps = {
   statusIcon?: IconName | null;
   location?: string | null;
   mode: KnowtMode;
+  /**
+   * True for a scan-only Knowt. It suppresses the alarm glyph: a bell on
+   * something that never rings is the card contradicting its own meta line,
+   * which says "Scan only" where a time would be.
+   */
+  neverRings?: boolean;
   priority: number;
   shades: CategoryShades;
   done?: boolean;
@@ -122,6 +128,7 @@ export function KnowtCard({
   statusIcon,
   location,
   mode,
+  neverRings = false,
   priority,
   shades,
   done = false,
@@ -151,7 +158,7 @@ export function KnowtCard({
 
       <View style={styles.body}>
         <View style={styles.titleRow}>
-          {requiresScan(mode) ? (
+          {requiresScan(mode) || neverRings ? (
             <Icon name="scan" size={14} color={shades.ink} />
           ) : (
             <Icon name="alarm" size={14} color={theme.color.textMuted} />

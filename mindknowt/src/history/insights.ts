@@ -48,6 +48,14 @@ export type InsightEvent = {
   /** Null when it was never completed, which is what a miss is. */
   completedAt: number | null;
   method: 'scan' | 'tap' | 'override' | null;
+  /**
+   * Whether the Knowt this belongs to has a schedule.
+   *
+   * Only the time-of-day rule reads it, and for the same reason Peak time
+   * does: a scan-only Knowt has no alarm, so the hour it was scanned says when
+   * someone walked past the tag rather than when they answer reminders.
+   */
+  timed: boolean;
 };
 
 const DAY_MS = 86_400_000;
@@ -77,7 +85,9 @@ function completionsOf(events: InsightEvent[]): InsightEvent[] {
  * than the runner up, or the claim is noise dressed as a finding.
  */
 function timeOfDay(events: InsightEvent[]): Insight | null {
-  const done = completionsOf(events);
+  // Timed Knowts only. The claim is about when this person gets to things they
+  // were reminded about, and a standing item was never reminded about.
+  const done = completionsOf(events).filter((event) => event.timed);
   if (done.length < MIN_COMPLETIONS) return null;
 
   const tally = { morning: 0, afternoon: 0, evening: 0 };

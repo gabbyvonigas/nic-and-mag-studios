@@ -39,6 +39,12 @@ import {
 } from '../knowts/dayProgress';
 import { cardStatus } from '../knowts/cardStatus';
 import { showSnoozed, snoozeCountdown } from '../knowts/snoozed';
+import {
+  ANYTIME_HEADING,
+  isScanOnly,
+  SCAN_ONLY_META,
+  splitByTiming,
+} from '../knowts/scanOnly';
 import { midnight, offsetInDays, shiftWeeks } from '../knowts/weekStrip';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 import { isShopConfigured } from '../shop/config';
@@ -98,7 +104,9 @@ function whenLabel(at: Date, now: Date): string {
 
 function metaOf(card: DashboardCard): string {
   const { schedule } = card;
-  if (!schedule) return 'Any time today';
+  // No schedule means scan-only, and what goes where a time would is the fact
+  // that there is no time: you scan it when you pass it.
+  if (!schedule) return SCAN_ONLY_META;
   return `${formatTime(schedule.time)}, ${describeRepeat(schedule)}`;
 }
 
@@ -404,12 +412,65 @@ export function HomeScreen() {
   const openKnowt = (knowtId: string) =>
     navigation.navigate('KnowtDetail', { knowtId });
 
+  /**
+   * Straight to the scan prompt, which opens the iOS NFC sheet by itself.
+   *
+   * No schedule id: there is no occurrence to name, which is also what makes
+   * the completion land with a null schedule and so be read back per day.
+   */
+  const openScan = (knowtId: string) =>
+    navigation.navigate('Ringing', { knowtId });
+
   const cards = board?.today ?? [];
   // Completing sends a knowt to Log, so it leaves the list. The counts above
-  // still come from the full board, which is what keeps them honest.
+  // still come from the full board, which is what keeps them honest, and a
+  // scan-only card is on the board like any other, so it counts in both.
   const remaining = cards.filter((card) => card.completedAt === null);
+  // Timed first, standing items under their own heading. A thing with no
+  // deadline must not push one down the screen.
+  const { timed, anytime } = splitByTiming(remaining);
   const total = board?.total ?? 0;
   const done = board?.done ?? 0;
+
+  /**
+   * One card, whichever group it is in: same component, same style, same
+   * category color. Only two things differ for a standing item, and both are
+   * about it having no alarm. The glyph is the scan frame rather than a bell,
+   * and both the card and its circle lead to the scan prompt instead of
+   * completing on the spot, because scanning the tag is the thing being asked
+   * for and the fallbacks live on that screen.
+   */
+  const renderCard = (card: DashboardCard) => {
+    const live = cardStatus(card, now.getTime(), clock);
+    const scanOnly = isScanOnly(card.knowt);
+    return (
+      <KnowtCard
+        key={`${card.knowt.id}:${card.schedule?.id ?? 'untimed'}`}
+        name={card.knowt.name}
+        meta={metaOf(card)}
+        status={live?.text ?? null}
+        statusIcon={live?.icon ?? null}
+        location={card.knowt.location_note}
+        mode={card.knowt.mode}
+        neverRings={scanOnly}
+        priority={card.knowt.priority}
+        shades={categoryShades(card.knowt.category)}
+        onPress={() =>
+          scanOnly ? openScan(card.knowt.id) : openKnowt(card.knowt.id)
+        }
+        // Only today can be checked off. Completing while reading Thursday
+        // would write the completion at the moment of the tap, which is a
+        // different day and a lie in the log.
+        onComplete={
+          stance !== 'today'
+            ? undefined
+            : scanOnly
+              ? () => openScan(card.knowt.id)
+              : () => void complete(card)
+        }
+      />
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -488,30 +549,20 @@ export function HomeScreen() {
               />
             )
           ) : (
-            remaining.map((card) => {
-              const live = cardStatus(card, now.getTime(), clock);
-              return (
-              <KnowtCard
-                key={`${card.knowt.id}:${card.schedule?.id ?? 'untimed'}`}
-                name={card.knowt.name}
-                meta={metaOf(card)}
-                status={live?.text ?? null}
-                statusIcon={live?.icon ?? null}
-                location={card.knowt.location_note}
-                mode={card.knowt.mode}
-                priority={card.knowt.priority}
-                shades={categoryShades(card.knowt.category)}
-                onPress={() => openKnowt(card.knowt.id)}
-                // Only today can be checked off. Completing while reading
-                // Thursday would write the completion at the moment of the tap,
-                // which is a different day and a lie in the log.
-                onComplete={
-                  stance === 'today' ? () => void complete(card) : undefined
-                }
-              />
-              );
-            })
+            timed.map(renderCard)
           )}
+
+          {/* Standing items, under their own heading and under the day's
+              timetable. A scan-only Knowt has no deadline, so it belongs
+              below everything that does, and the heading is what keeps it
+              from reading as something that was supposed to ring and did
+              not. */}
+          {anytime.length > 0 ? (
+            <>
+              <Text style={styles.anytimeTitle}>{ANYTIME_HEADING}</Text>
+              {anytime.map(renderCard)}
+            </>
+          ) : null}
 
           {/* Last, under the day's own list. It is reference rather than work,
               so today's cards come first; on a day that is already clear there
@@ -664,6 +715,16 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
+  },
+  // Reads as a divider rather than as a section of its own: these are still
+  // today's cards, just the ones with no time on them.
+  anytimeTitle: {
+    marginTop: theme.spacing.md,
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   upcoming: { marginTop: theme.spacing.lg, gap: theme.spacing.xs },
   upcomingHead: {

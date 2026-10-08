@@ -49,3 +49,32 @@ export function askToPurge(knowtName: string): Promise<boolean> {
     );
   });
 }
+
+/**
+ * Confirms turning a timed Knowt into a scan-only one.
+ *
+ * It deletes schedules, which is real data and the only way to make something
+ * stop ringing, so it asks. The history is untouched: completions belong to
+ * the Knowt, not to the schedule that prompted them.
+ */
+export function askToDropSchedules(
+  knowtName: string,
+  count: number,
+): Promise<boolean> {
+  const what = count === 1 ? 'its schedule' : `all ${count} of its schedules`;
+  return new Promise((resolve) => {
+    Alert.alert(
+      `Stop ${knowtName} ringing?`,
+      `This removes ${what}, so nothing will go off. It stays on Daily every day under Anytime today, waiting to be scanned. Its history is kept.`,
+      [
+        { text: 'Keep the alarm', style: 'cancel', onPress: () => resolve(false) },
+        {
+          text: 'Make it scan only',
+          style: 'destructive',
+          onPress: () => resolve(true),
+        },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}

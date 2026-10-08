@@ -2,6 +2,7 @@ import { getAppMeta, getDatabase, setAppMeta } from './database';
 import { listKnowts } from './knowts';
 import { toISODate } from './scheduling';
 import { pickInsight, type Insight, type InsightEvent } from '../history/insights';
+import { isScanOnly } from '../knowts/scanOnly';
 import type { EventRow } from './types';
 
 /**
@@ -44,6 +45,7 @@ async function loadEvents(now: Date): Promise<InsightEvent[]> {
       hasTag: knowt.tag_uid !== null,
       completedAt: row.completed_at,
       method: (row.method as InsightEvent['method']) ?? null,
+      timed: !isScanOnly(knowt),
     });
   }
   return events;

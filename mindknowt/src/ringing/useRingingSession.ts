@@ -8,13 +8,15 @@ import {
   addSnooze,
   completeRinging,
   getKnowt,
-  setEventNote,
+  setEventNote as writeEventNote,
   startRinging,
   updateNotes,
   type EventMethod,
   type KnowtWithDetail,
 } from '../db';
+import { completeOccurrence } from '../knowts/completeOccurrence';
 import { requiresScan } from '../knowts/modes';
+import { isScanOnly } from '../knowts/scanOnly';
 import { nfcFailureMessage, nfcReader } from '../nfc';
 
 /**
@@ -40,6 +42,18 @@ export function useRingingSession(
   const [resolved, setResolved] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [message, setMessage] = useState<RingingMessage | null>(null);
+  /**
+   * The note for this one time, owned here rather than by the screen.
+   *
+   * It moved because of where it has to be written. A scan-only Knowt has no
+   * event open to attach a note to, so its note has to go in with the
+   * completion itself, which means the thing writing the completion needs to
+   * be able to read it. Writing it with the completion is better on the timed
+   * path too: it used to be saved after the screen had decided to leave, which
+   * made a note the last thing in a queue of awaits behind a navigation.
+   */
+  const [eventNote, setNoteState] = useState('');
+  const noteRef = useRef('');
 
   const mounted = useRef(true);
   const eventIdRef = useRef<string | null>(null);
@@ -60,7 +74,15 @@ export function useRingingSession(
       }
       // One event per ringing session. Guarded so a re-run of this effect
       // cannot open a second event for the same firing.
-      if (loaded && !startedRef.current) {
+      //
+      // Not for a scan-only Knowt. `startRinging` stamps `fired_at`, which
+      // means "an alarm went off at this moment", and nothing went off: the
+      // person opened the screen themselves. A false `fired_at` would put the
+      // Knowt into Avg complete time with a duration measured from the moment
+      // the card was tapped, and would make the resume gate think a firing had
+      // been dealt with. Its event is written at completion instead, by
+      // `completeOccurrence`, which leaves `fired_at` null.
+      if (loaded && !startedRef.current && !isScanOnly(loaded)) {
         startedRef.current = true;
         eventIdRef.current = await startRinging(loaded.id, scheduleId);
       }
@@ -75,6 +97,10 @@ export function useRingingSession(
     if (resolvedRef.current || rearmedRef.current) return;
     const current = knowtRef.current;
     if (!current) return;
+    // Walking away from a scan-only Knowt is not abandoning an alarm, because
+    // there was no alarm. Arming a re-fire here would be the app inventing a
+    // ring for something the person chose never to be rung by.
+    if (isScanOnly(current)) return;
     rearmedRef.current = true;
     try {
       await rearmKnowtAlarm({
@@ -121,10 +147,32 @@ export function useRingingSession(
       resolvedRef.current = true;
       if (mounted.current) setResolved(true);
 
-      if (eventIdRef.current) {
-        const written = await settled(
-          completeRinging(eventIdRef.current, method, null, completedAt),
-        );
+      const current = knowtRef.current;
+      // Two ways to write a completion, because there are two things being
+      // recorded. A firing has an event already open, waiting to be closed. A
+      // scan-only Knowt has none, and `completeOccurrence` writes one with no
+      // `fired_at`, names no schedule, clears any one-shot and resyncs. Both
+      // land in the same table and the same Log.
+      const write =
+        current && isScanOnly(current)
+          ? completeOccurrence({
+              knowtId: current.id,
+              scheduleId: null,
+              method,
+              note: noteRef.current.trim() || null,
+              completedAt,
+            })
+          : eventIdRef.current
+            ? completeRinging(
+                eventIdRef.current,
+                method,
+                noteRef.current.trim() || null,
+                completedAt,
+              )
+            : null;
+
+      if (write) {
+        const written = await settled(write);
         if (!written.ok) {
           // Nothing was recorded, so the alarm is still unanswered and the
           // screen is right to stay up. Say what happened.
@@ -143,8 +191,8 @@ export function useRingingSession(
       // This firing is done, so nothing armed for it should still ring. Only
       // the one-shots go: a stale re-fire, a snooze, a leftover test alarm. The
       // knowt's recurring alarm stays, because doing today's 8:00 am does not
-      // cancel tomorrow's.
-      const current = knowtRef.current;
+      // cancel tomorrow's. `completeOccurrence` has already done both of these
+      // on the scan-only path, and doing them twice is harmless.
       if (current) {
         await settled(cancelKnowtOneShots(current.id));
         // An interval or one-off schedule arms a single occurrence, and that
@@ -237,7 +285,17 @@ export function useRingingSession(
       return false;
     }
 
-    if (eventIdRef.current) await settled(addSnooze(eventIdRef.current));
+    if (eventIdRef.current) {
+      await settled(addSnooze(eventIdRef.current));
+      // Deferring is not completing, so the note has nothing to be written
+      // with yet. It goes onto the open event instead, or typing something and
+      // pressing Snooze would throw it away.
+      if (noteRef.current.trim()) {
+        await settled(
+          writeEventNote(eventIdRef.current, noteRef.current.trim()),
+        );
+      }
+    }
     return true;
   }, []);
 
@@ -265,9 +323,10 @@ export function useRingingSession(
     if (mounted.current) setKnowt(refreshed);
   }, []);
 
-  const saveEventNote = useCallback(async (note: string) => {
-    if (!eventIdRef.current) return;
-    await setEventNote(eventIdRef.current, note.trim() || null);
+  /** Mirrored into a ref, because the writers above are built once. */
+  const setEventNote = useCallback((text: string) => {
+    noteRef.current = text;
+    setNoteState(text);
   }, []);
 
   return {
@@ -282,7 +341,8 @@ export function useRingingSession(
     snooze,
     complete,
     saveKnowtNotes,
-    saveEventNote,
+    eventNote,
+    setEventNote,
     rearmIfAbandoned,
   };
 }

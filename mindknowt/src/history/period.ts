@@ -9,6 +9,7 @@
  * Pure, and takes its events already loaded, so the buckets can be asserted
  * without a database.
  */
+import { timedCompletions } from '../knowts/scanOnly';
 import type { CategoryRow, EventRow, KnowtWithDetail } from '../db/types';
 
 export type PeriodKind = 'month' | 'week' | 'day';
@@ -56,15 +57,21 @@ export type PeriodSummary = {
   /** Seven bars, Monday first, for the Completed chart. */
   byWeekday: TrendBucket[];
   /**
-   * The busiest two hour window, as a start hour, or null when nothing has
-   * been completed. Two hours rather than one because a single hour on a thin
-   * month is whichever hour happened twice.
+   * The busiest two hour window, as a start hour, or null when nothing timed
+   * has been completed. Two hours rather than one because a single hour on a
+   * thin month is whichever hour happened twice.
+   *
+   * Timed Knowts only. A scan-only Knowt has no alarm, so when it got scanned
+   * says when someone walked past the fridge rather than when they answer
+   * reminders, and a few standing items would drag this toward their hour.
    */
   peakHour: number | null;
   /**
    * Mean minutes from an alarm ringing to it being finished, or null when
    * nothing rang. A check-in with no alarm behind it has no duration to
-   * average, so it is left out rather than counted as zero.
+   * average, so it is left out rather than counted as zero. Scan-only Knowts
+   * are therefore excluded twice over: they never ring, and they are filtered
+   * out before this is computed.
    */
   averageMinutes: number | null;
 };
@@ -413,6 +420,10 @@ export function summarizePeriod(input: {
   });
 
   const completions = inRange.filter(isCompletion);
+  // Everything but the two clock statistics counts a scan-only Knowt like any
+  // other: the rate, the categories, the trend and the completed list are all
+  // about whether a thing got done, not when.
+  const timed = timedCompletions(completions, knowts);
   const missed = inRange.length - completions.length;
   const overrides = completions.filter((event) => event.method === 'override').length;
 
@@ -455,7 +466,9 @@ export function summarizePeriod(input: {
     ),
     trend: bucketsFor(range, inRange, today),
     byWeekday: weekdayTotals(range, inRange, today),
-    peakHour: peakHourOf(completions),
-    averageMinutes: averageMinutesOf(completions),
+    // Both of these are about a clock, and a scan-only Knowt has no clock.
+    // `timedCompletions` carries the reasoning.
+    peakHour: peakHourOf(timed),
+    averageMinutes: averageMinutesOf(timed),
   };
 }

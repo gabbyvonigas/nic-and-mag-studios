@@ -21,11 +21,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resyncAlarmsQuietly } from '../alarms';
 import { Icon } from '../components/Icon';
+import { TimingChoice, type Timing } from '../components/TimingChoice';
 import { PriorityBars } from '../components/KnowtCard';
 import { Button, SubScreenHeader } from '../components/ui';
 import { MODE_CHOICES, modeChoice } from '../knowts/modes';
+import { isScanOnly } from '../knowts/scanOnly';
 import {
   attachTag,
+  deleteSchedule,
   detachTag,
   findKnowtByTagUid,
   reassignTag,
@@ -42,6 +45,7 @@ import {
   updateKnowt,
   type KnowtMode,
 } from '../db';
+import { askToDropSchedules } from '../knowts/deletePrompt';
 import { askToReassign, askToUnassign } from '../knowts/tagConflict';
 import { nfcFailureMessage, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
@@ -100,6 +104,38 @@ export function EditKnowtScreen() {
   );
 
   const tagged = !!knowt?.tag_uid;
+  const scanOnly = !!knowt && isScanOnly(knowt);
+
+  /**
+   * Switching between ringing and scan only.
+   *
+   * There is no flag to set, because a scan-only Knowt is one with no
+   * schedules. So each direction does the thing that makes the choice true:
+   * picking scan only removes the schedules, which is the only way to stop
+   * something ringing, and picking a set time goes to the screen that adds
+   * one. Removing schedules is real data, so it asks first; the Knowt's
+   * history is untouched, since completions belong to the Knowt.
+   */
+  const chooseTiming = async (next: Timing) => {
+    if (!knowt) return;
+    if (next === 'scan') {
+      if (knowt.schedules.length === 0) return;
+      if (!(await askToDropSchedules(knowt.name, knowt.schedules.length))) {
+        return;
+      }
+      setError(null);
+      for (const schedule of knowt.schedules) {
+        await deleteSchedule(schedule.id);
+      }
+      // The alarms armed for those schedules have to come down with them, or
+      // the Knowt keeps ringing for a schedule that no longer exists.
+      await resyncAlarmsQuietly();
+      await reload();
+      return;
+    }
+    if (knowt.schedules.length > 0) return;
+    navigation.navigate('EditSchedule', { knowtId: knowt.id });
+  };
 
   /**
    * Attaching lived only on the detail screen, which meant the editor could
@@ -306,17 +342,21 @@ export function EditKnowtScreen() {
             </Text>
           ) : null}
 
-          <Text style={styles.label}>Schedules</Text>
-          {knowt.schedules.length === 0 ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Add a schedule"
-              onPress={() =>
-                navigation.navigate('EditSchedule', { knowtId: knowt.id })
-              }
-              style={({ pressed }) => [styles.addRow, pressed && styles.pressed]}>
-              <Text style={styles.addRowText}>Tap to add a schedule</Text>
-            </Pressable>
+          <Text style={styles.label}>When it happens</Text>
+          {/* Read from the data rather than held in state, so the choice cannot
+              disagree with what the Knowt actually is. Picking the other option
+              is what makes it true: one side adds a schedule, the other removes
+              them, which is the only thing that stops something ringing. */}
+          <TimingChoice
+            value={scanOnly ? 'scan' : 'timed'}
+            onChange={(next) => void chooseTiming(next)}
+          />
+
+          {scanOnly ? (
+            <Text style={styles.hint}>
+              No alarm. It sits on Daily every day under Anytime today until
+              you scan its tag.
+            </Text>
           ) : (
             knowt.schedules.map((schedule) => (
               <Pressable
@@ -347,13 +387,15 @@ export function EditKnowtScreen() {
               </Pressable>
             ))
           )}
-          <Button
-            label="Add a schedule"
-            variant="secondary"
-            onPress={() =>
-              navigation.navigate('EditSchedule', { knowtId: knowt.id })
-            }
-          />
+          {scanOnly ? null : (
+            <Button
+              label="Add a schedule"
+              variant="secondary"
+              onPress={() =>
+                navigation.navigate('EditSchedule', { knowtId: knowt.id })
+              }
+            />
+          )}
 
           <Text style={styles.label}>Where it lives</Text>
           <TextInput

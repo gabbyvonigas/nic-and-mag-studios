@@ -3,6 +3,7 @@ import { listKnowts } from './knowts';
 import { listPendingAlarms } from './pendingAlarms';
 import { isDueOn, minutesOf, nextOccurrence, toISODate } from './scheduling';
 import { buildSnoozed, type SnoozedEntry } from '../knowts/snoozed';
+import { isScanOnly } from '../knowts/scanOnly';
 
 export type { SnoozedEntry };
 import { weekOf } from '../knowts/weekStrip';
@@ -70,14 +71,20 @@ export type CategoryGroup = {
 const UNCATEGORIZED = 'uncategorized:none';
 
 /**
- * What belongs on the dashboard today.
+ * What belongs on the dashboard for a day.
  *
- * One thing qualifies: a schedule due today. Nothing else, whatever its mode.
+ * Two things qualify. A schedule due that day, which is one card per schedule:
+ * a knowt that rings at eight and again at six is two separate things to do.
+ * And a scan-only knowt, which has no schedule at all and so gets one card
+ * every day, standing and undated.
  *
  * Open-mode knowts used to be included whether or not they were due, on the
- * reasoning that a habit with no tag should stay tappable all day. In practice
- * that put things on Daily that were never going to ring, which is the one
- * thing Daily is supposed to tell you. The full inventory is Knowts.
+ * reasoning that a habit with no tag should stay tappable all day. That was
+ * removed because it put things on Daily that were never going to ring, which
+ * is the one thing Daily is supposed to tell you. Scan-only is not a return to
+ * it: the test is having no schedule at all rather than having a mode, the
+ * cards sit under their own heading instead of among the timed ones, and they
+ * say "Scan only" where a time would be. Nothing silently joins the day.
  */
 export async function listDashboard(now = new Date()): Promise<Dashboard> {
   const knowts = await listKnowts();
@@ -98,6 +105,24 @@ export async function listDashboard(now = new Date()): Promise<Dashboard> {
   for (const knowt of knowts) {
     const dueToday = knowt.schedules.filter((s) => isDueOn(s, now));
     const mine = completions.filter((e) => e.knowt_id === knowt.id);
+
+    if (isScanOnly(knowt)) {
+      // Every day, and done or not done is read from this day's window alone,
+      // which is the whole of the daily reset: nothing is stored to clear and
+      // nothing has to run at midnight. A completion of one of these can only
+      // ever carry a null schedule, because it has no schedule to name.
+      const done = mine.find((e) => e.schedule_id === null);
+      cards.push({
+        knowt,
+        schedule: null,
+        completedAt: done?.completed_at ?? null,
+        completions: mine.length,
+        // Nothing is ever armed for one of these. Read anyway rather than
+        // hardcoded to null, so a test ring fired from Dev still shows up.
+        pending: pendingFor(pending, knowt.id, null),
+      });
+      continue;
+    }
 
     for (const schedule of dueToday) {
       const done = mine.find((e) => e.schedule_id === schedule.id);
@@ -223,9 +248,14 @@ export async function listWeekMarks(anchor = new Date()): Promise<DayMark[]> {
     let count = 0;
     const colors: string[] = [];
     for (const knowt of knowts) {
-      const due = knowt.schedules.filter((schedule) => isDueOn(schedule, date));
-      if (due.length === 0) continue;
-      count += due.length;
+      // A scan-only knowt is on every day's board, so it is on every day's
+      // count. A strip saying three while the board shows four is worse than
+      // either number on its own.
+      const due = isScanOnly(knowt)
+        ? 1
+        : knowt.schedules.filter((schedule) => isDueOn(schedule, date)).length;
+      if (due === 0) continue;
+      count += due;
       const color = categoryShades(knowt.category).color;
       if (!colors.includes(color)) colors.push(color);
     }

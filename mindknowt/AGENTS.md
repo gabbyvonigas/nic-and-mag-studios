@@ -430,6 +430,80 @@ as long as it had been on a screen that was not a white card.
 Check a fill against the surface it lands on before trusting it, and prefer a
 border for anything that has to read on both the page and a card.
 
+## Scan-only Knowts have no column
+
+A Knowt that never rings is one with no schedule rows. That is all it is.
+There is no `scan_only` flag, no migration, and `SCHEMA_VERSION` did not move,
+because having no schedule was already a saveable state and already meant
+exactly this. `isScanOnly` in `knowts/scanOnly.ts` is the single definition.
+
+What it lacked was a life. `listDashboard` emitted one card per schedule due
+today, so a Knowt with none produced none and never appeared on Daily at all.
+That was deliberate once: open-mode Knowts used to be shown whether or not they
+were due, and it filled Daily with things that were never going to ring. Scan
+only is not a return to it. The test is having no schedule rather than having a
+mode, the cards sit under their own `Anytime today` heading below the
+timetable, and they say "Scan only" where a time would be.
+
+Rules that fall out of the definition rather than being added to it:
+
+- **The daily reset is not a reset.** Done or not is read from the day being
+  looked at, so a new day is a new empty window. Nothing runs at midnight and
+  nothing is stored to clear.
+- **A completion of one can only carry a null `schedule_id`**, because there is
+  no schedule to name, which is what makes the per-day read work.
+- **No `fired_at`, ever.** `startRinging` is skipped for these: it stamps "an
+  alarm went off at this moment" and none did. A false `fired_at` would put the
+  Knowt into Avg complete time with a duration measured from the tap, and make
+  the resume gate think a firing had been dealt with. The event is written at
+  completion by `completeOccurrence`, which leaves it null.
+- **Nothing reaches AlarmKit.** `syncScheduledAlarms` and `sweepMissed` both
+  loop over `knowt.schedules`, so for one of these the loop body never runs.
+  There is no code path from a scan-only Knowt to the alarm module, and
+  `scanonlyboard.test.ts` asserts the `pending_alarms` table stays empty.
+- **A paused schedule is not scan-only.** Someone switched it off and can
+  switch it back on; calling it scan-only would move it to a different part of
+  Daily and change what it means.
+- **Never marked missed**, for the same reason: `sweepMissed` needs a schedule
+  that came due. An unscanned day is not a miss, because nothing rang. That is
+  a product choice, not an oversight, and it is one line in the sweep to
+  reverse.
+
+**Clock statistics exclude them.** Peak time, Avg complete time and the
+time-of-day insight are all claims about when this person answers a reminder. A
+scan of a fridge tag at quarter past three says when they walked past the
+fridge. `timedCompletions` filters them out before those three are computed.
+Avg complete time would already have excluded them through the missing
+`fired_at`; filtering as well makes it correct by construction rather than by a
+coincidence a later change could undo. Everything else, the rate, the
+categories, the trend, the completed list and `X of Y` on Daily, counts them
+like any other Knowt.
+
+`isScanOnly` leans toward timed when it cannot tell. A wrong "scan-only"
+quietly drops real completions out of those three statistics; a wrong "timed"
+leaves them as they already were.
+
+**The ringing screen is reused, not copied.** The scan, the sheet, the note and
+the completion are identical; what changes is everything that assumes a ring.
+It says SCAN ONLY instead of RINGING and does not pulse, and it offers no
+snooze and no "remind me in", because both reschedule an alarm and there is
+none to reschedule. A Knowt with no tag gets a way to attach one plus a manual
+"Mark done", so it works before the tag arrives.
+
+**Switching is adding or removing schedule rows.** There is no flag, so the
+editor's choice does the thing that makes it true: scan only deletes the
+schedules, which is the only way to stop something ringing, and asks first
+because that is real data. History survives, since completions belong to the
+Knowt and not to the schedule that prompted them. Removing them must resync, or
+the alarms armed for schedules that no longer exist keep ringing.
+
+The event note moved into `useRingingSession` as part of this. A scan-only Knowt
+has no open event to attach a note to, so its note has to go in with the
+completion, which means the code writing the completion has to be able to read
+it. That is better on the timed path too: the note used to be saved after the
+screen had decided to leave, which made it the last thing in a queue of awaits
+behind a navigation.
+
 ## A scan that does nothing settles nothing
 
 Reported as "the alarm opened the Knowt, the app never asked me to scan, and
