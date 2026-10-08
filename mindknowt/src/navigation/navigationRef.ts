@@ -50,3 +50,25 @@ export function navigateToRinging(
   });
   return true;
 }
+
+/**
+ * Closes the ringing screen and lands on Daily.
+ *
+ * A reset rather than a `navigate` back to `Tabs`, and for the same reason
+ * `navigateToRinging` is one: the way out must not depend on what is
+ * underneath. The screen is opened with a reset to `[Tabs, Ringing]`, so
+ * leaving is a reset to `[Tabs]` with Daily selected, and anything that ever
+ * reaches the screen another way still lands somewhere known instead of on
+ * whatever happened to be below it.
+ *
+ * Returns false only when the navigator is not mounted, which is the caller's
+ * cue to fall back to its own navigation object.
+ */
+export function leaveRinging(): boolean {
+  if (!navigationRef.isReady()) return false;
+  navigationRef.reset({
+    index: 0,
+    routes: [{ name: 'Tabs', params: { screen: 'Daily' } }],
+  });
+  return true;
+}

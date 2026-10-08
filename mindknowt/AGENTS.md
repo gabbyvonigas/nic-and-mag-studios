@@ -430,6 +430,89 @@ as long as it had been on a screen that was not a white card.
 Check a fill against the surface it lands on before trusting it, and prefer a
 border for anything that has to read on both the page and a card.
 
+## A full screen modal's only way out is a handler
+
+`Ringing` is presented with `presentation: 'fullScreenModal'` and
+`gestureEnabled: false`, so there is no edge swipe, no backdrop and no back
+button. A handler that decides not to navigate is a dead end.
+
+Done decided not to, and the reason was sequencing rather than navigation.
+`leave()` was the last statement after an unbroken chain of awaits that ran
+through the alarm module, every one of them *after* the completion had already
+been written. A rejected native call skipped the line that closed the screen,
+the call sites discard the rejection with `void`, and so nothing threw, nothing
+logged and nothing on screen changed: the Knowt was done and the screen stayed
+up. A native promise that never settled did the same thing and was
+indistinguishable from a hang.
+
+Three rules came out of it:
+
+- **The decisive step comes first, and everything after it is housekeeping.**
+  `resolve()` writes the completion, and only that can refuse. Canceling
+  one-shots and resyncing cannot hold the door shut.
+- **Actions report, they do not throw.** Every action on `useRingingSession`
+  resolves to a boolean and does not reject. The rule that reads it is
+  `shouldLeaveAfter` in `ringing/finishAction.ts`, which leaves on a throw too,
+  because being trapped is worse than bookkeeping that went wrong.
+- **Every call into the alarm module is bounded.** `alarms/settle.ts` returns a
+  rejection instead of throwing one and gives up after
+  `ALARM_CALL_TIMEOUT_MS`. Use it for anything a screen is waiting on.
+
+Arming comes before recording for a deferral, which is the opposite of the
+order `remindIn` used to run in. A snooze written against an alarm that was
+never set is a Knowt that reads as handled and never rings again, so if arming
+fails the screen says so and stays up: the alarm is still going, and closing on
+it would be the app quietly dropping the reminder.
+
+The way out is `leaveRinging()` in `navigation/navigationRef.ts`, a reset to
+`[Tabs]` with Daily selected, for the same reason `navigateToRinging` is a
+reset. The way out must not depend on what happens to be underneath.
+
+## The snooze button ran none of our code
+
+`doSnoozeIntent` was never passed. The module reads it as `false` and then
+hands AlarmKit `secondaryIntent: nil`, so the snooze button still drew and
+still started AlarmKit's own countdown, but no App Intent of ours ran. The
+patch that writes a snooze record into App Group storage was in the build and
+never executed, `listSnoozes()` always came back empty, and a Lock Screen
+snooze was invisible to the app exactly as it had been before the patch.
+
+It is on now. `launchAppOnSnooze` stays off: snoozing must not open the app.
+
+`snoozeDuration` was never passed either, so the module defaulted the countdown
+to nine minutes, which is a number nobody chose and does not match the Knowt's
+own snooze length. It is passed now, and `snoozeLabel` states the same number
+on the button, so the two cannot disagree.
+
+**A snooze and a dismiss are indistinguishable from the launch payload.**
+`buildLaunchPayload` is `{alarmId, payload}` and both intents set it, so a
+Lock Screen snooze taken while the process is still resident leaves a payload
+that looks exactly like a Stop. The evidence is the snooze record: the snooze
+intent writes one and the dismiss intent removes it, so `consume()` imports
+snoozes before asking `resolveRinging`, and `shouldPresentRinging` treats a
+snooze pending ahead of now as an answer. A re-fire pending ahead of now is
+deliberately not an answer: the app armed that one itself, nobody said later,
+and suppressing a ring nobody asked to suppress is the one thing it must not
+do.
+
+## The banner has one line of text, not two
+
+`AlarmPresentation.Alert(title:stopButton:secondaryButton:secondaryButtonBehavior:)`
+takes a single `LocalizedStringResource`. There is no subtitle and no body, so
+the scheduled time shares the title's line with the Knowt's name. `bannerTitle`
+puts the name first and the time last, because the system truncates the tail: a
+long name costs the time rather than the name.
+
+Both buttons take a label as well as an SF Symbol, and the labels are ours.
+`stopLabel` is the only place the banner can say a scan is needed, since
+`stop.circle` is hardcoded in the module. `snoozeLabel` is why the `zzz` glyph
+does not have to carry the meaning on its own.
+
+The banner text is part of the alarm's signature, along with the Knowt's mode
+and snooze length. Neither is the schedule's time, so without them an alarm
+armed before either changed looked identical to the right one and sync left it
+standing.
+
 ## A swipe is stolen by default
 
 `PanResponder`'s `onPanResponderTerminationRequest` returns true unless you say
@@ -476,20 +559,21 @@ JavaScript cannot ask which alarm is alerting right now. `getAllAlarms()` reads
 App Group storage, which is a list of ids the app wrote, not live state. Until
 that is exposed, there is no deterministic way to answer "what is ringing".
 
-**The SF Symbols on both buttons are hardcoded**: `stop.circle` and
-`clock.badge.checkmark`, in the module, not passed from JavaScript. What can be
-set is the title, the tint color, both button labels and both label colors.
-`snoozeButtonLabel` is already "Snooze"; the clock-with-tick glyph next to it is
-the part that cannot be changed without patching the package.
+**The SF Symbols on both buttons are hardcoded** in the module, not passed from
+JavaScript: `stop.circle`, and `clock.badge.checkmark` until the patch made it
+`zzz`. What can be set is the title, the tint color, both button labels and both
+label colors. The labels carry the meaning the glyphs cannot, which is why
+`snoozeButtonLabel` says how many minutes rather than just "Snooze".
 
-**A snooze taken on the Lock Screen never reaches the app.** We leave
-`launchAppOnSnooze` unset, so `AlarmSnoozeIntent` runs with
-`openAppWhenRun = false`, AlarmKit restarts its own countdown, and nothing is
-written anywhere the app can read. `launchPayload` is a static variable, not App
-Group storage, so it does not survive to the next launch either. The app's
-snooze records (`pending_alarms`, kind `snooze`) only ever come from the Ringing
-screen inside the app. Do not describe a Lock Screen snooze as visible to the
-app without fixing this first.
+**A snooze taken on the Lock Screen does not open the app, and did not used to
+reach it at all.** `launchAppOnSnooze` stays unset, so `AlarmSnoozeIntent` runs
+with `openAppWhenRun = false` and AlarmKit restarts its own countdown.
+`launchPayload` is a static variable, not App Group storage, so it does not
+survive to the next launch. The patched intent writes `{alarmId, endsAt,
+payload}` into the App Group instead, and `importExternalSnoozes` turns that
+into a `pending_alarms` row of kind `snooze` on the next launch. That only
+works with `doSnoozeIntent: true`, which is the part that was missing: see
+"The snooze button ran none of our code".
 
 **A live countdown needs a widget extension.** `AlarmPresentation` is built with
 `alert:` only, so the countdown and paused states have nothing to draw even
@@ -500,6 +584,18 @@ needs an `ActivityConfiguration` over the same `AlarmAttributes<Meta>` the alarm
 was scheduled with. `Meta` is declared `struct Meta: AlarmMetadata {}` inline
 inside each scheduling function, so no other target can name it. The alerting UI
 is drawn by the system.
+
+## Upcoming was gated, not removed
+
+Reported as having been deleted from Daily. It never was. `showUpcoming` in
+`knowts/dayProgress.ts` required `remaining === 0`, so the section only
+rendered on a day that was already completely clear, and the component, the
+query and the render were all still there the whole time. `git log -S` finds
+one commit touching the function, `d99a9c9`, which *added* it in that shape.
+
+The gate is now `stance === 'today'` and something scheduled, so the section
+appears whenever there is anything ahead. It renders last, under the day's own
+list: it is reference rather than work, and above the list it buried the day.
 
 ## The Log has one summary, not two
 

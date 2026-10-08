@@ -9,6 +9,7 @@ import { listKnowts } from '../db/knowts';
 import { requiresScan } from '../knowts/modes';
 import { completedOccurrences, isOccurrenceDone } from '../knowts/completions';
 import {
+  formatTime,
   isDueOn,
   minutesOf,
   nextOccurrence,
@@ -17,6 +18,7 @@ import {
 } from '../db/scheduling';
 import type { KnowtWithDetail, PendingAlarmRow, ScheduleRow } from '../db/types';
 import { alarmScheduler } from './AlarmScheduler';
+import { settled } from './settle';
 
 /**
  * Keeps AlarmKit in step with the schedules in the database.
@@ -78,6 +80,12 @@ export function signatureOf(
 ): string {
   const parts = [
     knowt.name,
+    // Both of these are on the banner, so an alarm armed before either changed
+    // is stale even though its time has not moved. The mode decides whether the
+    // Stop button says "Scan to stop" or "Done", and the snooze length is both
+    // the Snooze button's label and the countdown it starts.
+    knowt.mode,
+    String(knowt.snooze_minutes),
     schedule.time,
     schedule.repeat_type,
     schedule.days_of_week ?? '',
@@ -170,12 +178,10 @@ function skipsToday(
 }
 
 async function cancelRecord(row: PendingAlarmRow): Promise<void> {
-  try {
-    await alarmScheduler.cancel(row.alarmkit_id);
-  } catch {
-    // Already fired, already canceled, or gone. The record goes either way:
-    // one that cannot be canceled is not worth keeping.
-  }
+  // Already fired, already canceled, gone, or wedged. The record goes either
+  // way: one that cannot be canceled is not worth keeping. Bounded, because a
+  // sync that never returns is a sync that holds up everything behind it.
+  await settled(alarmScheduler.cancel(row.alarmkit_id));
   await deletePendingAlarm(row.id);
 }
 
@@ -194,12 +200,16 @@ async function arm(
           nextFiresAt: desired.nextAt,
           payload: knowt.id,
           requiresScan: requiresScan(knowt.mode),
+          snoozeMinutes: knowt.snooze_minutes,
+          timeLabel: formatTime(schedule.time),
         })
       : await alarmScheduler.scheduleAt({
           title: knowt.name,
           firesAt: desired.nextAt,
           payload: knowt.id,
           requiresScan: requiresScan(knowt.mode),
+          snoozeMinutes: knowt.snooze_minutes,
+          timeLabel: formatTime(schedule.time),
         });
 
   await recordPendingAlarm({

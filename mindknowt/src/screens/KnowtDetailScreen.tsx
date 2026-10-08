@@ -18,11 +18,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Card, Pill, SubScreenHeader } from '../components/ui';
-import { resyncAlarmsQuietly } from '../alarms';
+import {
+  cancelKnowtOneShots,
+  describeError,
+  pendingForKnowt,
+  rearmKnowtAlarm,
+  resyncAlarmsQuietly,
+  settled,
+} from '../alarms';
 import { Icon } from '../components/Icon';
 import { completeOccurrence } from '../knowts/completeOccurrence';
 import { openOccurrence } from '../knowts/completions';
-import { MODE_CHOICES, modeChoice, modeLabel } from '../knowts/modes';
+import { MODE_CHOICES, modeChoice, modeLabel, requiresScan } from '../knowts/modes';
+import { buildSnoozed } from '../knowts/snoozed';
 import {
   archiveKnowt,
   attachTag,
@@ -78,6 +86,12 @@ export function KnowtDetailScreen() {
     () => listEvents(params.knowtId),
     [params.knowtId],
   );
+  // What is armed for this Knowt right now, which is how the screen knows it
+  // was opened from the Snoozed section rather than from the list.
+  const { data: pending, reload: reloadPending } = useQuery(
+    () => pendingForKnowt(params.knowtId),
+    [params.knowtId],
+  );
 
   const [draftNotes, setDraftNotes] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -97,7 +111,8 @@ export function KnowtDetailScreen() {
     useCallback(() => {
       void reload();
       void reloadEvents();
-    }, [reload, reloadEvents]),
+      void reloadPending();
+    }, [reload, reloadEvents, reloadPending]),
   );
 
   if (loading) {
@@ -206,7 +221,31 @@ export function KnowtDetailScreen() {
   const openEditor = () =>
     navigation.navigate('EditKnowt', { knowtId: knowt.id });
 
-  const checkIn = async () => {
+  /**
+   * Whether this Knowt is sitting under a snooze.
+   *
+   * `buildSnoozed` is the same rule Daily's Snoozed section uses, over the one
+   * Knowt instead of all of them, so the screen you land on from that section
+   * agrees with the section you tapped.
+   */
+  const snoozed =
+    buildSnoozed({
+      alarms: pending ?? [],
+      knowts: [knowt],
+      now: Date.now(),
+    }).length > 0;
+
+  /**
+   * Done.
+   *
+   * `completeOccurrence` records it, clears the Knowt's one-shots, which is
+   * what takes it out of the Snoozed section, and resyncs so the next
+   * occurrence is armed. Then the screen closes: this is the primary action,
+   * and a primary action that leaves you looking at the same screen reads as
+   * having done nothing. Bounded for the same reason the Ringing screen's is.
+   */
+  const finishNow = async () => {
+    setNotice(null);
     // Spec section 3: a completion with no alarm pending is a valid check-in,
     // which is why the schedule can still come out null here.
     //
@@ -218,12 +257,58 @@ export function KnowtDetailScreen() {
       schedules: knowt.schedules,
       events: events ?? [],
     });
-    await completeOccurrence({
-      knowtId: knowt.id,
-      scheduleId: open?.id ?? null,
-      method: 'tap',
-    });
-    await reloadEvents();
+    const done = await settled(
+      completeOccurrence({
+        knowtId: knowt.id,
+        scheduleId: open?.id ?? null,
+        method: 'tap',
+      }),
+    );
+    if (!done.ok) {
+      setNotice(`That could not be recorded. ${describeError(done.error)}`);
+      await reloadEvents();
+      return;
+    }
+    navigation.navigate('Tabs', { screen: 'Daily' });
+  };
+
+  /** Puts it off again, for the Knowt's own snooze length. */
+  const snoozeAgain = async () => {
+    setNotice(null);
+    const armed = await settled(
+      rearmKnowtAlarm({
+        knowtId: knowt.id,
+        title: knowt.name,
+        minutes: knowt.snooze_minutes,
+        kind: 'snooze',
+        requiresScan: requiresScan(knowt.mode),
+        snoozeMinutes: knowt.snooze_minutes,
+      }),
+    );
+    if (!armed.ok) {
+      setNotice(`That could not be snoozed. ${describeError(armed.error)}`);
+      return;
+    }
+    navigation.navigate('Tabs', { screen: 'Daily' });
+  };
+
+  /**
+   * Stops it asking again today without saying it was done.
+   *
+   * The one-shots are what is left of today's firing, so clearing them is the
+   * whole of it: nothing is marked complete, the Log still shows it as not
+   * done, and the recurring alarm is untouched, so tomorrow is unaffected.
+   * There is no stored "skipped" state and this does not invent one.
+   */
+  const skipToday = async () => {
+    setNotice(null);
+    const cleared = await settled(cancelKnowtOneShots(knowt.id));
+    if (!cleared.ok) {
+      setNotice(`That could not be cleared. ${describeError(cleared.error)}`);
+      return;
+    }
+    await settled(resyncAlarmsQuietly());
+    navigation.navigate('Tabs', { screen: 'Daily' });
   };
 
   return (
@@ -477,12 +562,27 @@ export function KnowtDetailScreen() {
         ) : null}
 
         <View style={styles.actions}>
+          {/* Done leads, filled and full width, the same control the Ringing
+              screen leads with. It was a white secondary button reading "I
+              just did this", which left the one thing you came here to do
+              looking like the same weight as Archive. Putting it off is the
+              quieter choice, so those sit under it as outlined buttons. */}
           {dueYet ? (
-            <Button
-              label="I just did this"
-              variant="secondary"
-              onPress={() => void checkIn()}
-            />
+            <Button label="Done" onPress={() => void finishNow()} />
+          ) : null}
+          {snoozed ? (
+            <>
+              <Button
+                label={`Snooze ${knowt.snooze_minutes} min again`}
+                variant="secondary"
+                onPress={() => void snoozeAgain()}
+              />
+              <Button
+                label="Skip for today"
+                variant="secondary"
+                onPress={() => void skipToday()}
+              />
+            </>
           ) : null}
           {/* The list's long press is a shortcut, not an affordance, so the
               control has to exist somewhere it can be found. */}

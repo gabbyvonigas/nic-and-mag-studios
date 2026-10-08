@@ -57,28 +57,29 @@ export function progressLine(
 }
 
 /**
- * Whether Daily should show what is coming next rather than only the empty
- * state.
+ * Whether Daily should show what is coming next.
  *
- * Only on today, and only once today is actually clear. A day in the past is
- * finished and a day in the future is not the day you are on, so in both cases
- * "next" would mean something different from what the section shows. A day with
- * nothing scheduled gets the invitation to add one instead, because showing
- * tomorrow to someone who has nothing today buries the only useful control.
+ * Only on today: a day in the past is finished and a day in the future is not
+ * the day you are on, so in both cases "next" would mean something different
+ * from what the section shows. A day with nothing scheduled gets the invitation
+ * to add one instead, because showing tomorrow to someone who has nothing today
+ * buries the only useful control.
+ *
+ * It used to also require today to be clear, which is what made the section
+ * look deleted: on any day with something still to do it never rendered. The
+ * section is faded and collapsed, so it costs a line and reads as reference
+ * rather than as work, and it sits below the day's list for the same reason.
  */
 export function showUpcoming({
-  remaining,
   total,
   stance,
   upcomingCount,
 }: {
-  remaining: number;
   total: number;
   stance: DayStance;
   upcomingCount: number;
 }): boolean {
   if (stance !== 'today') return false;
   if (total === 0) return false;
-  if (remaining > 0) return false;
   return upcomingCount > 0;
 }

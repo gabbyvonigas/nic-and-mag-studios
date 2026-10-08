@@ -19,8 +19,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../components/ui';
 import { HoldToConfirm } from '../components/HoldToConfirm';
 import { TimePicker } from '../components/TimePicker';
+import { settled } from '../alarms/settle';
 import { describeRepeat, formatTime } from '../db';
+import { leaveRinging } from '../navigation/navigationRef';
 import { canScan, requiresScan } from '../knowts/modes';
+import { shouldLeaveAfter } from '../ringing/finishAction';
 import { useRingingSession } from '../ringing/useRingingSession';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -147,23 +150,30 @@ export function RingingScreen() {
     if (knowt && !notesDirty) setNotesDraft(knowt.notes ?? '');
   }, [knowt, notesDirty]);
 
-  const leave = () => navigation.navigate('Tabs', { screen: 'Daily' });
+  const leave = useCallback(() => {
+    // One way out, and it does not depend on what is underneath. Falls back to
+    // this screen's own navigation only if the navigator is somehow not ready.
+    if (!leaveRinging()) navigation.navigate('Tabs', { screen: 'Daily' });
+  }, [navigation]);
 
   /**
-   * Runs an action and leaves only if it resolved the alarm. A handler that
-   * returns false, such as a wrong tag or a failed scan, keeps the screen up and the
-   * alarm ringing.
+   * Runs an action and leaves unless the action said it did not take. A handler
+   * that returns false, such as a wrong tag or a snooze AlarmKit refused, keeps
+   * the screen up and the alarm ringing, and has already put a message on it.
+   *
+   * The rule itself is `shouldLeaveAfter`, in its own file with the account of
+   * why Done used to complete the Knowt and leave the screen standing. The note
+   * is saved on the way out: worth keeping, not worth staying for.
    */
   const finish = useCallback(
     async (run: () => Promise<boolean | void>) => {
-      const outcome = await run();
-      if (outcome === false) return;
-      if (eventNote.trim()) await saveEventNote(eventNote);
+      if (!(await shouldLeaveAfter(run))) return;
+      if (eventNote.trim()) await settled(saveEventNote(eventNote));
       leave();
     },
-    // `leave` and `eventNote` are read fresh on each call, so re-creating this
-    // when they change is what keeps the auto-scan effect honest.
-    [eventNote, saveEventNote, navigation],
+    // `eventNote` is read fresh on each call, so re-creating this when it
+    // changes is what keeps the auto-scan effect honest.
+    [eventNote, saveEventNote, leave],
   );
 
   /**

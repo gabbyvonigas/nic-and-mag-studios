@@ -7,7 +7,8 @@ import {
 } from '../db/pendingAlarms';
 import type { PendingAlarmKind, PendingAlarmRow } from '../db/types';
 import { alarmScheduler } from './AlarmScheduler';
-import type { ScheduledAlarm } from './types';
+import { describeError, settled } from './settle';
+import { AlarmError, type ScheduledAlarm } from './types';
 
 /**
  * Schedules an alarm for a knowt and records it as pending. The knowt id
@@ -26,18 +27,29 @@ export async function armKnowtAlarm(args: {
   kind: PendingAlarmKind;
   /** Whether stopping it needs a scan, which the Lock Screen says out loud. */
   requiresScan?: boolean;
+  /** What the Lock Screen's Snooze button says and how long it defers for. */
+  snoozeMinutes?: number;
   /** A bundled sound file, extension included. Only the Dev sound test uses it. */
   soundName?: string;
 }): Promise<ScheduledAlarm> {
   await cancelKnowtAlarms(args.knowtId, { scheduleId: args.scheduleId ?? null });
 
-  const alarm = await alarmScheduler.scheduleAt({
-    title: args.title,
-    firesAt: args.firesAt,
-    payload: args.knowtId,
-    requiresScan: args.requiresScan,
-    soundName: args.soundName,
-  });
+  // Bounded, because this is the call the Ringing screen's Snooze waits on and
+  // a native promise that never settles would leave the screen up for good.
+  const scheduled = await settled(
+    alarmScheduler.scheduleAt({
+      title: args.title,
+      firesAt: args.firesAt,
+      payload: args.knowtId,
+      requiresScan: args.requiresScan,
+      soundName: args.soundName,
+      snoozeMinutes: args.snoozeMinutes,
+    }),
+  );
+  if (!scheduled.ok) {
+    throw new AlarmError('schedule-rejected', describeError(scheduled.error));
+  }
+  const alarm = scheduled.value;
 
   // Recording must not be able to lose the alarm itself, which is already
   // armed at this point. A failure here costs visibility, not the reminder.
@@ -63,12 +75,14 @@ export async function rearmKnowtAlarm(args: {
   minutes: number;
   kind: Extract<PendingAlarmKind, 'refire' | 'snooze'>;
   requiresScan?: boolean;
+  snoozeMinutes?: number;
 }): Promise<ScheduledAlarm> {
   return armKnowtAlarm({
     knowtId: args.knowtId,
     scheduleId: null,
     title: args.title,
     requiresScan: args.requiresScan,
+    snoozeMinutes: args.snoozeMinutes,
     firesAt: new Date(Date.now() + args.minutes * 60_000),
     kind: args.kind,
   });
@@ -88,13 +102,13 @@ export async function cancelKnowtAlarms(
   const rows = await takePendingForKnowt(knowtId, filter);
   let canceled = 0;
   for (const row of rows) {
-    try {
-      await alarmScheduler.cancel(row.alarmkit_id);
-      canceled += 1;
-    } catch {
-      // Already fired, already canceled, or gone. The row is removed either
-      // way, because a pending record that cannot be canceled is just noise.
-    }
+    // Never throws and never hangs. A cancel is housekeeping, and the caller is
+    // usually a completion that has already been written: one stuck id must not
+    // be able to hold up whatever comes after it.
+    const result = await settled(alarmScheduler.cancel(row.alarmkit_id));
+    // Already fired, already canceled, or gone. The row is removed either way,
+    // because a pending record that cannot be canceled is just noise.
+    if (result.ok) canceled += 1;
   }
   return canceled;
 }
@@ -126,12 +140,10 @@ export async function cancelAllAlarms(): Promise<number> {
   const ids = await alarmScheduler.listScheduled();
   let canceled = 0;
   for (const id of ids) {
-    try {
-      await alarmScheduler.cancel(id);
-      canceled += 1;
-    } catch {
-      // Already gone. Keep going: one stuck id must not strand the rest.
-    }
+    // Already gone, or wedged. Keep going: one stuck id must not strand the
+    // rest, which is the whole point of this being the recovery tool.
+    const result = await settled(alarmScheduler.cancel(id));
+    if (result.ok) canceled += 1;
   }
   try {
     await clearAllPendingAlarms();

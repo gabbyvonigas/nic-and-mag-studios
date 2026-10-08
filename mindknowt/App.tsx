@@ -118,6 +118,12 @@ export default function App() {
       if (launch) {
         publishLaunch(launch);
         if (!launch.payload) return;
+        // A Lock Screen snooze sets the same launch payload as a Stop, and the
+        // payload has no field saying which button ran. The snooze record does:
+        // the snooze intent writes one and the dismiss intent removes it, so
+        // importing first is what keeps a snooze from reopening the screen for
+        // something the person just put off.
+        await importSnoozesQuietly();
         const target = await resolveRinging(launch.payload);
         if (target.present) {
           navigateToRinging(launch.payload, target.scheduleId);

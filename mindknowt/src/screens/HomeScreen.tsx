@@ -474,23 +474,8 @@ export function HomeScreen() {
             </View>
           </View>
 
-          {showUpcoming({
-            remaining: remaining.length,
-            total,
-            stance,
-            upcomingCount: upcoming?.length ?? 0,
-          }) ? (
-            <UpcomingSection
-              entries={upcoming ?? []}
-              expanded={upcomingOpen}
-              onToggle={() => setUpcomingOpen((open) => !open)}
-              onOpen={openKnowt}
-              now={now}
-            />
-          ) : null}
-
           {/* A finished day says nothing. The ring already shows a check and
-              Upcoming is sitting right above this, so a line explaining that
+              Upcoming is sitting right below this, so a line explaining that
               the day is done was the third thing on screen saying it. A day
               with nothing on it still gets the invitation, because there the
               only useful thing is a way to add something. */}
@@ -527,6 +512,24 @@ export function HomeScreen() {
               );
             })
           )}
+
+          {/* Last, under the day's own list. It is reference rather than work,
+              so today's cards come first; on a day that is already clear there
+              is nothing above it anyway, which is where it used to be the only
+              thing that rendered. */}
+          {showUpcoming({
+            total,
+            stance,
+            upcomingCount: upcoming?.length ?? 0,
+          }) ? (
+            <UpcomingSection
+              entries={upcoming ?? []}
+              expanded={upcomingOpen}
+              onToggle={() => setUpcomingOpen((open) => !open)}
+              onOpen={openKnowt}
+              now={now}
+            />
+          ) : null}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -627,6 +630,11 @@ const styles = StyleSheet.create({
 
   snoozed: {
     marginHorizontal: theme.spacing.xl,
+    // The same gap the scrolling content puts between its own sections, so the
+    // card reads as the next thing down rather than as part of the week strip
+    // it was sitting against. One wrapper holds every snoozed Knowt, so the
+    // spacing does not change when there are two or more.
+    marginTop: theme.spacing.md,
     marginBottom: theme.spacing.md,
     padding: theme.spacing.md,
     borderRadius: theme.radius.lg,

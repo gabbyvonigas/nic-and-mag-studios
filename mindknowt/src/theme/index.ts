@@ -30,6 +30,8 @@ export const theme = {
     onHighlight: palette.ink,
     /** The neon, softened, for a panel rather than a control. */
     highlightTint: palette.neonTint,
+    /** The palest lime. A card that should read as branded, not as a control. */
+    highlightPale: palette.neonPale,
 
     textPrimary: palette.ink,
     textSecondary: palette.charcoal,

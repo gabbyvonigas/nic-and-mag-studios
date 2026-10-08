@@ -219,7 +219,19 @@ function FactCard({
 }) {
   return (
     <View style={[styles.card, styles.factCard]}>
-      <Text style={styles.cardTitle}>{title}</Text>
+      {/* One line, always, and never truncated. "Avg complete time" is
+          seventeen characters of uppercase at 13pt, which measures within a
+          couple of points of the room two cards side by side leave on a 375pt
+          screen and over it on a 320pt one. The letter spacing comes down
+          first, because that is the cheapest width, and the shrink is a floor
+          rather than the plan. */}
+      <Text
+        style={[styles.cardTitle, styles.factTitle]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.85}>
+        {title}
+      </Text>
       {/* One line, always. "8am to 10am" and "Under a minute" are different
           lengths and the two cards sit side by side, so a wrap on one of them
           made the pair ragged. Shrinking is the lesser of the two. */}
@@ -300,7 +312,7 @@ export function PeriodPanel({
           }
         />
         <FactCard
-          title="Avg time to complete"
+          title="Avg complete time"
           value={
             summary.averageMinutes === null
               ? '-'
@@ -479,7 +491,14 @@ const styles = StyleSheet.create({
   factCard: {
     flex: 1,
     gap: theme.spacing.xs,
-    backgroundColor: theme.color.highlightTint,
+    backgroundColor: theme.color.highlightPale,
+  },
+  factTitle: {
+    // Charcoal rather than the muted gray, for the same reason `factNote` is:
+    // on the pale lime the gray reads at 4.46, under the floor for text this
+    // small. Charcoal is 10.72.
+    color: theme.color.textSecondary,
+    letterSpacing: 0.2,
   },
   factValue: {
     fontFamily: theme.font.face.medium,

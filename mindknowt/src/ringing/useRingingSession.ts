@@ -3,6 +3,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 
 import { cancelKnowtOneShots, rearmKnowtAlarm } from '../alarms/knowtAlarms';
 import { resyncAlarmsQuietly } from '../alarms/scheduleSync';
+import { describeError, settled } from '../alarms/settle';
 import {
   addSnooze,
   completeRinging,
@@ -122,28 +123,56 @@ export function useRingingSession(
     return () => sub.remove();
   }, [rearmIfAbandoned]);
 
+  /**
+   * Records the completion and stands the firing down.
+   *
+   * Resolves to whether the alarm was answered, and never rejects. Both of
+   * those are load bearing. The Ringing screen is a full screen modal with no
+   * gesture out, so the only way off it is a handler deciding the action went
+   * through, and that decision used to sit behind every await below: the
+   * completion was written first, the alarm bookkeeping ran after it, and a
+   * rejection or a native promise that never settled stranded the screen with
+   * the Knowt already marked done and nothing on screen saying why.
+   *
+   * So the completion is the only step that can say no. Everything after it is
+   * housekeeping, and housekeeping does not get to hold the door shut.
+   */
   const resolve = useCallback(
-    async (method: EventMethod, completedAt?: number) => {
+    async (method: EventMethod, completedAt?: number): Promise<boolean> => {
       resolvedRef.current = true;
       if (mounted.current) setResolved(true);
+
       if (eventIdRef.current) {
-        await completeRinging(eventIdRef.current, method, null, completedAt);
+        const written = await settled(
+          completeRinging(eventIdRef.current, method, null, completedAt),
+        );
+        if (!written.ok) {
+          // Nothing was recorded, so the alarm is still unanswered and the
+          // screen is right to stay up. Say what happened.
+          resolvedRef.current = false;
+          if (mounted.current) {
+            setResolved(false);
+            setMessage({
+              tone: 'danger',
+              text: `That could not be recorded. ${describeError(written.error)}`,
+            });
+          }
+          return false;
+        }
       }
+
       // This firing is done, so nothing armed for it should still ring. Only
       // the one-shots go: a stale re-fire, a snooze, a leftover test alarm. The
       // knowt's recurring alarm stays, because doing today's 8:00 am does not
       // cancel tomorrow's.
       const current = knowtRef.current;
       if (current) {
-        try {
-          await cancelKnowtOneShots(current.id);
-        } catch {
-          // Completion is already recorded; a failed cancel must not undo it.
-        }
+        await settled(cancelKnowtOneShots(current.id));
         // An interval or one-off schedule arms a single occurrence, and that
         // occurrence has now been used. This arms the next one.
-        await resyncAlarmsQuietly();
+        await settled(resyncAlarmsQuietly());
       }
+      return true;
     },
     [],
   );
@@ -176,8 +205,7 @@ export function useRingingSession(
         expectLabel: current.name,
       });
 
-      await resolve('scan');
-      return true;
+      return await resolve('scan');
     } catch (err) {
       const failure = scanFailureText(err);
       if (failure && mounted.current) setMessage(failure);
@@ -193,34 +221,59 @@ export function useRingingSession(
    * completing: `completed_at` stays null, so the knowt still reads as not
    * done, but the session is resolved so the abandon path does not queue a
    * re-fire on top of the alarm this just armed.
+   *
+   * The alarm is armed before the deferral is written, which is the opposite
+   * of the order this used to run in. Arming is the part that can fail, and a
+   * snooze recorded against an alarm that was never set is a Knowt that reads
+   * as handled and never rings again. If it fails the screen says so and stays
+   * up, because the alarm is still going and closing on it would be the app
+   * quietly dropping the reminder.
    */
-  const remindIn = useCallback(async (minutes: number) => {
+  const remindIn = useCallback(async (minutes: number): Promise<boolean> => {
     const current = knowtRef.current;
-    if (!current) return;
-    if (eventIdRef.current) await addSnooze(eventIdRef.current);
+    if (!current) return false;
+
     resolvedRef.current = true;
     if (mounted.current) setResolved(true);
-    await rearmKnowtAlarm({
-      knowtId: current.id,
-      title: current.name,
-      minutes,
-      kind: 'snooze',
-      requiresScan: requiresScan(current.mode),
-    });
+
+    const armed = await settled(
+      rearmKnowtAlarm({
+        knowtId: current.id,
+        title: current.name,
+        minutes,
+        kind: 'snooze',
+        requiresScan: requiresScan(current.mode),
+        snoozeMinutes: current.snooze_minutes,
+      }),
+    );
+    if (!armed.ok) {
+      resolvedRef.current = false;
+      if (mounted.current) {
+        setResolved(false);
+        setMessage({
+          tone: 'danger',
+          text: `That could not be snoozed. ${describeError(armed.error)}`,
+        });
+      }
+      return false;
+    }
+
+    if (eventIdRef.current) await settled(addSnooze(eventIdRef.current));
+    return true;
   }, []);
 
   /** The quick one. Same mechanism, using the knowt's own snooze length. */
-  const snooze = useCallback(async () => {
+  const snooze = useCallback(async (): Promise<boolean> => {
     const current = knowtRef.current;
-    if (!current) return;
-    await remindIn(current.snooze_minutes);
+    if (!current) return false;
+    return await remindIn(current.snooze_minutes);
   }, [remindIn]);
 
   const complete = useCallback(
     (
       method: Extract<EventMethod, 'tap' | 'override'>,
       completedAt?: number,
-    ) => resolve(method, completedAt),
+    ): Promise<boolean> => resolve(method, completedAt),
     [resolve],
   );
 

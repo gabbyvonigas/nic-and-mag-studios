@@ -11,6 +11,8 @@ import {
   clearSnooze as clearNativeSnooze,
 } from 'expo-alarm-kit';
 
+import { bannerTitle, snoozeLabel, stopLabel } from './banner';
+import { describeError as describe } from './settle';
 import { theme } from '../theme';
 import {
   AlarmError,
@@ -35,16 +37,26 @@ const LAUNCH_APP_ON_DISMISS = true;
  * How the alarm looks on the Lock Screen.
  *
  * AlarmKit draws that banner; this app hands it text and colors, not a layout.
- * What can be set is the tint, the two button labels and their text colors.
- * Without a tint the module defaults to `Color.blue`, which is where the blue
- * came from: it was never chosen.
+ * What can be set is the title, the tint, the two button labels and their text
+ * colors. Without a tint the module defaults to `Color.blue`, which is where
+ * the blue came from: it was never chosen.
  *
  * The Stop label is the only place the banner can say a scan is needed, since
  * the button's SF Symbol is hardcoded in the module and the metadata type it
  * builds is empty, so no custom Live Activity view can be attached. See
  * design-notes.md for what that costs and what would lift it.
+ *
+ * `doSnoozeIntent` is the one that was wrong rather than merely unset. The
+ * module reads it as `false` by default and then passes `secondaryIntent: nil`,
+ * so the snooze button ran no App Intent of ours at all: AlarmKit restarted its
+ * own countdown and the patch that writes a snooze record into App Group
+ * storage never executed. Turning it on is what makes a Lock Screen snooze
+ * something the app can see on its next launch, which is what keeps it on Daily
+ * instead of reopening a ringing screen for something already answered.
+ *
+ * `launchAppOnSnooze` stays off. Snoozing must not open the app.
  */
-function brand(requiresScan?: boolean) {
+function brand(args: { requiresScan?: boolean; snoozeMinutes?: number }) {
   return {
     tintColor: theme.color.highlight,
     // Near-black on lime. White on lime is the one combination that fails:
@@ -52,17 +64,15 @@ function brand(requiresScan?: boolean) {
     // on the neon either.
     stopButtonColor: theme.color.onHighlight,
     snoozeButtonColor: theme.color.onHighlight,
-    stopButtonLabel: requiresScan ? 'Scan to stop' : 'Done',
-    snoozeButtonLabel: 'Snooze',
+    stopButtonLabel: stopLabel(args.requiresScan),
+    snoozeButtonLabel: snoozeLabel(args.snoozeMinutes ?? Number.NaN),
+    doSnoozeIntent: true,
+    // Seconds. The label above states this number, so they are set together or
+    // the button lies about how long it defers for.
+    ...(args.snoozeMinutes && args.snoozeMinutes >= 1
+      ? { snoozeDuration: Math.round(args.snoozeMinutes) * 60 }
+      : {}),
   };
-}
-
-function describe(err: unknown): string {
-  if (err instanceof Error) {
-    const name = err.constructor?.name || err.name || 'Error';
-    return err.message ? `${name}: ${err.message}` : name;
-  }
-  return String(err);
 }
 
 export const alarmScheduler: AlarmScheduler = {
@@ -99,7 +109,15 @@ export const alarmScheduler: AlarmScheduler = {
     }
   },
 
-  async scheduleAt({ title, firesAt, payload, requiresScan, soundName }: ScheduleRequest) {
+  async scheduleAt({
+    title,
+    firesAt,
+    payload,
+    requiresScan,
+    snoozeMinutes,
+    timeLabel,
+    soundName,
+  }: ScheduleRequest) {
     const id = generateUUID();
     let accepted = false;
 
@@ -107,13 +125,17 @@ export const alarmScheduler: AlarmScheduler = {
       accepted = await scheduleAlarm({
         id,
         epochSeconds: Math.floor(firesAt.getTime() / 1000),
-        title,
+        title: bannerTitle(title, timeLabel),
         launchAppOnDismiss: LAUNCH_APP_ON_DISMISS,
         dismissPayload: payload ?? undefined,
+        // The same Knowt id on both buttons. The snooze intent writes it into
+        // App Group storage, which is how a Lock Screen snooze names the Knowt
+        // it belongs to by the time the app next opens.
+        snoozePayload: payload ?? undefined,
         // Passed straight through to AlertSound.named(), which looks the name
         // up in the main bundle. The extension has to be in it.
         soundName: soundName ?? undefined,
-        ...brand(requiresScan),
+        ...brand({ requiresScan, snoozeMinutes }),
       });
     } catch (err) {
       throw new AlarmError('schedule-rejected', describe(err));
@@ -137,6 +159,8 @@ export const alarmScheduler: AlarmScheduler = {
     nextFiresAt,
     payload,
     requiresScan,
+    snoozeMinutes,
+    timeLabel,
   }: WeeklyScheduleRequest) {
     const id = generateUUID();
     let accepted = false;
@@ -149,10 +173,11 @@ export const alarmScheduler: AlarmScheduler = {
         // AlarmKit uses Sunday = 1, the same encoding as the schema, so the
         // days pass through unchanged. Verified against the module's types.
         weekdays,
-        title,
+        title: bannerTitle(title, timeLabel),
         launchAppOnDismiss: LAUNCH_APP_ON_DISMISS,
         dismissPayload: payload ?? undefined,
-        ...brand(requiresScan),
+        snoozePayload: payload ?? undefined,
+        ...brand({ requiresScan, snoozeMinutes }),
       });
     } catch (err) {
       throw new AlarmError('schedule-rejected', describe(err));

@@ -184,6 +184,18 @@ export function shouldPresentRinging(args: {
   );
   if (fired) return true;
 
+  // A snooze that has not come due is an answer, and the only way a snooze
+  // taken on the Lock Screen reaches the app at all: the module sets the same
+  // launch payload for Stop and for Snooze and gives no way to tell them apart,
+  // so without this, opening the app after putting something off reopened the
+  // ringing screen for it. A re-fire is deliberately not an answer here. The
+  // app armed that one itself, nobody said "later", and the one thing it must
+  // never do is suppress a ring the person did not ask it to.
+  const deferred = (args.oneShots ?? []).some(
+    (row) => row.kind === 'snooze' && row.fires_at > now.getTime(),
+  );
+  if (deferred) return false;
+
   const due = dueAndPassed(args.schedules, now);
   // Nothing has come due, so there is nothing that could already be done. An
   // alarm ringing anyway is one this app cannot account for, and it rings.

@@ -38,6 +38,13 @@ export const palette = {
    * at 4.22, so it is not used there.
    */
   neonTint: '#E9FB9C',
+  /**
+   * The palest step of the lime, straight from the branding. For the two
+   * reading cards on Log, which want to read as lime without competing with
+   * the figures on them. Near black is 17.79 on it and charcoal 10.72; the
+   * muted gray is 4.46, which is under the floor, so nothing uses it there.
+   */
+  neonPale: '#F1FFBE',
 
   /**
    * Every bar, arc and fill in a chart. Deliberately not `ink`: a solid black

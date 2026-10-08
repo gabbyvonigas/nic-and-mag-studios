@@ -77,6 +77,17 @@ export type WeeklyScheduleRequest = {
   /** Next time this will ring. Used only for the app's own record. */
   nextFiresAt: Date;
   payload?: string | null;
+  /**
+   * How long the Lock Screen's own Snooze defers for, in minutes.
+   *
+   * It is also what that button says, so the two cannot disagree. Left unset,
+   * the module defaults the countdown to nine minutes and the button to the
+   * bare word "Snooze", which is a number nobody chose and a button that does
+   * not say what it does.
+   */
+  snoozeMinutes?: number;
+  /** The wall clock this rings at, for the banner's own text. */
+  timeLabel?: string;
 };
 
 /** A snooze the app did not perform, read back from shared storage. */
@@ -104,6 +115,17 @@ export type ScheduleRequest = {
   requiresScan?: boolean;
   /** Round-tripped back through `consumeLaunch()` when the user taps Stop. */
   payload?: string;
+  /**
+   * How long the Lock Screen's own Snooze defers for, in minutes.
+   *
+   * It is also what that button says, so the two cannot disagree. Left unset,
+   * the module defaults the countdown to nine minutes and the button to the
+   * bare word "Snooze", which is a number nobody chose and a button that does
+   * not say what it does.
+   */
+  snoozeMinutes?: number;
+  /** See WeeklyScheduleRequest. */
+  timeLabel?: string;
 };
 
 export interface AlarmScheduler {
