@@ -29,12 +29,20 @@ import {
 import { Icon } from '../components/Icon';
 import { completeOccurrence } from '../knowts/completeOccurrence';
 import { openOccurrence } from '../knowts/completions';
-import { MODE_CHOICES, modeChoice, modeLabel, requiresScan } from '../knowts/modes';
+import {
+  requiresScan,
+  stopChoice,
+  stopChoiceOf,
+  stopLabelOf,
+  type StopChoice,
+} from '../knowts/modes';
+import { StopChoiceRow } from '../components/StopChoiceRow';
 import { buildSnoozed } from '../knowts/snoozed';
 import {
   archiveKnowt,
   attachTag,
   deleteKnowt,
+  deleteSchedule,
   detachTag,
   findKnowtByTagUid,
   reassignTag,
@@ -50,9 +58,12 @@ import {
   setPinned,
   TagInUseError,
   updateNotes,
-  type KnowtMode,
 } from '../db';
-import { askToDelete, sayTagFreed } from '../knowts/deletePrompt';
+import {
+  askToDelete,
+  askToDropSchedules,
+  sayTagFreed,
+} from '../knowts/deletePrompt';
 import { askToReassign, askToUnassign } from '../knowts/tagConflict';
 import { nfcFailureMessage, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
@@ -161,7 +172,16 @@ export function KnowtDetailScreen() {
       }
       await attachTag(knowt.id, tag.rawUid);
       await reload();
-      setNotice(`Tag attached. ${knowt.name} is now strict.`);
+      // The label, not the stored value. "is now strict" leaked a column into
+      // a sentence, and the word no longer names one thing anyway: with a
+      // schedule it is Scan + Alarm, without one it is Scan Knowt. Read after
+      // the reload, so it reports what the Knowt became.
+      const refreshed = await getKnowt(knowt.id);
+      setNotice(
+        refreshed
+          ? `Tag attached. ${refreshed.name} is now ${stopLabelOf(refreshed)}.`
+          : 'Tag attached.',
+      );
     } catch (err) {
       // Null only for backing out of the sheet, which is not a failure. Every
       // other reason says what happened; the copy is in `nfc/failureText.ts`.
@@ -172,11 +192,55 @@ export function KnowtDetailScreen() {
     }
   };
 
-  const changeMode = async (mode: KnowtMode) => {
+  /**
+   * Moving a Knowt between the three ways it can stop.
+   *
+   * Two of them store the same mode, so there is no single field to set. What
+   * separates Scan Knowt from Scan + Alarm is whether a schedule exists, which
+   * means each direction has to do the thing that makes the choice true:
+   * picking Scan Knowt removes the schedules, and picking either ringing option
+   * from Scan Knowt has to go and get a time, because the app never invents
+   * one.
+   */
+  const chooseStop = async (next: StopChoice) => {
     setNotice(null);
+    const want = stopChoice(next);
+    const current = stopChoiceOf(knowt);
+    if (next === current) return;
+
     try {
-      await setMode(knowt.id, mode);
+      if (!want.rings) {
+        // Removing schedules is real data and the only way to stop something
+        // ringing, so it asks. History survives: completions belong to the
+        // Knowt, not to the schedule that prompted them.
+        if (knowt.schedules.length > 0) {
+          if (!(await askToDropSchedules(knowt.name, knowt.schedules.length))) {
+            return;
+          }
+          for (const schedule of knowt.schedules) {
+            await deleteSchedule(schedule.id);
+          }
+        }
+        // Strict only if there is a tag to require, since `setMode` refuses it
+        // otherwise. Either way the Knowt is scan-only, because that is decided
+        // by having no schedule rather than by the mode.
+        await setMode(knowt.id, knowt.tag_uid ? 'strict' : 'open');
+        // The alarms armed for those schedules come down with them, or it keeps
+        // ringing for a schedule that no longer exists.
+        await resyncAlarmsQuietly();
+        await reload();
+        return;
+      }
+
+      await setMode(knowt.id, want.mode);
       await reload();
+
+      // It has to ring, and nothing can ring without a time. Backing out of
+      // that screen leaves it with no schedule, so it reads as Scan Knowt
+      // again, which is the honest outcome of not giving it one.
+      if (knowt.schedules.length === 0) {
+        navigation.navigate('EditSchedule', { knowtId: knowt.id });
+      }
     } catch (err) {
       setNotice(
         err instanceof ModeUnavailableError
@@ -329,7 +393,10 @@ export function KnowtDetailScreen() {
           {knowt.category ? (
             <Pill label={knowt.category.name} color={knowt.category.color} />
           ) : null}
-          <Pill label={modeLabel(knowt.mode)} />
+          {/* Reads from the Knowt rather than from its mode alone, because the
+              mode cannot tell Scan Knowt from Scan + Alarm: both store
+              `strict`, and what separates them is having no schedule. */}
+          <Pill label={stopLabelOf(knowt)} />
           {knowt.tag_uid ? <Pill label="Tagged" /> : <Pill label="No tag" />}
         </View>
 
@@ -406,53 +473,18 @@ export function KnowtDetailScreen() {
         ) : null}
 
         <Text style={styles.sectionTitle}>How it stops</Text>
-        <View style={styles.modeRow}>
-          {MODE_CHOICES.map((choice) => {
-            const selected = modeChoice(knowt.mode) === choice.value;
-            const blocked = choice.value === 'strict' && !knowt.tag_uid;
-            // One value for both, so the icon and its label always agree. The
-            // selected chip is lime, which is an active state and so is exactly
-            // what the neon is for, and near-black is the only thing that goes
-            // on top of it.
-            const tint = blocked
-              ? theme.color.textMuted
-              : selected
-                ? theme.color.onHighlight
-                : theme.color.textSecondary;
-            return (
-              <Pressable
-                key={choice.value}
-                accessibilityRole="button"
-                accessibilityLabel={choice.label}
-                accessibilityState={{ selected, disabled: blocked }}
-                disabled={blocked}
-                onPress={() => void changeMode(choice.value)}
-                style={[
-                  styles.modeChip,
-                  selected && styles.modeChipSelected,
-                  blocked && styles.modeChipBlocked,
-                ]}>
-                {choice.value === 'strict' ? (
-                  <Icon name="scan" size={16} color={tint} />
-                ) : (
-                  <Icon name="alarm" size={16} color={tint} />
-                )}
-                <Text
-                  style={[
-                    styles.modeText,
-                    selected && styles.modeTextSelected,
-                    blocked && styles.modeTextBlocked,
-                  ]}>
-                  {choice.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <StopChoiceRow
+          value={stopChoiceOf(knowt)}
+          tagged={!!knowt.tag_uid}
+          onChange={(next) => void chooseStop(next)}
+        />
+        {/* The selected option explains itself, rather than three columns of
+            small print competing for a hundred points of width each. */}
         <Text style={styles.hint}>
+          {stopChoice(stopChoiceOf(knowt)).detail}
           {knowt.tag_uid
-            ? 'Alarm Only can still be scanned if you want to, it just does not have to be.'
-            : 'Scan Knowt needs a tag attached first.'}
+            ? ''
+            : ' Scan + Alarm needs a tag attached first.'}
         </Text>
 
         <Button

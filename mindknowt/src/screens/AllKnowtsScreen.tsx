@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import { CategoryDot } from '../components/KnowtCard';
+import { isScanOnly, SCAN_ONLY_META } from '../knowts/scanOnly';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { Icon } from '../components/Icon';
 import { EmptyState, TabHeader } from '../components/ui';
@@ -134,7 +135,17 @@ function soonestFor(knowt: KnowtWithDetail, now: Date): Date | null {
 }
 
 /** Short enough for the right edge of a row: a time, a day, or a date. */
-function nextLabel(at: Date | null, now: Date): string {
+function nextLabel(
+  knowt: KnowtWithDetail,
+  at: Date | null,
+  now: Date,
+): string {
+  // Scan-only is asked first, because its pill is not about a date. "No
+  // schedule" is true of it and useless: it names what the Knowt lacks rather
+  // than what it is, and it reads identically to a Knowt someone forgot to
+  // finish setting up. A paused schedule keeps "No schedule", which is the
+  // honest thing to say about one.
+  if (isScanOnly(knowt)) return SCAN_ONLY_META;
   if (!at) return 'No schedule';
 
   const day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
@@ -197,7 +208,7 @@ function KnowtRow({
 
       <View style={styles.rowPill}>
         <Text style={[styles.rowNext, { color: shades.ink }]}>
-          {nextLabel(soonestFor(knowt, now), now)}
+          {nextLabel(knowt, soonestFor(knowt, now), now)}
         </Text>
       </View>
     </Pressable>

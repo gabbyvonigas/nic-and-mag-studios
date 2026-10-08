@@ -87,39 +87,3 @@ export function timedCompletions(
   );
   return events.filter((event) => !scanOnly.has(event.knowt_id));
 }
-
-/**
- * The choice between a Knowt that rings and one you scan when you pass it.
- *
- * The words live here rather than in the component that draws them, for the
- * reason `cardStatus` does: it is asked in two places, when a Knowt is created
- * and when it is edited, and copy worded one way on one screen and another way
- * on the other is two features as far as the person is concerned. Here it can
- * be asserted.
- *
- * It replaced a single pill reading "Scheduled" or "No schedule", which states
- * the absence of a thing rather than the presence of a different one. Having no
- * schedule is now a kind of Knowt, not a Knowt that is unfinished.
- */
-export type Timing = 'timed' | 'scan';
-
-export const TIMING_OPTIONS: {
-  id: Timing;
-  /** A name in the shared icon set. Never a bell on the one that never rings. */
-  icon: 'alarm' | 'scan';
-  label: string;
-  detail: string;
-}[] = [
-  {
-    id: 'timed',
-    icon: 'alarm',
-    label: 'Ring at a set time',
-    detail: 'An alarm goes off and keeps going until you scan the tag.',
-  },
-  {
-    id: 'scan',
-    icon: 'scan',
-    label: 'Scan only, no alarm',
-    detail: 'It waits on Daily all day. Scan its tag whenever you pass it.',
-  },
-];

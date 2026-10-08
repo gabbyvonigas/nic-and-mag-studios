@@ -430,6 +430,61 @@ as long as it had been on a screen that was not a white card.
 Check a fill against the surface it lands on before trusting it, and prefer a
 border for anything that has to read on both the page and a card.
 
+## Three buttons, two stored values
+
+How a Knowt stops is three choices and two columns:
+
+    Alarm Only     mode `open`,   has a schedule
+    Scan Knowt     no schedule    (the mode only decides the glyph)
+    Scan + Alarm   mode `strict`, has a schedule
+
+**"Scan Knowt" changed meaning and the stored values did not.** It used to mean
+"rings, and only the tag stops it". That behavior is now called "Scan + Alarm"
+and still stores `strict`, so every existing Knowt keeps working untouched and
+simply shows a different name. `SCHEMA_VERSION` did not move.
+
+`MODE_CHOICES` and `modeLabel` were **deleted rather than adjusted**, and that
+is the point: both answered from the mode alone, which can no longer tell Scan
+Knowt from Scan + Alarm, so leaving them would have let a chip go on rendering
+the old meaning against the new label. Anything that still reads them fails to
+compile. `stopChoiceOf` and `stopLabelOf` take the Knowt, not the mode, and ask
+`isScanOnly` first.
+
+Consequences worth not rediscovering:
+
+- **`strict` no longer names one thing.** Never render a label from the mode
+  column, and never put the word in a sentence: the tag-attached notice used to
+  read "is now strict".
+- **Only Scan + Alarm needs a tag.** Scan Knowt is choosable without one on
+  purpose, because it carries a manual "Mark done" and a way to attach one, so
+  it works before the tags arrive. An alarm that only a tag stops, with no tag,
+  is an alarm nothing stops. `setMode` refuses `strict` without a tag, so a
+  tagless Scan Knowt stores `open` and is scan-only by having no schedule.
+- **The choice is applied immediately, not on Save.** One of the three deletes
+  schedules, which is not a draft edit that can sit in local state. Attaching a
+  tag already worked this way for the same reason, and the Edit screen's
+  save-time `setMode` is gone.
+- **Switching into a ringing choice has to go and get a time**, because the app
+  never invents one. Backing out of that screen leaves no schedule, so it reads
+  as Scan Knowt again, which is the honest outcome of not giving it one.
+- **The three buttons replaced the `TimingChoice` pair**, which asked the same
+  question in different words. Two controls for one question can contradict
+  each other, so the component was deleted.
+- The ringing screen's scan buttons say "Scan the tag". They are an action, and
+  leaving them reading "Scan Knowt" would name one of the three modes on a
+  button that changes none of them.
+- The Knowts list pill says "Scan only" for a scan-only Knowt. A paused
+  schedule keeps "No schedule", which is honest about that one.
+
+**The width is the constraint, and it is tight.** The three labels were chosen
+to be within two characters of each other for this reason. Three cards share
+the row, which on the Setup step card at 375pt leaves about 91pt of text each,
+and "Scan + Alarm" measures about 85pt at 14pt. So `StopChoiceRow` puts the
+icon above the label rather than beside it, carries no horizontal padding,
+holds the label to one line with a 0.85 shrink floor, and fixes `lineHeight` so
+a card whose label shrank is still as tall as the other two.
+`stopchoices.test.ts` measures the labels against that column.
+
 ## Scan-only Knowts have no column
 
 A Knowt that never rings is one with no schedule rows. That is all it is.

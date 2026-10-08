@@ -15,7 +15,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resyncAlarmsQuietly } from '../alarms';
-import { Icon } from '../components/Icon';
 import { TimePicker } from '../components/TimePicker';
 import { Button, SubScreenHeader } from '../components/ui';
 import {
@@ -26,11 +25,10 @@ import {
   reassignTag,
   listCategories,
   toISODate,
-  type KnowtMode,
 } from '../db';
 import { useQuery } from '../db/useQuery';
 import { MonthCalendar } from '../components/MonthCalendar';
-import { TimingChoice } from '../components/TimingChoice';
+import { StopChoiceRow } from '../components/StopChoiceRow';
 import {
   clockLabel,
   dayLabel,
@@ -39,6 +37,7 @@ import {
   occursOn,
 } from '../knowts/occurrences';
 import { REPEAT_PRESETS, shapeFor, type RepeatPresetId } from '../knowts/repeats';
+import { stopChoice, type StopChoice } from '../knowts/modes';
 import { askToReassign } from '../knowts/tagConflict';
 import { nfcFailureMessage, nfcReader } from '../nfc';
 import { categoryShades, theme } from '../theme';
@@ -101,7 +100,16 @@ export function SetupKnowtScreen() {
     params.categoryId ?? null,
   );
 
-  const [scheduled, setScheduled] = useState(true);
+  /**
+   * How it stops, which is also whether it has a schedule at all.
+   *
+   * One piece of state for both, because they are one question. Scan Knowt
+   * means no schedule, so step 2 has nothing to ask and collapses to a line.
+   * The time and repeat values are kept rather than cleared, so switching back
+   * returns what was already picked instead of throwing it away.
+   */
+  const [stops, setStops] = useState<StopChoice>('alarm');
+  const scheduled = stopChoice(stops).rings;
   const [time, setTime] = useState('08:00');
   const [preset, setPreset] = useState<RepeatPresetId>('daily');
   const [days, setDays] = useState<number[]>([]);
@@ -119,7 +127,7 @@ export function SetupKnowtScreen() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
-  const [mode, setMode] = useState<KnowtMode>('open');
+
   const [tagUid, setTagUid] = useState<string | null>(null);
   /** Set when the chosen tag has to be taken off another knowt on save. */
   const [takeFrom, setTakeFrom] = useState<{ uid: string; owner: string } | null>(
@@ -191,7 +199,10 @@ export function SetupKnowtScreen() {
         setTakeFrom({ uid: tag.rawUid, owner: owner.name });
       }
       setTagUid(tag.rawUid);
-      setMode('strict');
+      // A tag arriving promotes Alarm Only to Scan + Alarm, which is what
+      // attaching one has always meant. It leaves Scan Knowt alone: that
+      // choice is about having no alarm, and a tag does not change it.
+      setStops((current) => (current === 'alarm' ? 'both' : current));
     } catch (err) {
       const failure = nfcFailureMessage(err);
       if (failure) setNotice(failure.text);
@@ -212,7 +223,10 @@ export function SetupKnowtScreen() {
         name: name.trim(),
         categoryId,
         notes: params.notes ?? null,
-        mode: tagUid && !takeFrom ? mode : 'open',
+        // Strict only when there is a tag on the row to require. A tag still
+        // held by another Knowt is moved below, so it is not attached yet and
+        // `setMode` would refuse it.
+        mode: tagUid && !takeFrom ? stopChoice(stops).mode : 'open',
         // A tag still held by another knowt cannot be written here: tag_uid is
         // unique. The row is created without it and the move runs below.
         tagUid: takeFrom ? null : tagUid,
@@ -309,14 +323,7 @@ export function SetupKnowtScreen() {
           <Step
             index={2}
             title="When it happens"
-            note="Either it rings at a time you pick, or you scan it when you pass it.">
-            <TimingChoice
-              value={scheduled ? 'timed' : 'scan'}
-              onChange={(next) => {
-                Keyboard.dismiss();
-                setScheduled(next === 'timed');
-              }}
-            />
+            note="Pick a time and how often it comes back around.">
 
             {scheduled ? (
               <>
@@ -409,10 +416,12 @@ export function SetupKnowtScreen() {
                 </Text>
               </>
             ) : (
+              // Step 3 is what emptied this one, so it says where the control
+              // is rather than leaving a step that looks broken.
               <Text style={styles.stepNote}>
-                It will sit on Daily every day under Anytime today, and stays
-                there until you scan its tag. Nothing is scheduled, so nothing
-                rings. You can give it a time later.
+                Scan Knowt has no alarm, so there is no time to pick. It will
+                sit on Daily every day under Anytime today until you scan its
+                tag. Choose Alarm Only or Scan + Alarm below to give it a time.
               </Text>
             )}
           </Step>
@@ -422,57 +431,15 @@ export function SetupKnowtScreen() {
             title="How it stops"
             note="This is the part that makes MindKnowt work. Put a tag where the
                   thing actually lives, and the alarm only stops when you are there.">
-            <View style={styles.modeRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: mode === 'strict', disabled: !tagUid }}
-                disabled={!tagUid}
-                onPress={() => setMode('strict')}
-                style={[
-                  styles.modeCard,
-                  mode === 'strict' && styles.modeCardOn,
-                  !tagUid && styles.modeCardOff,
-                ]}>
-                <Icon name="scan"
-                  size={20}
-                  color={
-                    !tagUid
-                      ? theme.color.textMuted
-                      : mode === 'strict'
-                        ? theme.color.onHighlight
-                        : theme.color.textPrimary
-                  } />
-                <Text
-                  style={[
-                    styles.modeLabel,
-                    mode === 'strict' && styles.modeLabelOn,
-                    !tagUid && styles.modeLabelOff,
-                  ]}>
-                  Scan Knowt
-                </Text>
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: mode !== 'strict' }}
-                onPress={() => setMode('open')}
-                style={[styles.modeCard, mode !== 'strict' && styles.modeCardOn]}>
-                <Icon name="alarm"
-                  size={20}
-                  color={
-                    mode !== 'strict'
-                      ? theme.color.onHighlight
-                      : theme.color.textPrimary
-                  } />
-                <Text
-                  style={[
-                    styles.modeLabel,
-                    mode !== 'strict' && styles.modeLabelOn,
-                  ]}>
-                  Alarm Only
-                </Text>
-              </Pressable>
-            </View>
+            <StopChoiceRow
+              value={stops}
+              tagged={!!tagUid}
+              onChange={(next) => {
+                Keyboard.dismiss();
+                setStops(next);
+              }}
+            />
+            <Text style={styles.stepNote}>{stopChoice(stops).detail}</Text>
 
             {tagUid ? (
               <View style={styles.tagged}>
@@ -487,7 +454,10 @@ export function SetupKnowtScreen() {
                   onPress={() => {
                     setTagUid(null);
                     setTakeFrom(null);
-                    setMode('open');
+                    // Scan + Alarm cannot survive losing its tag: an alarm that
+                    // only a tag stops, with no tag, is one nothing stops.
+                    // Scan Knowt can, because it carries a manual Mark done.
+                    if (stops === 'both') setStops('alarm');
                   }}>
                   <Text style={styles.link}>Remove it</Text>
                 </Pressable>
@@ -501,8 +471,9 @@ export function SetupKnowtScreen() {
                   onPress={() => void scan()}
                 />
                 <Text style={styles.stepNote}>
-                  No tag yet? Alarm Only works now, and you can attach one from
-                  this knowt whenever the tags arrive.
+                  No tag yet? Alarm Only and Scan Knowt both work now, and you
+                  can attach one from this Knowt whenever the tags arrive. Only
+                  Scan + Alarm needs one up front.
                 </Text>
               </>
             )}
@@ -603,46 +574,6 @@ const styles = StyleSheet.create({
     color: theme.color.textSecondary,
   },
   chipTextOn: { color: theme.color.onHighlight },
-  toggle: {
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: theme.radius.pill,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-  },
-  toggleOn: {
-    backgroundColor: theme.color.highlight,
-    borderColor: theme.color.highlight,
-  },
-  toggleText: {
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.md,
-    color: theme.color.textPrimary,
-  },
-  toggleTextOn: { color: theme.color.onHighlight },
-  modeRow: { flexDirection: 'row', gap: theme.spacing.sm },
-  modeCard: {
-    flex: 1,
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: theme.radius.lg,
-    paddingVertical: theme.spacing.lg,
-  },
-  modeCardOn: {
-    backgroundColor: theme.color.highlight,
-    borderColor: theme.color.highlight,
-  },
-  modeCardOff: { backgroundColor: theme.color.background },
-  modeLabel: {
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textPrimary,
-  },
-  modeLabelOn: { color: theme.color.onHighlight },
-  modeLabelOff: { color: theme.color.textMuted },
   tagged: { gap: theme.spacing.xs, alignItems: 'flex-start' },
   taggedText: {
     fontFamily: theme.font.face.medium,

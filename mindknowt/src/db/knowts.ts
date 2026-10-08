@@ -337,10 +337,11 @@ export async function attachTag(
     throw new TagInUseError(owner.name);
   }
 
-  // Attaching a tag is a promotion, so the result is Scan Knowt. With only two
-  // modes left there is nothing else it could become: Alarm Only is what a
-  // knowt already is before it has a tag. The set's suggestion no longer needs
-  // consulting, because it can only have said the same thing.
+  // Attaching a tag is a promotion, so the result is the strict mode: Scan +
+  // Alarm on a knowt that rings, Scan Knowt on one with no schedule. With only
+  // two stored modes left there is nothing else it could become, since Alarm
+  // Only is what a knowt already is before it has a tag. The set's suggestion
+  // no longer needs consulting, because it can only have said the same thing.
   const target: KnowtMode = mode ?? 'strict';
 
   const db = await getDatabase();
@@ -359,7 +360,7 @@ export async function attachTag(
  * thousands, so a tag is a reusable label, not a one-time pairing. Treating a
  * conflict as a dead end meant a tag stuck on the wrong jar stayed stuck.
  *
- * The knowt that loses the tag falls back to Alarm Only, because Scan Knowt
+ * The knowt that loses the tag falls back to Alarm Only, because the strict
  * with nothing to scan is a knowt that can never be stopped.
  */
 export async function reassignTag(
@@ -462,14 +463,19 @@ export async function listTagged(): Promise<KnowtWithDetail[]> {
   return attachDetail(rows);
 }
 
-/** Scan Knowt requires a tag. Alarm Only does not. */
+/**
+ * Scanning requires a tag. Alarm Only does not.
+ *
+ * `strict` is what both Scan Knowt and Scan + Alarm store, so this one check
+ * covers both, and the message names neither: it says what is missing.
+ */
 export async function setMode(knowtId: string, mode: KnowtMode): Promise<void> {
   const knowt = await getKnowt(knowtId);
   if (!knowt) return;
 
   if (mode !== 'open' && !knowt.tag_uid) {
     throw new ModeUnavailableError(
-      'Scan Knowt needs a tag. Add a tag to this Knowt first.',
+      'Scanning needs a tag. Attach a Knowt Tag to this Knowt first.',
     );
   }
 

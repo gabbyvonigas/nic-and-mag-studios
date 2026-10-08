@@ -3,7 +3,10 @@
 /**
  * What it takes to finish a knowt.
  *
- * `strict` is Scan Knowt: only the right tag stops it. `open` is Alarm Only:
+ * `strict` means only the right tag finishes it. On a knowt with a schedule
+ * that reads as Scan + Alarm, and on one with none it reads as Scan Knowt,
+ * which is why the label cannot be worked out from this column alone. `open`
+ * is Alarm Only:
  * it rings and can be dismissed, and if a tag happens to be attached it can
  * still be scanned by choice.
  *

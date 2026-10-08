@@ -369,7 +369,7 @@ export function RingingScreen() {
             tagged ? (
               <>
                 <Button
-                  label={scanning ? 'Scanning' : 'Scan Knowt'}
+                  label={scanning ? 'Scanning' : 'Scan the tag'}
                   disabled={scanning}
                   onPress={() => void finish(scanToStop)}
                 />
@@ -406,7 +406,7 @@ export function RingingScreen() {
             <>
               {scanRequired ? (
                 <Button
-                  label={scanning ? 'Scanning' : 'Scan Knowt'}
+                  label={scanning ? 'Scanning' : 'Scan the tag'}
                   disabled={scanning}
                   onPress={() => void finish(scanToStop)}
                 />
@@ -419,7 +419,7 @@ export function RingingScreen() {
 
               {!scanRequired && scanOffered ? (
                 <Button
-                  label={scanning ? 'Scanning' : 'Scan Knowt instead'}
+                  label={scanning ? 'Scanning' : 'Scan the tag instead'}
                   variant="secondary"
                   disabled={scanning}
                   onPress={() => void finish(scanToStop)}

@@ -91,9 +91,9 @@ export async function previewSet(setId: string): Promise<SetPreview | null> {
 }
 
 /**
- * Creates real knowts from a set. Everything starts as Alarm Only, because Scan
- * Knowt needs a tag and these have none yet. The set's suggestion is stored for
- * when one is attached.
+ * Creates real knowts from a set. Everything starts as Alarm Only, because the
+ * two modes that need a tag cannot be set without one and these have none yet.
+ * The set's suggestion is stored for when one is attached.
  */
 export type SetSelection = {
   name: string;

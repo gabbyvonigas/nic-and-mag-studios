@@ -1,0 +1,106 @@
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { Icon } from './Icon';
+import { STOP_CHOICES, type StopChoice } from '../knowts/modes';
+import { theme } from '../theme';
+
+/**
+ * The three ways a Knowt can stop, in one row.
+ *
+ * One component for all three screens that ask, because the question is asked
+ * when a Knowt is created, when it is edited and from its own detail screen,
+ * and a choice worded or sized one way on one screen and another way on the
+ * next is three features as far as the person is concerned. The words are in
+ * `knowts/modes.ts`, where they can be asserted.
+ *
+ * **The width is the constraint.** Three cards share the row, which on a 375pt
+ * iPhone leaves roughly 100pt of text each, and "Scan + Alarm" measures about
+ * 85pt at 14pt. That is a fit with little to spare, so three things hold it:
+ * the icon sits above the label rather than beside it, so it takes none of that
+ * width; the label is held to one line and allowed to shrink to 0.85 rather
+ * than truncate; and `lineHeight` is fixed, so a card whose label shrank is
+ * still exactly as tall as the other two.
+ */
+export function StopChoiceRow({
+  value,
+  tagged,
+  onChange,
+}: {
+  value: StopChoice;
+  /** Whether a tag is attached. Scan + Alarm cannot be chosen without one. */
+  tagged: boolean;
+  onChange: (next: StopChoice) => void;
+}) {
+  return (
+    <View style={styles.row}>
+      {STOP_CHOICES.map((choice) => {
+        const on = value === choice.value;
+        const blocked = choice.needsTag && !tagged;
+        const tint = blocked
+          ? theme.color.textMuted
+          : on
+            ? theme.color.onHighlight
+            : theme.color.textSecondary;
+        return (
+          <Pressable
+            key={choice.value}
+            accessibilityRole="button"
+            accessibilityLabel={choice.label}
+            accessibilityHint={choice.detail}
+            accessibilityState={{ selected: on, disabled: blocked }}
+            disabled={blocked}
+            onPress={() => onChange(choice.value)}
+            style={[
+              styles.card,
+              on && styles.cardOn,
+              blocked && styles.cardBlocked,
+            ]}>
+            <Icon name={choice.icon} size={18} color={tint} />
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+              style={[
+                styles.label,
+                on && styles.labelOn,
+                blocked && styles.labelBlocked,
+              ]}>
+              {choice.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', gap: theme.spacing.sm },
+  card: {
+    flex: 1,
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.md,
+    // No horizontal padding on purpose: every point of it comes off the label,
+    // and "Scan + Alarm" has none to spare.
+  },
+  cardOn: {
+    backgroundColor: theme.color.highlight,
+    borderColor: theme.color.highlight,
+  },
+  cardBlocked: { backgroundColor: theme.color.surfaceMuted },
+  label: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    // Fixed, so a label that shrank to fit still leaves its card the same
+    // height as the other two.
+    lineHeight: 18,
+    color: theme.color.textPrimary,
+    textAlign: 'center',
+  },
+  labelOn: { color: theme.color.onHighlight },
+  labelBlocked: { color: theme.color.textMuted },
+});

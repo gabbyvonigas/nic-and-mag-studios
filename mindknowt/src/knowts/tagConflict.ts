@@ -25,7 +25,7 @@ export function askToReassign(ownerName: string, toName: string): Promise<boolea
   });
 }
 
-/** Confirms freeing a tag, which costs the knowt its Scan Knowt mode. */
+/** Confirms freeing a tag, which costs the knowt the mode that needs one. */
 export function askToUnassign(knowtName: string): Promise<boolean> {
   return new Promise((resolve) => {
     Alert.alert(

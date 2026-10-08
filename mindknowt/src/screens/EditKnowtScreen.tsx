@@ -21,10 +21,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resyncAlarmsQuietly } from '../alarms';
 import { Icon } from '../components/Icon';
-import { TimingChoice, type Timing } from '../components/TimingChoice';
 import { PriorityBars } from '../components/KnowtCard';
 import { Button, SubScreenHeader } from '../components/ui';
-import { MODE_CHOICES, modeChoice } from '../knowts/modes';
+import {
+  stopChoice,
+  stopChoiceOf,
+  type StopChoice,
+} from '../knowts/modes';
+import { StopChoiceRow } from '../components/StopChoiceRow';
 import { isScanOnly } from '../knowts/scanOnly';
 import {
   attachTag,
@@ -43,7 +47,6 @@ import {
   PRIORITY_NORMAL,
   setMode,
   updateKnowt,
-  type KnowtMode,
 } from '../db';
 import { askToDropSchedules } from '../knowts/deletePrompt';
 import { askToReassign, askToUnassign } from '../knowts/tagConflict';
@@ -55,10 +58,6 @@ import type { RootStackParamList } from '../navigation/types';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 /** Icon and label share one color, and the chosen one sits on lime. */
-function optionTint(selected: boolean, blocked: boolean): string {
-  if (blocked) return theme.color.textMuted;
-  return selected ? theme.color.onHighlight : theme.color.textPrimary;
-}
 type Route = RouteProp<RootStackParamList, 'EditKnowt'>;
 
 export function EditKnowtScreen() {
@@ -75,7 +74,7 @@ export function EditKnowtScreen() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [locationNote, setLocationNote] = useState('');
   const [notes, setNotes] = useState('');
-  const [mode, setModeChoice] = useState<KnowtMode>('open');
+
   const [priority, setPriority] = useState<number>(PRIORITY_NORMAL);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -90,7 +89,6 @@ export function EditKnowtScreen() {
     setCategoryId(knowt.category_id);
     setLocationNote(knowt.location_note ?? '');
     setNotes(knowt.notes ?? '');
-    setModeChoice(modeChoice(knowt.mode));
     setPriority(knowt.priority);
     setLoaded(true);
   }, [knowt, loaded]);
@@ -105,41 +103,76 @@ export function EditKnowtScreen() {
 
   const tagged = !!knowt?.tag_uid;
   const scanOnly = !!knowt && isScanOnly(knowt);
+  const stops: StopChoice = knowt ? stopChoiceOf(knowt) : 'alarm';
 
   /**
-   * Switching between ringing and scan only.
+   * Moving a Knowt between the three ways it can stop.
    *
-   * There is no flag to set, because a scan-only Knowt is one with no
-   * schedules. So each direction does the thing that makes the choice true:
-   * picking scan only removes the schedules, which is the only way to stop
-   * something ringing, and picking a set time goes to the screen that adds
-   * one. Removing schedules is real data, so it asks first; the Knowt's
-   * history is untouched, since completions belong to the Knowt.
+   * Two of them store the same mode, so there is no single field to set. What
+   * separates Scan Knowt from Scan + Alarm is whether a schedule exists, which
+   * means each direction has to do the thing that makes the choice true:
+   * picking Scan Knowt removes the schedules, and picking either ringing option
+   * from Scan Knowt has to go and get a time, because the app never invents
+   * one.
+   *
+   * The same handler is on the detail screen. Kept as two short copies rather
+   * than lifted into a hook, because the two screens differ in where they
+   * report a failure and what they reload, and a hook taking four callbacks
+   * would be longer than both.
    */
-  const chooseTiming = async (next: Timing) => {
+  const chooseStop = async (next: StopChoice) => {
     if (!knowt) return;
-    if (next === 'scan') {
-      if (knowt.schedules.length === 0) return;
-      if (!(await askToDropSchedules(knowt.name, knowt.schedules.length))) {
+    const want = stopChoice(next);
+    if (next === stopChoiceOf(knowt)) return;
+    setError(null);
+
+    try {
+      if (!want.rings) {
+        // Removing schedules is real data and the only way to stop something
+        // ringing, so it asks. History survives: completions belong to the
+        // Knowt, not to the schedule that prompted them.
+        if (knowt.schedules.length > 0) {
+          if (!(await askToDropSchedules(knowt.name, knowt.schedules.length))) {
+            return;
+          }
+          for (const schedule of knowt.schedules) {
+            await deleteSchedule(schedule.id);
+          }
+        }
+        // Strict only if there is a tag to require, since `setMode` refuses it
+        // otherwise. Either way it is scan-only, because that is decided by
+        // having no schedule rather than by the mode.
+        await setMode(knowt.id, knowt.tag_uid ? 'strict' : 'open');
+        // The alarms armed for those schedules come down with them, or it
+        // keeps ringing for a schedule that no longer exists.
+        await resyncAlarmsQuietly();
+        await reload();
         return;
       }
-      setError(null);
-      for (const schedule of knowt.schedules) {
-        await deleteSchedule(schedule.id);
-      }
-      // The alarms armed for those schedules have to come down with them, or
-      // the Knowt keeps ringing for a schedule that no longer exists.
-      await resyncAlarmsQuietly();
+
+      await setMode(knowt.id, want.mode);
       await reload();
-      return;
+
+      // It has to ring, and nothing can ring without a time. Backing out of
+      // that screen leaves it with no schedule, so it reads as Scan Knowt
+      // again, which is the honest outcome of not giving it one.
+      if (knowt.schedules.length === 0) {
+        navigation.navigate('EditSchedule', { knowtId: knowt.id });
+      }
+    } catch (err) {
+      setError(
+        err instanceof ModeUnavailableError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err),
+      );
     }
-    if (knowt.schedules.length > 0) return;
-    navigation.navigate('EditSchedule', { knowtId: knowt.id });
   };
 
   /**
    * Attaching lived only on the detail screen, which meant the editor could
-   * offer Scan Knowt, refuse it for want of a tag, and give no way to fix that
+   * offer Scan + Alarm, refuse it for want of a tag, and give no way to fix that
    * without leaving. It writes straight through rather than waiting for Save,
    * the same as it does on detail: the tag is a fact about the hardware, not a
    * draft edit, and the mode buttons above have to unlock the moment it lands.
@@ -174,7 +207,6 @@ export function EditKnowtScreen() {
     if (!knowt) return;
     setSaving(true);
     setError(null);
-    let problem: string | null = null;
 
     try {
       await updateKnowt(knowt.id, {
@@ -185,25 +217,14 @@ export function EditKnowtScreen() {
         priority,
       });
 
-      if (mode !== knowt.mode) {
-        try {
-          await setMode(knowt.id, mode);
-        } catch (err) {
-          if (err instanceof ModeUnavailableError) {
-            // Everything else saved. Say what did not, rather than rolling the
-            // whole edit back over one field. Held in a local because the
-            // captured `error` is still the value from this render.
-            problem = err.message;
-            setError(err.message);
-          } else {
-            throw err;
-          }
-        }
-      }
+      // How it stops is not saved here. It is applied the moment it is
+      // chosen, because one of the three options deletes schedules and that
+      // cannot sit in local state waiting for a button. The same reasoning
+      // already applied to attaching a tag.
 
       // The name is the alarm's title, so an armed alarm is stale until this.
       await resyncAlarmsQuietly();
-      if (!problem) navigation.goBack();
+      navigation.goBack();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -288,47 +309,18 @@ export function EditKnowtScreen() {
           </Pressable>
 
           <Text style={styles.label}>How it stops</Text>
-          {MODE_CHOICES.map((option) => {
-            const on = mode === option.value;
-            const blocked = option.value !== 'open' && !tagged;
-            return (
-              <Pressable
-                key={option.value}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on, disabled: blocked }}
-                disabled={blocked}
-                onPress={() => setModeChoice(option.value)}
-                style={[
-                  styles.option,
-                  on && styles.optionOn,
-                  blocked && styles.optionBlocked,
-                ]}>
-                <View style={styles.optionHead}>
-                  {option.value === 'strict' ? (
-                    <Icon name="scan" size={18} color={optionTint(on, blocked)} />
-                  ) : (
-                    <Icon name="alarm" size={18} color={optionTint(on, blocked)} />
-                  )}
-                  <Text
-                    style={[
-                      styles.optionLabel,
-                      on && styles.optionLabelOn,
-                      blocked && styles.optionTextBlocked,
-                    ]}>
-                    {option.label}
-                  </Text>
-                </View>
-                <Text
-                  style={[
-                    styles.optionDetail,
-                    on && styles.optionDetailOn,
-                    blocked && styles.optionTextBlocked,
-                  ]}>
-                  {blocked ? 'Needs a tag attached first.' : option.detail}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {/* Applied immediately rather than on Save, the same as attaching a
+              tag just above. Scan Knowt deletes schedules, which is not a draft
+              edit that can sit in local state waiting for a button. */}
+          <StopChoiceRow
+            value={stops}
+            tagged={tagged}
+            onChange={(next) => void chooseStop(next)}
+          />
+          <Text style={styles.hint}>
+            {stopChoice(stops).detail}
+            {tagged ? '' : ' Scan + Alarm needs a tag attached first.'}
+          </Text>
 
           <Button
             label={tagged ? 'Replace the Knowt tag' : 'Add a Knowt tag to scan'}
@@ -343,15 +335,6 @@ export function EditKnowtScreen() {
           ) : null}
 
           <Text style={styles.label}>When it happens</Text>
-          {/* Read from the data rather than held in state, so the choice cannot
-              disagree with what the Knowt actually is. Picking the other option
-              is what makes it true: one side adds a schedule, the other removes
-              them, which is the only thing that stops something ringing. */}
-          <TimingChoice
-            value={scanOnly ? 'scan' : 'timed'}
-            onChange={(next) => void chooseTiming(next)}
-          />
-
           {scanOnly ? (
             <Text style={styles.hint}>
               No alarm. It sits on Daily every day under Anytime today until
@@ -547,11 +530,6 @@ const styles = StyleSheet.create({
     color: theme.color.textPrimary,
   },
   chipTextOn: { color: theme.color.onAccent },
-  optionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
   priorityRow: { flexDirection: 'row', gap: theme.spacing.sm },
   priority: {
     flex: 1,
@@ -573,32 +551,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.medium,
     color: theme.color.textPrimary,
   },
-  option: {
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing.md,
-    backgroundColor: theme.color.surface,
-    gap: 2,
-  },
-  optionOn: {
-    borderColor: theme.color.highlight,
-    backgroundColor: theme.color.highlight,
-  },
-  optionBlocked: { backgroundColor: theme.color.surfaceMuted },
-  optionLabel: {
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.md,
-    color: theme.color.textPrimary,
-  },
-  optionLabelOn: { color: theme.color.onHighlight },
-  optionDetail: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
-  },
-  optionDetailOn: { color: theme.color.onHighlight },
-  optionTextBlocked: { color: theme.color.textMuted },
   addRow: {
     borderWidth: 1,
     borderStyle: 'dashed',
