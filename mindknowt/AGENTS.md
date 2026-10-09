@@ -423,21 +423,66 @@ file.** `BRAND_ICONS` in `Icon.tsx` maps a name to a `require`d PNG, and
 `brandmark.test.ts` walks `src/` and fails if anything does.
 
 Each one must be a single color image with an alpha channel, because it is
-painted with `tintColor` exactly as a glyph is painted with `color`, and it
-must be centered in a square canvas, because the component places it with
-`resizeMode="contain"` in a square box and relies on that. The tag mark is 512
-square with 393 by 463 of ink, centered to within half a pixel. The test
-measures both, so an asset swapped for an off-center or multi-color one fails
-rather than quietly sitting wrong next to the text.
+painted with `tintColor` exactly as a glyph is painted with `color`, and its
+ink must be centered in a square canvas. The tag mark is 512 square with 393
+by 463 of ink, centered to within half a pixel. The test measures both, so an
+asset swapped for an off-center or multi-color one fails rather than quietly
+sitting wrong next to the text.
 
 Brand marks are not scaled with the system font size, for the same reason no
 other icon here is: a row where one glyph grew and the next did not reads
-worse than one where neither did. Centering survives a larger text size
-anyway, because the rows that hold them use `alignItems: 'center'`, which
-centers against the text's line box rather than a fixed height.
+worse than one where neither did.
 
 Sizes come from `ICON_SIZE`: `hint` 12, `row` 16, `button` 20, `header` 22,
-`tile` 24. Pass `role`, not `size`, unless there is a reason.
+`tile` 24. Pass `role`, not `size`, unless there is a reason, and the reason
+is usually the one below.
+
+## A glyph is sized by the text it stands next to
+
+`size` is the em box, and a mark and a glyph do not fill their boxes the same
+way: an Ionicon's ink is 75.4 percent of its box and the tag mark's is 90.4
+percent of its canvas. Drawn at the same `size` they are not the same height,
+and centered on a line they do not stand on the same edge. Three separate
+reports came out of that one fact: the mark floated above the name it sat
+beside, it looked taller and thinner than the alarm next to it on the Mode
+row, and the one chip with a glyph in it stood two and a half points above
+the chips either side.
+
+`src/components/iconMetrics.ts` holds the measurements and the arithmetic,
+and `alignment.test.ts` re-measures the font and both PNGs rather than
+quoting them, so an icon-set upgrade or a swapped asset fails there.
+
+- **`Icon` gives a brand mark a box that is its ink**, worked out so the ink
+  comes out exactly as tall as an Ionicon's at the same `size`. The image is
+  absolutely positioned inside it by the asset's own padding, which overhangs
+  the box. So `size` means one thing for both kinds, and a row's `gap` is
+  measured from the drawing rather than from transparent canvas.
+- **Rows that mix the two use `alignItems: 'baseline'`, never `'center'`.**
+  `alarm-outline`'s ink ends exactly on the baseline, and a mark's box bottom
+  is its ink bottom, and Yoga aligns a view with no in-flow children by its
+  bottom edge. So everything on the line stands on one edge with nothing to
+  tune, at any text size. A button is the exception: baseline on a 52 point
+  box stacks the pair against the top of it, so the icon and the label go in
+  an inner row that the button centers.
+- **Size from the text, through `iconSizeForText(fontSize, band)`**, not from
+  a number at the call site. `BAND.ascender` is a glyph beside a name, top at
+  the height of b, l and k. `BAND.chip` is cap height and a little, which is
+  under the line the word already draws, which is what keeps every chip the
+  same height whether or not it has a glyph.
+- **Stroke weight is part of matching, and it lives in the asset.** Ionicons
+  outline is drawn at 32 units on a 512 em box, 6.25 percent, and the supplied
+  mark is 22, 4.30 percent, so at small sizes it read as a paler icon next to
+  glyphs that do not change. `mindknowt-tag-mark-heavy.png` is the same
+  artwork with its alpha dilated to a 32 unit stroke and scaled back into the
+  same ink box, so one set of metrics places either file and only the weight
+  differs. `Icon` draws it under `HEAVY_BELOW` (24) and the supplied one at
+  and above, where the difference stops showing.
+- **A pin, a badge or anything else in front of a name moves the name.** The
+  pin glyph in the Knowts list cost 15 points in front of the name, so pinned
+  and unpinned rows did not share a left edge. Reserving the slot in every row
+  straightens the edge by taking those 15 points off every name instead, so
+  the pin is a badge on the corner of the category icon: it costs nothing and
+  it sits on the thing that is pinned.
 
 ## A row's colors belong to the row
 

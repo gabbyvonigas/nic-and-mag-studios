@@ -9,7 +9,15 @@ import {
 } from 'react-native';
 
 import { Icon, type IconName } from './Icon';
+import { BAND, iconSizeForText } from './iconMetrics';
 import { theme } from '../theme';
+
+/**
+ * Glyphs are sized to the text they stand beside, never to a number of their
+ * own, so a chip or a button is exactly as tall with a glyph as without one.
+ */
+const CHIP_GLYPH = iconSizeForText(theme.font.size.xs, BAND.chip);
+const BUTTON_GLYPH = iconSizeForText(theme.font.size.lg, BAND.ascender);
 
 /**
  * The wordmark, as the supplied artwork.
@@ -160,16 +168,25 @@ export function Button({
         pressed && styles.pressed,
         disabled && styles.buttonDisabled,
       ]}>
-      {icon ? (
-        <Icon name={icon} size={20} color={iconColor ?? labelColor} />
-      ) : null}
-      <Text
-        style={[
-          styles.buttonText,
-          variant !== 'primary' && styles.buttonTextDark,
-        ]}>
-        {label}
-      </Text>
+      {/* An inner row, so the glyph can stand on the label's baseline while
+          the pair stays centered in the button. Baseline alignment on the
+          button itself would align the pair to the top of 52 points. */}
+      <View style={styles.buttonInner}>
+        {icon ? (
+          <Icon
+            name={icon}
+            size={BUTTON_GLYPH}
+            color={iconColor ?? labelColor}
+          />
+        ) : null}
+        <Text
+          style={[
+            styles.buttonText,
+            variant !== 'primary' && styles.buttonTextDark,
+          ]}>
+          {label}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -244,8 +261,12 @@ export function EmptyState({
  *
  * `icon` is for the one case that earns a glyph: the tagged state, which shows
  * the brand tag mark so the chip reads the same as the row on the Knowts list.
- * Eighteen points, which is a step above a row glyph because the chip's text
- * is `xs` and a row-sized mark beside it looked incidental.
+ *
+ * It is sized to the chip's own word, cap height and a little, and never to a
+ * number of its own. An 18 point glyph beside 13 point text was taller than
+ * the line the text drew, so the one chip with a glyph stood about two and a
+ * half points above the chips next to it and looked looser inside. Every chip
+ * is now exactly as tall as its text, which is the same text everywhere.
  */
 export function Pill({
   label,
@@ -259,7 +280,7 @@ export function Pill({
   const tint = color ?? theme.color.textPrimary;
   return (
     <View style={[styles.pill, color ? { borderColor: color } : null]}>
-      {icon ? <Icon name={icon} size={18} color={tint} /> : null}
+      {icon ? <Icon name={icon} size={CHIP_GLYPH} color={tint} /> : null}
       <Text style={[styles.pillText, color ? { color } : null]}>{label}</Text>
     </View>
   );
@@ -340,11 +361,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.primary,
     borderRadius: theme.radius.md,
     height: 52,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
+  },
+  buttonInner: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: theme.spacing.sm,
   },
   // White on the gray page, so it reads as a raised control rather than as a
   // hole. A gray fill would be indistinguishable from the page it sits on.
@@ -383,7 +407,9 @@ const styles = StyleSheet.create({
   },
   pill: {
     flexDirection: 'row',
-    alignItems: 'center',
+    // The glyph stands on the word's baseline rather than floating on the
+    // middle of its line box.
+    alignItems: 'baseline',
     gap: theme.spacing.xs,
     borderWidth: 1,
     borderColor: theme.color.border,

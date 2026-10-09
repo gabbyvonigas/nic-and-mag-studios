@@ -26,6 +26,7 @@ import {
 import { scanKnowtTag } from '../knowts/scanKnowt';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { Icon } from '../components/Icon';
+import { BAND, iconSizeForText } from '../components/iconMetrics';
 import { EmptyState, TabHeader } from '../components/ui';
 import { SwipeToDelete } from '../components/SwipeToDelete';
 import {
@@ -117,6 +118,14 @@ function FilterChip({
  * and color second.
  */
 const ROW_HEIGHT = 58;
+
+/**
+ * The mark beside a Knowt's name, sized to the name's own ascender band.
+ *
+ * One number rather than a role, because what it has to match is the text,
+ * not the other rows' glyphs.
+ */
+const NAME_GLYPH = iconSizeForText(theme.font.size.md, BAND.ascender);
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -223,22 +232,35 @@ function KnowtRow({
       ]}>
       <View style={styles.rowIcon}>
         <CategoryIcon icon={knowt.category?.icon} shades={shades} size={30} />
+        {/* A badge on the category icon's corner rather than a glyph in front
+            of the name. In front of the name it pushed the name 15 points
+            right, so a pinned row and an unpinned one did not share a left
+            edge, and reserving the space in every row would have straightened
+            the edge by taking those 15 points off every name instead. On the
+            corner it costs nothing and sits where "pinned" belongs: on the
+            thing that is pinned. */}
+        {pinned ? (
+          <View style={styles.rowPin}>
+            <Icon name="pin" size={11} color={shades.ink} />
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.rowText}>
         <View style={styles.rowTitle}>
-          {pinned ? <Icon name="pin" size={11} color={shades.ink} /> : null}
           <Text
             numberOfLines={1}
             ellipsizeMode="tail"
             style={[styles.rowName, { color: shades.ink }]}>
             {knowt.name}
           </Text>
-          {/* The brand mark, not a generic price tag. Row sized, and
-              centered against the name's line box by the row's own
-              `alignItems`, so it stays centered at any text size. */}
+          {/* The brand mark, not a generic price tag, sized so its ink fills
+              the name's own band: bottom on the baseline, top at the height
+              of b, l and k. It used to be a 16 point box centered on the line
+              box, which made it both taller than the letters and floating
+              above their feet. */}
           {knowt.tag_uid ? (
-            <Icon name="knowtTag" role="row" color={shades.ink} />
+            <Icon name="knowtTag" size={NAME_GLYPH} color={shades.ink} />
           ) : null}
         </View>
         {knowt.location_note ? (
@@ -889,10 +911,16 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
   },
   rowIcon: { backgroundColor: theme.color.surface, borderRadius: 10 },
+  // Off the corner, over the row rather than over the glyph: the badge is
+  // rounded, so its corner is row colored anyway and nothing is covered.
+  rowPin: { position: 'absolute', top: -4, left: -4 },
   rowText: { flex: 1, gap: 1 },
   rowTitle: {
     flexDirection: 'row',
-    alignItems: 'center',
+    // On the baseline, not centered. An Ionicon's ink ends on the baseline
+    // and so does the mark's box, so everything on this line stands on one
+    // edge, at any text size.
+    alignItems: 'baseline',
     gap: theme.spacing.xs,
   },
   rowName: {

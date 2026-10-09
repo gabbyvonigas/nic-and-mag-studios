@@ -18,8 +18,9 @@
  * `expo-font` is already linked, being a dependency of `expo` itself.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Image, type ImageSourcePropType } from 'react-native';
+import { Image, View, type ImageSourcePropType } from 'react-native';
 
+import { HEAVY_BELOW, markLayout } from './iconMetrics';
 import { theme } from '../theme';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -44,12 +45,21 @@ const BRAND_ICONS = {
   /**
    * The MindKnowt tag mark: "this Knowt has a Knowt Tag attached".
    *
-   * 512 square. The ink measures 393 by 463 and is centered to within half a
-   * pixel (59 and 60 points of padding at the sides, 24 and 25 at top and
-   * bottom), so centering the box centers the mark and `resizeMode="contain"`
-   * keeps its proportions in any square box.
+   * Two files, one drawing. 512 square, ink 393 by 463, centered to within
+   * half a pixel, identical in both: the heavy one is the same artwork grown
+   * and scaled back into the same box, so `iconMetrics` places either of them
+   * with one set of numbers and the only difference is the stroke.
+   *
+   * `light` is the supplied art at a 22 unit stroke, 4.30 percent of the box.
+   * `heavy` is 32 units, 6.25 percent, which is what Ionicons outline is
+   * drawn to. Under `HEAVY_BELOW` the light one reads as a thinner, paler
+   * icon beside glyphs that do not change; at and above it the difference
+   * stops showing and the original is kept.
    */
-  knowtTag: require('../../assets/brand/mindknowt-tag-mark.png') as ImageSourcePropType,
+  knowtTag: {
+    light: require('../../assets/brand/mindknowt-tag-mark.png') as ImageSourcePropType,
+    heavy: require('../../assets/brand/mindknowt-tag-mark-heavy.png') as ImageSourcePropType,
+  },
 } as const;
 
 /**
@@ -175,21 +185,39 @@ export function Icon({
   const box = size ?? ICON_SIZE[role];
 
   if (name in BRAND_ICONS) {
+    const art = BRAND_ICONS[name as BrandIconName];
+    const mark = markLayout(box);
     return (
-      <Image
-        source={BRAND_ICONS[name as BrandIconName]}
-        // It is a mask, so inverting it would paint the shape in the
-        // background color and lose it.
-        accessibilityIgnoresInvertColors
-        resizeMode="contain"
-        // Square box, square source, so nothing is stretched. The box is not
-        // scaled with the text size, for the same reason no other icon here
-        // is: a row where one glyph grew and the next did not reads worse than
-        // one where neither did. Centering still holds at any text size,
-        // because a row with `alignItems: center` centers this against the
-        // text's line box rather than against a fixed height.
-        style={{ width: box, height: box, tintColor: color }}
-      />
+      // A box that hugs the ink, not the canvas. `size` then means the same
+      // thing for a mark as for a glyph: the ink comes out exactly as tall as
+      // an Ionicon's at that size, a row's gap is measured from the drawing
+      // rather than from the transparent padding around it, and the box's
+      // bottom edge is the ink's bottom edge, which is what lands the mark on
+      // the text baseline in a row with `alignItems: 'baseline'` and on the
+      // same line as the glyph beside it.
+      <View style={{ width: mark.width, height: mark.height }}>
+        <Image
+          source={box < HEAVY_BELOW ? art.heavy : art.light}
+          // It is a mask, so inverting it would paint the shape in the
+          // background color and lose it.
+          accessibilityIgnoresInvertColors
+          resizeMode="contain"
+          // Square source at a square size, so nothing is stretched, placed by
+          // its own padding so the ink lands in the box. Absolute, so the box
+          // keeps its own height and the padding overhangs it. Not scaled with
+          // the text size, for the same reason no other icon here is: a row
+          // where one glyph grew and the next did not reads worse than one
+          // where neither did.
+          style={{
+            position: 'absolute',
+            width: mark.image,
+            height: mark.image,
+            left: mark.left,
+            bottom: mark.bottom,
+            tintColor: color,
+          }}
+        />
+      </View>
     );
   }
 

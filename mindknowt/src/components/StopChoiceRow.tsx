@@ -64,7 +64,10 @@ export function StopChoiceRow({
               {/* One glyph, or two smaller ones side by side for Scan +
                   Alarm, which is both. Sized so a pair occupies about the
                   same width as a single, and held in a fixed height row so
-                  every card is the same height whichever it got. */}
+                  every card is the same height whichever it got. The mark and
+                  the alarm are drawn to the same ink height at the same size
+                  and both end on the baseline, so a pair stands on one line
+                  and neither looks taller or lighter than the other. */}
               <View style={styles.glyphs}>
                 {choice.icons.map((glyph) => (
                   <Icon
@@ -130,10 +133,11 @@ const styles = StyleSheet.create({
   // one holding a single larger glyph and the three stay level.
   glyphs: {
     flexDirection: 'row',
-    alignItems: 'center',
+    // One bottom line for both, and the pair centered as a pair.
+    alignItems: 'baseline',
     justifyContent: 'center',
     gap: 3,
-    height: 20,
+    height: 22,
   },
   label: {
     fontFamily: theme.font.face.medium,

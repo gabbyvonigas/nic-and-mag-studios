@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon, type IconName } from './Icon';
+import { BAND, iconSizeForText } from './iconMetrics';
 import { requiresScan } from '../knowts/modes';
 import type { KnowtMode } from '../db/types';
 import { theme, type CategoryShades } from '../theme';
@@ -60,6 +61,12 @@ export function CategoryDot({
     />
   );
 }
+
+/**
+ * The glyph beside a card's name, sized to that name's ascender band so the
+ * alarm and the mark are the same height as each other and as the letters.
+ */
+const CARD_GLYPH = iconSizeForText(theme.font.size.lg, BAND.ascender);
 
 /**
  * Three bars, filled to the level. Always visible, unlike a marker that only
@@ -160,11 +167,13 @@ export function KnowtCard({
         <View style={styles.titleRow}>
           {/* The brand mark, not a camera bracket: on a Daily card the glyph
               is saying "this one ends with a Knowt Tag", which is the mark's
-              whole job. */}
+              whole job. Either way it is sized to the name's band and stands
+              on the name's baseline, so swapping one for the other moves
+              nothing. */}
           {requiresScan(mode) || neverRings ? (
-            <Icon name="knowtTag" size={14} color={shades.ink} />
+            <Icon name="knowtTag" size={CARD_GLYPH} color={shades.ink} />
           ) : (
-            <Icon name="alarm" size={14} color={theme.color.textMuted} />
+            <Icon name="alarm" size={CARD_GLYPH} color={theme.color.textMuted} />
           )}
           <Text
             numberOfLines={1}
@@ -238,7 +247,8 @@ const styles = StyleSheet.create({
   body: { flex: 1, justifyContent: 'center', gap: 2 },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    // One line for the glyph, the name and the priority bars to stand on.
+    alignItems: 'baseline',
     gap: theme.spacing.sm,
   },
   name: {
