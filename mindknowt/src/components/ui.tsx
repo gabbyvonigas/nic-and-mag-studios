@@ -132,12 +132,20 @@ export function Button({
   onPress,
   variant = 'primary',
   disabled,
+  icon,
+  iconColor,
 }: {
   label: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'quiet' | 'highlight';
   disabled?: boolean;
+  /** A glyph left of the label, for the one action that has a mark of its own. */
+  icon?: IconName;
+  /** Its tint. Defaults to the label's color. */
+  iconColor?: string;
 }) {
+  const labelColor =
+    variant === 'primary' ? theme.color.onPrimary : theme.color.textPrimary;
   return (
     <Pressable
       accessibilityRole="button"
@@ -152,6 +160,9 @@ export function Button({
         pressed && styles.pressed,
         disabled && styles.buttonDisabled,
       ]}>
+      {icon ? (
+        <Icon name={icon} size={20} color={iconColor ?? labelColor} />
+      ) : null}
       <Text
         style={[
           styles.buttonText,
@@ -329,8 +340,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.primary,
     borderRadius: theme.radius.md,
     height: 52,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
   },
   // White on the gray page, so it reads as a raised control rather than as a

@@ -158,8 +158,11 @@ export function KnowtCard({
 
       <View style={styles.body}>
         <View style={styles.titleRow}>
+          {/* The brand mark, not a camera bracket: on a Daily card the glyph
+              is saying "this one ends with a Knowt Tag", which is the mark's
+              whole job. */}
           {requiresScan(mode) || neverRings ? (
-            <Icon name="scan" size={14} color={shades.ink} />
+            <Icon name="knowtTag" size={14} color={shades.ink} />
           ) : (
             <Icon name="alarm" size={14} color={theme.color.textMuted} />
           )}

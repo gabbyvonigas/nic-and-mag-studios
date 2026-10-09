@@ -1,4 +1,5 @@
 import { isScanOnly } from './scanOnly';
+import type { IconName } from '../components/Icon';
 import type { KnowtMode } from '../db/types';
 
 /**
@@ -39,8 +40,15 @@ export type StopChoice = 'alarm' | 'scan' | 'both';
 
 export const STOP_CHOICES: {
   value: StopChoice;
-  /** A name in the shared icon set. No bell on the one that never rings. */
-  icon: 'alarm' | 'scan';
+  /**
+   * The glyphs on the card, in order.
+   *
+   * A list rather than one, because Scan + Alarm is both things and showing
+   * only one of them made the two scanning modes look identical at a glance.
+   * It wears the alarm and the brand mark side by side, smaller, so the row
+   * reads as alarm, mark, alarm plus mark.
+   */
+  icons: IconName[];
   /**
    * Deliberately close in length, so three of them sit in one row on a small
    * iPhone without one of them wrapping or shrinking on its own.
@@ -63,7 +71,7 @@ export const STOP_CHOICES: {
 }[] = [
   {
     value: 'alarm',
-    icon: 'alarm',
+    icons: ['alarm'],
     label: 'Alarm Only',
     detail:
       'Rings at the time you set. Dismiss it on screen when it goes off. No tag needed.',
@@ -73,17 +81,17 @@ export const STOP_CHOICES: {
   },
   {
     value: 'scan',
-    icon: 'scan',
+    icons: ['knowtTag'],
     label: 'Scan Knowt',
     detail:
-      'No alarm, no schedule. Once saved, find this in the Knowts tab, press Scan Knowt, and it will log as completed once you tap the Tag. Pin to keep it at the top of your Knowts.',
+      'No alarm, no schedule. Press Scan Knowt to log when you tap its tag. Pin it to keep it at the top of your Knowts.',
     mode: 'strict',
     rings: false,
     needsTag: false,
   },
   {
     value: 'both',
-    icon: 'scan',
+    icons: ['alarm', 'knowtTag'],
     label: 'Scan + Alarm',
     detail:
       'Rings at the time you set and keeps ringing until you scan its tag. Nothing else stops it.',

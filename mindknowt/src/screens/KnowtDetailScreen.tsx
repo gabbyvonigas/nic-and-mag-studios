@@ -332,6 +332,20 @@ export function KnowtDetailScreen() {
   })();
 
   /**
+   * What the one scan button says, in the four states it has.
+   *
+   * Hoisted out of the JSX because the button moved up the screen and the
+   * label should not have moved with it twice.
+   */
+  const scanLabel = busy
+    ? 'Scanning'
+    : doneToday
+      ? 'Done today'
+      : knowt.tag_uid
+        ? 'Scan Knowt'
+        : 'Add a Knowt Tag to scan';
+
+  /**
    * Scanning the tag to log it.
    *
    * Reports into the actions, next to the button that started it. The copy for
@@ -471,6 +485,48 @@ export function KnowtDetailScreen() {
             <Pill label="No tag" />
           )}
         </View>
+
+        {/* The one thing you came here to do, reachable without scrolling. It
+            used to sit in the actions at the very bottom, past Notes, Mode,
+            the tag controls, Schedules and History, which on a small iPhone is
+            several screens below the title. Only this button moved: Mark done
+            and everything else stayed where they were. */}
+        {scanOnly ? (
+          <View style={styles.leadAction}>
+            <Button
+              label={scanLabel}
+              disabled={busy || doneToday}
+              // The brand mark rather than a bracket, lime on the black fill,
+              // which is the pairing the palette allows on near black.
+              icon={doneToday ? 'check' : 'knowtTag'}
+              iconColor={theme.color.highlight}
+              onPress={() =>
+                knowt.tag_uid
+                  ? void scanToLog()
+                  : void scanToAttach(setActionNotice)
+              }
+            />
+            {/* Whatever the button did, said next to the button. A scan that
+                failed used to report at the top of the screen, which on a
+                Knowt with notes, schedules and history is out of sight from
+                the finger that started it: the sheet does not open, nothing
+                changes, and the reason is a screen away. */}
+            {actionNotice ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
+                onPress={() => setActionNotice(null)}
+                style={styles.notice}>
+                <Text style={styles.noticeText}>{actionNotice}</Text>
+              </Pressable>
+            ) : null}
+            {doneToday ? (
+              <Text style={styles.hint}>
+                Scanned today. It comes back tomorrow.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
 
         <Text style={styles.sectionTitle}>Notes</Text>
         <TextInput
@@ -662,63 +718,22 @@ export function KnowtDetailScreen() {
         ) : null}
 
         <View style={styles.actions}>
-          {/* Whatever a button down here did, said down here. A scan that
-              failed used to report at the top of the screen, which on a Knowt
-              with notes, schedules and history is out of sight from the
-              button that started it: the sheet does not open, nothing
-              changes, and the reason is a screen away. */}
-          {actionNotice ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Dismiss"
-              onPress={() => setActionNotice(null)}
-              style={styles.notice}>
-              <Text style={styles.noticeText}>{actionNotice}</Text>
-            </Pressable>
-          ) : null}
-
           {/* Done leads, filled and full width, the same control the Ringing
               screen leads with. It was a white secondary button reading "I
               just did this", which left the one thing you came here to do
               looking like the same weight as Archive. Putting it off is the
               quieter choice, so those sit under it as outlined buttons. */}
-          {/* A Scan Knowt leads with the scan, because scanning the tag is the
-              only thing that was ever meant to complete one and there was no
-              way to do it: tapping the Knowt used to open the ringing screen.
-              The wording matches the Mode support text on purpose, and the
-              two controls cannot be confused: this is the filled black button
-              in the actions, that is a selectable card in the row of three. */}
+          {/* Mark done stays here, where it has always been. The scan itself
+              leads the screen from the top now; this is the quieter fallback
+              for a day the tag is out of reach. */}
           {scanOnly ? (
-            <>
+            doneToday ? null : (
               <Button
-                label={
-                  busy
-                    ? 'Scanning'
-                    : doneToday
-                      ? 'Done today'
-                      : knowt.tag_uid
-                        ? 'Scan Knowt'
-                        : 'Add a Knowt Tag to scan'
-                }
-                disabled={busy || doneToday}
-                onPress={() =>
-                  knowt.tag_uid
-                    ? void scanToLog()
-                    : void scanToAttach(setActionNotice)
-                }
+                label="Mark done"
+                variant="secondary"
+                onPress={() => void finishNow()}
               />
-              {doneToday ? (
-                <Text style={styles.hint}>
-                  Scanned today. It comes back tomorrow.
-                </Text>
-              ) : (
-                <Button
-                  label="Mark done"
-                  variant="secondary"
-                  onPress={() => void finishNow()}
-                />
-              )}
-            </>
+            )
           ) : dueYet ? (
             <Button label="Done" onPress={() => void finishNow()} />
           ) : null}
@@ -808,6 +823,9 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   pills: { flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' },
+  // Its own block, so the failure message and the "comes back tomorrow" line
+  // sit with the button rather than against the Notes heading below.
+  leadAction: { gap: theme.spacing.sm },
   historyHead: {
     flexDirection: 'row',
     alignItems: 'center',

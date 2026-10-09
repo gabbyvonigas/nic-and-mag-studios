@@ -248,30 +248,46 @@ function KnowtRow({
         ) : null}
       </View>
 
-      <View style={styles.rowPill}>
-        <Text style={[styles.rowNext, { color: shades.ink }]}>
-          {nextLabel(knowt, soonestFor(knowt, now), now, doneToday)}
-        </Text>
-      </View>
-
-      {/* A Scan Knowt is completed by scanning, and it is reached from this
-          list rather than from Daily, so the scan has to be startable here.
+      {/* A Scan Knowt has no next time, so the pill that carries one on every
+          other row is the control instead: one lime pill where the eye already
+          looks, rather than a "Scan only" label and a bracket glyph beside it.
           Nested inside the row's Pressable, which is fine: the inner one wins
           the touch, and the row still opens everywhere else. */}
-      {scanOnly && onScan && !doneToday ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={
-            knowt.tag_uid
-              ? `Scan ${knowt.name}`
-              : `Add a Knowt Tag to scan for ${knowt.name}`
-          }
-          hitSlop={8}
-          onPress={onScan}
-          style={({ pressed }) => [styles.rowScan, pressed && styles.pressed]}>
-          <Icon name="scan" role="button" color={shades.ink} />
-        </Pressable>
-      ) : null}
+      {scanOnly && onScan ? (
+        doneToday ? (
+          <View style={[styles.rowPill, styles.rowPillQuiet]}>
+            <Icon name="check" size={13} color={theme.color.textMuted} />
+            <Text style={styles.rowDone}>{SCANNED_TODAY}</Text>
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              knowt.tag_uid
+                ? `Scan ${knowt.name}`
+                : `Add a Knowt Tag to scan for ${knowt.name}`
+            }
+            // The pill is pill sized; the touch is not. 12 on every side of a
+            // 24pt pill clears 44 without making the row any taller.
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            onPress={onScan}
+            style={({ pressed }) => [
+              styles.rowPill,
+              styles.rowPillOn,
+              pressed && styles.pressed,
+            ]}>
+            <Text style={styles.rowScanText}>
+              {knowt.tag_uid ? 'Scan' : 'Add tag'}
+            </Text>
+          </Pressable>
+        )
+      ) : (
+        <View style={styles.rowPill}>
+          <Text style={[styles.rowNext, { color: shades.ink }]}>
+            {nextLabel(knowt, soonestFor(knowt, now), now, doneToday)}
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -904,20 +920,33 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: theme.color.dangerText,
   },
-  rowScan: {
-    paddingLeft: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-  },
   rowPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
     backgroundColor: theme.color.surface,
     borderRadius: theme.radius.pill,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: 5,
   },
+  // The one pill on a row that is a button, so it is the one pill that is
+  // filled. Same shape and height as the rest; only the color says it is live.
+  rowPillOn: { backgroundColor: theme.color.highlight },
+  rowPillQuiet: { backgroundColor: 'transparent' },
   rowNext: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.sm,
     ...theme.font.tabular,
+  },
+  rowScanText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.onHighlight,
+  },
+  rowDone: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textMuted,
   },
 
   section: { marginBottom: theme.spacing.lg },

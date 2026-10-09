@@ -76,7 +76,9 @@ export const ICONS = {
 
   // The things the product is about.
   alarm: 'alarm-outline',
-  scan: 'scan-outline',
+  // No `scan` bracket. Scanning and being tagged are the brand mark now
+  // (`knowtTag` below), in the list, on a Daily card and on the Mode row, so a
+  // generic viewfinder has nothing left to say and no way back in.
   tag: 'pricetag-outline',
   lock: 'lock-closed-outline',
 

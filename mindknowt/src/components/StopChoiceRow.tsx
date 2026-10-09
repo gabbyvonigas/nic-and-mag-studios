@@ -61,7 +61,20 @@ export function StopChoiceRow({
                 on && styles.cardOn,
                 blocked && styles.cardBlocked,
               ]}>
-              <Icon name={choice.icon} size={18} color={tint} />
+              {/* One glyph, or two smaller ones side by side for Scan +
+                  Alarm, which is both. Sized so a pair occupies about the
+                  same width as a single, and held in a fixed height row so
+                  every card is the same height whichever it got. */}
+              <View style={styles.glyphs}>
+                {choice.icons.map((glyph) => (
+                  <Icon
+                    key={glyph}
+                    name={glyph}
+                    size={choice.icons.length > 1 ? 15 : 18}
+                    color={tint}
+                  />
+                ))}
+              </View>
               <Text
                 numberOfLines={1}
                 adjustsFontSizeToFit
@@ -113,6 +126,15 @@ const styles = StyleSheet.create({
     borderColor: theme.color.highlight,
   },
   cardBlocked: { backgroundColor: theme.color.surfaceMuted },
+  // Fixed height, so a card holding two small glyphs is exactly as tall as
+  // one holding a single larger glyph and the three stay level.
+  glyphs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    height: 20,
+  },
   label: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.sm,
