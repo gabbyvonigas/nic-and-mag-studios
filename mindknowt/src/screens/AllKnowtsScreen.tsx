@@ -174,9 +174,22 @@ function nextLabel(
   return `${MONTHS[at.getMonth()]} ${at.getDate()}`;
 }
 
+/**
+ * One Knowt, in its category's colors.
+ *
+ * **The colors come from the Knowt, not from the section it is sitting in.**
+ * They used to be handed down by `CategorySection`, which is right while every
+ * row in a section really is that category and wrong the moment one is not:
+ * the Pinned section passes `categoryShades(null)`, the uncategorized gray, so
+ * every pinned row was painted gray whatever it actually was. Resolving here
+ * means a pinned row and the same Knowt's row in its own group cannot differ,
+ * because there is only one place that decides.
+ *
+ * The section keeps its own shades for its header, which is why PINNED stays
+ * neutral while the rows under it are not.
+ */
 function KnowtRow({
   knowt,
-  shades,
   now,
   doneToday = false,
   onPress,
@@ -184,7 +197,6 @@ function KnowtRow({
   onScan,
 }: {
   knowt: KnowtWithDetail;
-  shades: CategoryShades;
   now: Date;
   /** Whether its scan or check-in landed today. Only a Scan Knowt shows it. */
   doneToday?: boolean;
@@ -195,6 +207,7 @@ function KnowtRow({
 }) {
   const pinned = knowt.is_pinned === 1;
   const scanOnly = isScanOnly(knowt);
+  const shades = categoryShades(knowt.category);
 
   return (
     <Pressable
@@ -221,7 +234,12 @@ function KnowtRow({
             style={[styles.rowName, { color: shades.ink }]}>
             {knowt.name}
           </Text>
-          {knowt.tag_uid ? <Icon name="tag" size={12} color={shades.ink} /> : null}
+          {/* The brand mark, not a generic price tag. Row sized, and
+              centered against the name's line box by the row's own
+              `alignItems`, so it stays centered at any text size. */}
+          {knowt.tag_uid ? (
+            <Icon name="knowtTag" role="row" color={shades.ink} />
+          ) : null}
         </View>
         {knowt.location_note ? (
           <Text numberOfLines={1} style={styles.rowWhere}>
@@ -314,7 +332,6 @@ function CategorySection({
               onDelete={() => onDelete(knowt)}>
               <KnowtRow
                 knowt={knowt}
-                shades={shades}
                 now={now}
                 doneToday={doneToday.has(knowt.id)}
                 onPress={() => onOpenKnowt(knowt.id)}
@@ -671,6 +688,9 @@ export function AllKnowtsScreen() {
                     key="pinned"
                     name="Pinned"
                     icon="pin"
+                    // The heading only. Neutral on purpose, because Pinned is
+                    // not a category and coloring it one would claim it is.
+                    // The rows under it take their own category's colors.
                     shades={categoryShades(null)}
                     knowts={pinned}
                     now={now}

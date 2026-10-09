@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { theme } from '../theme';
 
 /**
@@ -228,9 +228,27 @@ export function EmptyState({
   );
 }
 
-export function Pill({ label, color }: { label: string; color?: string }) {
+/**
+ * A small labeled chip.
+ *
+ * `icon` is for the one case that earns a glyph: the tagged state, which shows
+ * the brand tag mark so the chip reads the same as the row on the Knowts list.
+ * Eighteen points, which is a step above a row glyph because the chip's text
+ * is `xs` and a row-sized mark beside it looked incidental.
+ */
+export function Pill({
+  label,
+  color,
+  icon,
+}: {
+  label: string;
+  color?: string;
+  icon?: IconName;
+}) {
+  const tint = color ?? theme.color.textPrimary;
   return (
     <View style={[styles.pill, color ? { borderColor: color } : null]}>
+      {icon ? <Icon name={icon} size={18} color={tint} /> : null}
       <Text style={[styles.pillText, color ? { color } : null]}>{label}</Text>
     </View>
   );
@@ -351,6 +369,9 @@ const styles = StyleSheet.create({
     color: theme.color.textPrimary,
   },
   pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
     borderWidth: 1,
     borderColor: theme.color.border,
     borderRadius: theme.radius.pill,

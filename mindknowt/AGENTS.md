@@ -416,8 +416,47 @@ direction.
 The one exception to outline is the completion control on a card, where an
 empty ring and a solid tick is how done reads at a glance.
 
+**Supplied brand art is the other exception, and it still goes through this
+file.** `BRAND_ICONS` in `Icon.tsx` maps a name to a `require`d PNG, and
+`Icon` decides whether a name is a glyph or a mask, so a screen asks for
+`knowtTag` and never for a file path. Nothing else may require one;
+`brandmark.test.ts` walks `src/` and fails if anything does.
+
+Each one must be a single color image with an alpha channel, because it is
+painted with `tintColor` exactly as a glyph is painted with `color`, and it
+must be centered in a square canvas, because the component places it with
+`resizeMode="contain"` in a square box and relies on that. The tag mark is 512
+square with 393 by 463 of ink, centered to within half a pixel. The test
+measures both, so an asset swapped for an off-center or multi-color one fails
+rather than quietly sitting wrong next to the text.
+
+Brand marks are not scaled with the system font size, for the same reason no
+other icon here is: a row where one glyph grew and the next did not reads
+worse than one where neither did. Centering survives a larger text size
+anyway, because the rows that hold them use `alignItems: 'center'`, which
+centers against the text's line box rather than a fixed height.
+
 Sizes come from `ICON_SIZE`: `hint` 12, `row` 16, `button` 20, `header` 22,
 `tile` 24. Pass `role`, not `size`, unless there is a reason.
+
+## A row's colors belong to the row
+
+`CategorySection` used to hand one `shades` object down to every `KnowtRow`
+inside it. That is right while every row in a section really is that category,
+and wrong the moment one is not: the Pinned section passes
+`categoryShades(null)`, the uncategorized gray, so every pinned row was painted
+gray whatever it actually was. Reported as pinned Knowts looking faded.
+
+`KnowtRow` resolves `categoryShades(knowt.category)` itself now. A pinned row
+and the same Knowt's row in its own group cannot differ, because there is only
+one place that decides rather than two that have to agree. The section keeps
+its own shades for its header, which is how PINNED stays neutral while the rows
+under it are not.
+
+The general shape: when a thing can appear in more than one place, derive its
+appearance from the thing, not from the place. A prop drilled down from a
+container is a second source of truth waiting for a container that does not
+match its contents.
 
 ## The selection bar was invisible, not missing
 

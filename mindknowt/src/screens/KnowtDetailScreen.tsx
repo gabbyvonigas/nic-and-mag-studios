@@ -441,7 +441,11 @@ export function KnowtDetailScreen() {
               mode cannot tell Scan Knowt from Scan + Alarm: both store
               `strict`, and what separates them is having no schedule. */}
           <Pill label={stopLabelOf(knowt)} />
-          {knowt.tag_uid ? <Pill label="Tagged" /> : <Pill label="No tag" />}
+          {knowt.tag_uid ? (
+            <Pill label="Tagged" icon="knowtTag" />
+          ) : (
+            <Pill label="No tag" />
+          )}
         </View>
 
         <Text style={styles.sectionTitle}>Notes</Text>
