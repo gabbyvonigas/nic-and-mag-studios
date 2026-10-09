@@ -543,6 +543,7 @@ export function AllKnowtsScreen() {
     await reloadTagged();
     await reloadDeleted();
     await reloadArchived();
+    await reloadDoneToday();
   };
 
   const remove = async (knowt: KnowtWithDetail) => {
@@ -574,12 +575,19 @@ export function AllKnowtsScreen() {
       void reloadArchived();
       void reloadTagged();
       void reloadDeleted();
+      // Scanning one from its own detail screen is the ordinary way to do it,
+      // and coming back here has to show that it landed. Without this the row
+      // still read "Scan only" until the screen remounted, which also meant a
+      // day rolling over while the app was open left yesterday's Done today
+      // sitting there.
+      void reloadDoneToday();
     }, [
       reload,
       reloadCategories,
       reloadDrafts,
       reloadArchived,
       reloadTagged,
+      reloadDoneToday,
       reloadDeleted,
     ]),
   );

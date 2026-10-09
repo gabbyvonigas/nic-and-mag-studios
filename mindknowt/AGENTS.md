@@ -625,6 +625,26 @@ this project gets. Real weight needs the SF Pro Rounded faces bundled through
 expo-font, which is native and costs a build. Do not promise bold as a JS
 change.
 
+## A message belongs where the finger was
+
+The detail screen had one `notice`, rendered near the top beside the tag and
+Mode controls that raised it. Then the Scan Knowt button was added to the
+actions, which are the last thing on a screen that also carries notes,
+schedules and history. A scan that failed down there reported up there, off
+screen: the person taps, the sheet does not open, nothing changes, and the
+explanation is a screen away. Indistinguishable from the button doing nothing,
+which is the bug that cost a whole round once already.
+
+`actionNotice` is rendered inside the actions, above the buttons that raise it,
+and `scanToAttach` takes a `report` argument because it runs from two places
+and each has to report next to itself. On the Knowts list the equivalent
+banner sits outside the `ScrollView`, so it cannot be scrolled away from the
+row that raised it.
+
+The rule: a control's failure renders within a screenful of the control. One
+shared notice at the top of a scrolling screen is a notice for whatever is at
+the top, not for everything.
+
 ## A scan that does nothing settles nothing
 
 Reported as "the alarm opened the Knowt, the app never asked me to scan, and

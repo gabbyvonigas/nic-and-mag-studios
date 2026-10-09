@@ -115,6 +115,17 @@ export function KnowtDetailScreen() {
   // grows without limit, so it should not push everything else off the top.
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * A failure from a button in the actions, reported in the actions.
+   *
+   * Separate from `notice` because of where each one is read. `notice` renders
+   * near the top, beside the tag and Mode controls that raise it. The actions
+   * are the last thing on a long screen, so a scan started from down there
+   * reporting up there is a scan that says nothing: the person taps, the sheet
+   * does not open, and the explanation is a screen away. Same failure, same
+   * copy, shown where the finger was.
+   */
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (knowt && !dirty) setDraftNotes(knowt.notes ?? '');
@@ -160,8 +171,15 @@ export function KnowtDetailScreen() {
    * notes, schedules and history all survive. Only the UID and mode change.
    * The same path re-scans a replacement tag onto an already-tagged knowt.
    */
-  const scanToAttach = async () => {
-    setNotice(null);
+  /**
+   * Attaching or replacing the tag.
+   *
+   * `report` is where a failure goes, because this runs from two places: the
+   * control in the header, and the actions button on a Scan Knowt with no tag
+   * yet. Each reports next to itself.
+   */
+  const scanToAttach = async (report = setNotice) => {
+    report(null);
     setBusy(true);
     try {
       const tag = await nfcReader.scanTag();
@@ -181,7 +199,7 @@ export function KnowtDetailScreen() {
       // schedule it is Scan + Alarm, without one it is Scan Knowt. Read after
       // the reload, so it reports what the Knowt became.
       const refreshed = await getKnowt(knowt.id);
-      setNotice(
+      report(
         refreshed
           ? `Tag attached. ${refreshed.name} is now ${stopLabelOf(refreshed)}.`
           : 'Tag attached.',
@@ -190,7 +208,7 @@ export function KnowtDetailScreen() {
       // Null only for backing out of the sheet, which is not a failure. Every
       // other reason says what happened; the copy is in `nfc/failureText.ts`.
       const failure = nfcFailureMessage(err);
-      if (failure) setNotice(failure.text);
+      if (failure) report(failure.text);
     } finally {
       setBusy(false);
     }
@@ -313,13 +331,19 @@ export function KnowtDetailScreen() {
     );
   })();
 
-  /** Scanning the tag to log it. The copy lives in `nfc/failureText.ts`. */
+  /**
+   * Scanning the tag to log it.
+   *
+   * Reports into the actions, next to the button that started it. The copy for
+   * every reason lives in `nfc/failureText.ts`, and only backing out of the
+   * sheet is silent.
+   */
   const scanToLog = async () => {
-    setNotice(null);
+    setActionNotice(null);
     setBusy(true);
     try {
       const outcome = await scanKnowtTag(knowt);
-      if (outcome.kind === 'failed') setNotice(outcome.message);
+      if (outcome.kind === 'failed') setActionNotice(outcome.message);
       if (outcome.kind === 'done') await reloadEvents();
     } finally {
       setBusy(false);
@@ -638,6 +662,21 @@ export function KnowtDetailScreen() {
         ) : null}
 
         <View style={styles.actions}>
+          {/* Whatever a button down here did, said down here. A scan that
+              failed used to report at the top of the screen, which on a Knowt
+              with notes, schedules and history is out of sight from the
+              button that started it: the sheet does not open, nothing
+              changes, and the reason is a screen away. */}
+          {actionNotice ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss"
+              onPress={() => setActionNotice(null)}
+              style={styles.notice}>
+              <Text style={styles.noticeText}>{actionNotice}</Text>
+            </Pressable>
+          ) : null}
+
           {/* Done leads, filled and full width, the same control the Ringing
               screen leads with. It was a white secondary button reading "I
               just did this", which left the one thing you came here to do
@@ -663,7 +702,9 @@ export function KnowtDetailScreen() {
                 }
                 disabled={busy || doneToday}
                 onPress={() =>
-                  knowt.tag_uid ? void scanToLog() : void scanToAttach()
+                  knowt.tag_uid
+                    ? void scanToLog()
+                    : void scanToAttach(setActionNotice)
                 }
               />
               {doneToday ? (

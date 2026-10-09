@@ -76,7 +76,7 @@ export const STOP_CHOICES: {
     icon: 'scan',
     label: 'Scan Knowt',
     detail:
-      'No alarm and no schedule. After you save, find this in the Knowts tab and press Scan Knowt to log when you tap its tag. Pin it to keep it at the top of your Knowts.',
+      'No alarm, no schedule. Once saved, find this in the Knowts tab, press Scan Knowt, and it will log as completed once you tap the Tag. Pin to keep it at the top of your Knowts.',
     mode: 'strict',
     rings: false,
     needsTag: false,
