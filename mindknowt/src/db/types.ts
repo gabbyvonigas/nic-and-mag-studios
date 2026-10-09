@@ -78,6 +78,15 @@ export type KnowtRow = {
   deleted_at: number | null;
   /** 1 when pinned. A flag, not an order: pinned knowts sort first, no more. */
   is_pinned: number;
+  /**
+   * 1 when this is a Scan Knowt: no alarm, no schedule, scanned when passed.
+   *
+   * Stored rather than worked out from having no schedule, because those are
+   * different facts. A Knowt from a preset has no schedule until someone gives
+   * it a time, and reading that as a standing scan item put four of them on
+   * Daily that nobody had chosen.
+   */
+  scan_only: number;
   created_at: number;
 };
 

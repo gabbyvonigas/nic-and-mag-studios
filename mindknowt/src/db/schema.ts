@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 16;
+export const SCHEMA_VERSION = 17;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -159,6 +159,28 @@ export const ADDED_COLUMNS: { to: number; table: string; column: string; type: s
     to: 13,
     table: 'knowts',
     column: 'is_pinned',
+    type: 'INTEGER NOT NULL DEFAULT 0',
+  },
+  {
+    to: 17,
+    table: 'knowts',
+    /**
+     * Scan Knowt, chosen on purpose.
+     *
+     * It used to be derived, "a Knowt with no schedule is scan-only", which was
+     * wrong in the one way that mattered: a Knowt applied from a preset has no
+     * schedule until someone gives it a time, and four of them were being
+     * treated as standing scan items nobody had asked for. Having no schedule
+     * and having chosen to have no alarm are different facts, so the second one
+     * is stored.
+     *
+     * The default is what makes the upgrade safe. Every existing Knowt gets 0,
+     * so nothing becomes scan-only on upgrade and the preset ones stay plain
+     * unscheduled Knowts. Anyone who did pick Scan Knowt before it was stored
+     * picks it again, which is one tap and visible, rather than the app
+     * guessing from a missing row.
+     */
+    column: 'scan_only',
     type: 'INTEGER NOT NULL DEFAULT 0',
   },
   {

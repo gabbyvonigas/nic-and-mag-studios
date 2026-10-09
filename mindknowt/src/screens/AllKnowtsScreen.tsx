@@ -18,7 +18,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import { CategoryDot } from '../components/KnowtCard';
-import { isScanOnly, SCAN_ONLY_META } from '../knowts/scanOnly';
+import {
+  isScanOnly,
+  SCAN_ONLY_META,
+  SCANNED_TODAY,
+} from '../knowts/scanOnly';
+import { scanKnowtTag } from '../knowts/scanKnowt';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { Icon } from '../components/Icon';
 import { EmptyState, TabHeader } from '../components/ui';
@@ -31,6 +36,7 @@ import {
 } from '../knowts/knowtFilter';
 import { askToDelete, askToPurge, sayTagFreed } from '../knowts/deletePrompt';
 import {
+  completedTodayIds,
   deleteKnowt,
   listArchived,
   listDeleted,
@@ -135,18 +141,29 @@ function soonestFor(knowt: KnowtWithDetail, now: Date): Date | null {
 }
 
 /** Short enough for the right edge of a row: a time, a day, or a date. */
+/** One identity, so a render with nothing done today does not churn. */
+const EMPTY_SET: ReadonlySet<string> = new Set();
+
 function nextLabel(
   knowt: KnowtWithDetail,
   at: Date | null,
   now: Date,
+  doneToday: boolean,
 ): string {
-  // Scan-only is asked first, because its pill is not about a date. "No
-  // schedule" is true of it and useless: it names what the Knowt lacks rather
-  // than what it is, and it reads identically to a Knowt someone forgot to
-  // finish setting up. A paused schedule keeps "No schedule", which is the
-  // honest thing to say about one.
-  if (isScanOnly(knowt)) return SCAN_ONLY_META;
-  if (!at) return 'No schedule';
+  // Four different things used to read "No schedule", which is why
+  // "Supplements Tag Test" said one thing here and another on Daily. The pill
+  // shows the next firing, and a one-off whose day has passed has none, so it
+  // fell into the same label as a Knowt that never had a schedule at all.
+  if (isScanOnly(knowt)) return doneToday ? SCANNED_TODAY : SCAN_ONLY_META;
+  // Genuinely nothing set. A plain unscheduled Knowt, waiting for a time.
+  if (knowt.schedules.length === 0) return 'No schedule';
+  if (!at) {
+    // It has one and there is nothing ahead: a one-off that has been, or a
+    // schedule switched off. Two different answers, both true.
+    return knowt.schedules.some((schedule) => schedule.enabled === 1)
+      ? 'Finished'
+      : 'Paused';
+  }
 
   const day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -161,16 +178,23 @@ function KnowtRow({
   knowt,
   shades,
   now,
+  doneToday = false,
   onPress,
   onTogglePin,
+  onScan,
 }: {
   knowt: KnowtWithDetail;
   shades: CategoryShades;
   now: Date;
+  /** Whether its scan or check-in landed today. Only a Scan Knowt shows it. */
+  doneToday?: boolean;
   onPress: () => void;
   onTogglePin: () => void;
+  /** Starts the scan from the row, so a tag on the fridge needs no detour. */
+  onScan?: () => void;
 }) {
   const pinned = knowt.is_pinned === 1;
+  const scanOnly = isScanOnly(knowt);
 
   return (
     <Pressable
@@ -208,9 +232,28 @@ function KnowtRow({
 
       <View style={styles.rowPill}>
         <Text style={[styles.rowNext, { color: shades.ink }]}>
-          {nextLabel(knowt, soonestFor(knowt, now), now)}
+          {nextLabel(knowt, soonestFor(knowt, now), now, doneToday)}
         </Text>
       </View>
+
+      {/* A Scan Knowt is completed by scanning, and it is reached from this
+          list rather than from Daily, so the scan has to be startable here.
+          Nested inside the row's Pressable, which is fine: the inner one wins
+          the touch, and the row still opens everywhere else. */}
+      {scanOnly && onScan && !doneToday ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            knowt.tag_uid
+              ? `Scan ${knowt.name}`
+              : `Add a Knowt Tag to scan for ${knowt.name}`
+          }
+          hitSlop={8}
+          onPress={onScan}
+          style={({ pressed }) => [styles.rowScan, pressed && styles.pressed]}>
+          <Icon name="scan" role="button" color={shades.ink} />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -230,9 +273,11 @@ function CategorySection({
   expanded,
   onToggle,
   now,
+  doneToday,
   onOpenKnowt,
   onTogglePin,
   onDelete,
+  onScan,
 }: {
   name: string;
   icon: string | null;
@@ -241,9 +286,11 @@ function CategorySection({
   expanded: boolean;
   onToggle: () => void;
   now: Date;
+  doneToday: ReadonlySet<string>;
   onOpenKnowt: (id: string) => void;
   onTogglePin: (knowt: KnowtWithDetail) => void;
   onDelete: (knowt: KnowtWithDetail) => void;
+  onScan: (knowt: KnowtWithDetail) => void;
 }) {
   return (
     <View style={styles.section}>
@@ -269,8 +316,10 @@ function CategorySection({
                 knowt={knowt}
                 shades={shades}
                 now={now}
+                doneToday={doneToday.has(knowt.id)}
                 onPress={() => onOpenKnowt(knowt.id)}
                 onTogglePin={() => onTogglePin(knowt)}
+                onScan={() => onScan(knowt)}
               />
             </SwipeToDelete>
           ))
@@ -371,7 +420,14 @@ export function AllKnowtsScreen() {
     () => listArchived(),
     [],
   );
+  const { data: doneToday, reload: reloadDoneToday } = useQuery(
+    () => completedTodayIds(),
+    [],
+  );
+  const scannedToday: ReadonlySet<string> = doneToday ?? EMPTY_SET;
   const [openStash, setOpenStash] = useState<Record<string, boolean>>({});
+  /** A failed scan has to say why. Nothing else on this screen can fail. */
+  const [notice, setNotice] = useState<string | null>(null);
   /**
    * Filters rather than groups, so the list stays one list. A shape rather
    * than a category id, because Log's gap cards open this screen on something
@@ -398,6 +454,16 @@ export function AllKnowtsScreen() {
   // each section, which is what "pinned first, sorted with everything else"
   // means once the list has sections again.
   const visible = applyFilter(knowts ?? [], filter);
+
+  /**
+   * Pinned, at the top, above the first category.
+   *
+   * Absent rather than empty when nothing is pinned, the same as Upcoming on
+   * Daily: a heading over no rows says less than no heading. Built from the
+   * filtered list, so a filter that hides a Knowt hides it here too rather
+   * than leaking it back in at the top.
+   */
+  const pinned = visible.filter((knowt) => knowt.is_pinned === 1);
 
   const sections = (() => {
     const byCategory = new Map<string, KnowtWithDetail[]>();
@@ -435,6 +501,24 @@ export function AllKnowtsScreen() {
   const togglePin = async (knowt: KnowtWithDetail) => {
     await setPinned(knowt.id, knowt.is_pinned !== 1);
     await reload();
+  };
+
+  /**
+   * Scanning a Scan Knowt straight from its row.
+   *
+   * The whole point of a tag on the fridge is that you are standing at the
+   * fridge, so opening the Knowt first is a detour. A Knowt with no tag yet
+   * goes to its own screen instead, where attaching one lives.
+   */
+  const scanRow = async (knowt: KnowtWithDetail) => {
+    if (!knowt.tag_uid) {
+      navigation.navigate('KnowtDetail', { knowtId: knowt.id });
+      return;
+    }
+    setNotice(null);
+    const outcome = await scanKnowtTag(knowt);
+    if (outcome.kind === 'failed') setNotice(outcome.message);
+    if (outcome.kind === 'done') await reloadDoneToday();
   };
 
   const refreshAll = async () => {
@@ -548,6 +632,19 @@ export function AllKnowtsScreen() {
           </ScrollView>
         </View>
 
+        {/* A scan started from a row has nowhere else to report. Only a
+            failure appears: a scan that worked shows as Done today on the row
+            it was started from. */}
+        {notice ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+            onPress={() => setNotice(null)}
+            style={styles.notice}>
+            <Text style={styles.noticeText}>{notice}</Text>
+          </Pressable>
+        ) : null}
+
         {loading ? (
           <ActivityIndicator color={theme.color.textSecondary} />
         ) : (
@@ -563,28 +660,62 @@ export function AllKnowtsScreen() {
                 }
               />
             ) : (
-              sections.map((section) => (
-                <CategorySection
-                  key={section.key}
-                  name={section.name}
-                  icon={section.icon}
-                  shades={section.shades}
-                  knowts={section.knowts}
-                  now={now}
-                  expanded={!closedSections[section.key]}
-                  onToggle={() =>
-                    setClosedSections((prev) => ({
-                      ...prev,
-                      [section.key]: !prev[section.key],
-                    }))
-                  }
-                  onOpenKnowt={(knowtId) =>
-                    navigation.navigate('KnowtDetail', { knowtId })
-                  }
-                  onTogglePin={(knowt) => void togglePin(knowt)}
-                  onDelete={(knowt) => void remove(knowt)}
-                />
-              ))
+              <>
+                {/* Pinned leads, and is absent rather than empty. Its Knowts
+                    stay in their own category group below as well: this is a
+                    shortcut to the ones you reach for, not a place they have
+                    moved to, and a Knowt disappearing from Care because it was
+                    pinned would be the worse surprise. */}
+                {pinned.length > 0 ? (
+                  <CategorySection
+                    key="pinned"
+                    name="Pinned"
+                    icon="pin"
+                    shades={categoryShades(null)}
+                    knowts={pinned}
+                    now={now}
+                    doneToday={scannedToday}
+                    expanded={!closedSections.pinned}
+                    onToggle={() =>
+                      setClosedSections((prev) => ({
+                        ...prev,
+                        pinned: !prev.pinned,
+                      }))
+                    }
+                    onOpenKnowt={(knowtId) =>
+                      navigation.navigate('KnowtDetail', { knowtId })
+                    }
+                    onTogglePin={(knowt) => void togglePin(knowt)}
+                    onDelete={(knowt) => void remove(knowt)}
+                    onScan={(knowt) => void scanRow(knowt)}
+                  />
+                ) : null}
+
+                {sections.map((section) => (
+                  <CategorySection
+                    key={section.key}
+                    name={section.name}
+                    icon={section.icon}
+                    shades={section.shades}
+                    knowts={section.knowts}
+                    now={now}
+                    doneToday={scannedToday}
+                    expanded={!closedSections[section.key]}
+                    onToggle={() =>
+                      setClosedSections((prev) => ({
+                        ...prev,
+                        [section.key]: !prev[section.key],
+                      }))
+                    }
+                    onOpenKnowt={(knowtId) =>
+                      navigation.navigate('KnowtDetail', { knowtId })
+                    }
+                    onTogglePin={(knowt) => void togglePin(knowt)}
+                    onDelete={(knowt) => void remove(knowt)}
+                    onScan={(knowt) => void scanRow(knowt)}
+                  />
+                ))}
+              </>
             )}
 
             <Stash
@@ -729,6 +860,25 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.xs,
     color: theme.color.textMuted,
+  },
+  notice: {
+    backgroundColor: theme.color.dangerSurface,
+    borderWidth: 1,
+    borderColor: theme.color.dangerBorder,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  noticeText: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    lineHeight: 19,
+    color: theme.color.dangerText,
+  },
+  rowScan: {
+    paddingLeft: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
   },
   rowPill: {
     backgroundColor: theme.color.surface,

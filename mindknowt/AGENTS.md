@@ -432,16 +432,21 @@ border for anything that has to read on both the page and a card.
 
 ## Three buttons, two stored values
 
-How a Knowt stops is three choices and two columns:
+How a Knowt stops is three choices over two columns:
 
-    Alarm Only     mode `open`,   has a schedule
-    Scan Knowt     no schedule    (the mode only decides the glyph)
-    Scan + Alarm   mode `strict`, has a schedule
+    Alarm Only     scan_only 0, mode `open`
+    Scan Knowt     scan_only 1, no schedule
+    Scan + Alarm   scan_only 0, mode `strict`
 
-**"Scan Knowt" changed meaning and the stored values did not.** It used to mean
-"rings, and only the tag stops it". That behavior is now called "Scan + Alarm"
-and still stores `strict`, so every existing Knowt keeps working untouched and
-simply shows a different name. `SCHEMA_VERSION` did not move.
+The section is headed **Mode** on all three screens. It read "How it stops",
+which described the two ringing options and said nothing about the third.
+
+**"Scan Knowt" changed meaning and `mode` did not.** It used to mean "rings,
+and only the tag stops it". That behavior is now called "Scan + Alarm" and
+still stores `strict`, so every existing Knowt keeps working untouched and
+simply shows a different name. The rename needed no migration. What did need
+one is the third option having somewhere to live: `scan_only` at schema 17,
+defaulting to 0 so nothing becomes a Scan Knowt on upgrade.
 
 `MODE_CHOICES` and `modeLabel` were **deleted rather than adjusted**, and that
 is the point: both answered from the mode alone, which can no longer tell Scan
@@ -459,7 +464,8 @@ Consequences worth not rediscovering:
   purpose, because it carries a manual "Mark done" and a way to attach one, so
   it works before the tags arrive. An alarm that only a tag stops, with no tag,
   is an alarm nothing stops. `setMode` refuses `strict` without a tag, so a
-  tagless Scan Knowt stores `open` and is scan-only by having no schedule.
+  tagless Scan Knowt stores `open`, and the flag is what makes it one either
+  way: the mode only decides the glyph there.
 - **The choice is applied immediately, not on Save.** One of the three deletes
   schedules, which is not a draft edit that can sit in local state. Attaching a
   tag already worked this way for the same reason, and the Edit screen's
@@ -473,8 +479,17 @@ Consequences worth not rediscovering:
 - The ringing screen's scan buttons say "Scan the tag". They are an action, and
   leaving them reading "Scan Knowt" would name one of the three modes on a
   button that changes none of them.
-- The Knowts list pill says "Scan only" for a scan-only Knowt. A paused
-  schedule keeps "No schedule", which is honest about that one.
+- The Knowts list pill tells four states apart; see "Scan Knowt is a stored
+  choice".
+- The support text under the row is rendered by `StopChoiceRow`, not by the
+  three screens, so none of them can word it differently or forget the tag
+  note. `NEEDS_TAG_NOTE` shows only when Scan + Alarm is picked with no tag: a
+  requirement stated before it applies reads as a requirement of the screen.
+- `PinToggle` sits directly under that text, for every mode. `is_pinned`
+  arrived at schema 13, so the Pinned section needed no column. What it lacked
+  was a labeled control: pinning was a long press on a row, which is a shortcut
+  rather than an affordance, and a button in the detail actions beside Archive
+  and Delete, where it read as something destructive.
 
 **The width is the constraint, and it is tight.** The three labels were chosen
 to be within two characters of each other for this reason. Three cards share
@@ -485,79 +500,91 @@ holds the label to one line with a 0.85 shrink floor, and fixes `lineHeight` so
 a card whose label shrank is still as tall as the other two.
 `stopchoices.test.ts` measures the labels against that column.
 
-## Scan-only Knowts have no column
+## Scan Knowt is a stored choice, not a shape
 
-A Knowt that never rings is one with no schedule rows. That is all it is.
-There is no `scan_only` flag, no migration, and `SCHEMA_VERSION` did not move,
-because having no schedule was already a saveable state and already meant
-exactly this. `isScanOnly` in `knowts/scanOnly.ts` is the single definition.
+`knowts.scan_only`, added at schema 17 with a default of 0.
 
-What it lacked was a life. `listDashboard` emitted one card per schedule due
-today, so a Knowt with none produced none and never appeared on Daily at all.
-That was deliberate once: open-mode Knowts used to be shown whether or not they
-were due, and it filled Daily with things that were never going to ring. Scan
-only is not a return to it. The test is having no schedule rather than having a
-mode, the cards sit under their own `Anytime today` heading below the
-timetable, and they say "Scan only" where a time would be.
+It used to be derived, "a Knowt with no schedule is a Scan Knowt", and that
+was wrong in the one way that mattered: a Knowt applied from a preset has no
+schedule until someone gives it a time, so four of them were being treated as
+standing scan items nobody had chosen. Having no schedule and having chosen to
+have no alarm are different facts. `isScanOnly` reads the flag and nothing else.
 
-Rules that fall out of the definition rather than being added to it:
+The default is what makes the upgrade safe. Every existing row gets 0, so
+nothing becomes a Scan Knowt on upgrade and there is no back-fill: a back-fill
+is exactly how an existing row would have been turned into one.
+`migrate-scanonly.test.ts` builds a v16 knowts table with rows in it and
+asserts all five come through at 0.
 
-- **The daily reset is not a reset.** Done or not is read from the day being
-  looked at, so a new day is a new empty window. Nothing runs at midnight and
+**A plain unscheduled Knowt is its own ordinary state.** It reads Alarm Only,
+it says "No schedule" on the Knowts tab, it is not on Daily and not counted,
+and all it is waiting for is a time.
+
+**Daily is the day's timetable and nothing else.** This has been got wrong
+twice in the same direction: open-mode Knowts were once shown whether or not
+they were due, and then Scan Knowts were given a card every day under an
+"Anytime today" heading. Both filled Daily with things that were never going
+to ring, and the second also caught the four preset Knowts. The board, the
+`X of Y` count and the week dots all come from the same test, a schedule due
+that day, so they cannot disagree.
+
+**Four states used to read "No schedule" on the Knowts tab**, which is why
+"Supplements Tag Test" said "5:08 pm, Once" on Daily and "No schedule" there.
+Both answers were right for the question each screen asked: Daily asks whether
+a schedule is due on the day being looked at, the Knowts pill asks when it
+next fires, and a one-off that has already been has no next. Only the wording
+was wrong. `nextLabel` now separates them: "Scan only" or "Done today" for a
+Scan Knowt, "No schedule" for no schedules at all, "Finished" for a schedule
+with nothing ahead, "Paused" when every schedule is switched off.
+
+**The scan is not the ringing screen's job.** A Scan Knowt was completed by
+opening `Ringing` for it, which is the screen for an alarm that is going off:
+it says RINGING, it pulses, and it is a full screen modal with no way out but a
+handler. That screen had to be given a second personality to not lie, and it
+still appeared where a person expected the Knowt's own screen. The scan lives
+in `knowts/scanKnowt.ts` and is started from the detail screen's filled black
+"Scan Knowt" button and from the row on the Knowts list, so a tag on the
+fridge needs no detour. `Ringing` carries no scan-only branch any more and
+nothing routes a Knowt there.
+
+Rules that still hold:
+
+- **The daily reset is not a reset.** Done or not is read from the day's own
+  window, so a new day is a new empty window. Nothing runs at midnight and
   nothing is stored to clear.
-- **A completion of one can only carry a null `schedule_id`**, because there is
-  no schedule to name, which is what makes the per-day read work.
-- **No `fired_at`, ever.** `startRinging` is skipped for these: it stamps "an
-  alarm went off at this moment" and none did. A false `fired_at` would put the
-  Knowt into Avg complete time with a duration measured from the tap, and make
-  the resume gate think a firing had been dealt with. The event is written at
-  completion by `completeOccurrence`, which leaves it null.
+- **A completion of one carries a null `schedule_id` and no `fired_at`**,
+  because there is no occurrence to name and nothing rang. The second is what
+  keeps it out of Avg complete time and out of the resume gate.
 - **Nothing reaches AlarmKit.** `syncScheduledAlarms` and `sweepMissed` both
-  loop over `knowt.schedules`, so for one of these the loop body never runs.
-  There is no code path from a scan-only Knowt to the alarm module, and
-  `scanonlyboard.test.ts` asserts the `pending_alarms` table stays empty.
-- **A paused schedule is not scan-only.** Someone switched it off and can
-  switch it back on; calling it scan-only would move it to a different part of
-  Daily and change what it means.
-- **Never marked missed**, for the same reason: `sweepMissed` needs a schedule
-  that came due. An unscanned day is not a miss, because nothing rang. That is
-  a product choice, not an oversight, and it is one line in the sweep to
-  reverse.
+  loop over `knowt.schedules`, so for one with none the loop body never runs.
+- **Never marked missed**, for the same reason. An unscanned day is not a miss,
+  because nothing rang. A product choice, and one line in the sweep to reverse.
 
 **Clock statistics exclude them.** Peak time, Avg complete time and the
-time-of-day insight are all claims about when this person answers a reminder. A
-scan of a fridge tag at quarter past three says when they walked past the
-fridge. `timedCompletions` filters them out before those three are computed.
-Avg complete time would already have excluded them through the missing
-`fired_at`; filtering as well makes it correct by construction rather than by a
-coincidence a later change could undo. Everything else, the rate, the
-categories, the trend, the completed list and `X of Y` on Daily, counts them
-like any other Knowt.
+time-of-day insight are all claims about when this person answers a reminder,
+and a scan of a fridge tag says when they walked past the fridge.
+`timedCompletions` filters on the flag, so a preset Knowt's completions stay
+in. Everything else, the rate, the categories, the trend and the completed
+list, counts them like any other Knowt.
 
-`isScanOnly` leans toward timed when it cannot tell. A wrong "scan-only"
-quietly drops real completions out of those three statistics; a wrong "timed"
-leaves them as they already were.
+`isScanOnly` leans toward no when it cannot tell. A wrong yes drops real
+completions out of those three and moves a Knowt somewhere the person did not
+put it; a wrong no leaves everything as it already was.
 
-**The ringing screen is reused, not copied.** The scan, the sheet, the note and
-the completion are identical; what changes is everything that assumes a ring.
-It says SCAN ONLY instead of RINGING and does not pulse, and it offers no
-snooze and no "remind me in", because both reschedule an alarm and there is
-none to reschedule. A Knowt with no tag gets a way to attach one plus a manual
-"Mark done", so it works before the tag arrives.
+## There is no bold, and asking for it makes things worse
 
-**Switching is adding or removing schedule rows.** There is no flag, so the
-editor's choice does the thing that makes it true: scan only deletes the
-schedules, which is the only way to stop something ringing, and asks first
-because that is real data. History survives, since completions belong to the
-Knowt and not to the schedule that prompted them. Removing them must resync, or
-the alarms armed for schedules that no longer exist keep ringing.
+`theme.font.face` has four entries and all four are the same string, the
+private `.AppleSystemUIFontRounded`. Weight is not available: RCTFont.mm
+resolves a private family name through `fontWithName:`, which only returns the
+regular face, then reassigns `familyName` to the font's real family, which is
+plain San Francisco. So `fontWeight` on rounded text either does nothing or
+silently drops the rounding, and which depends on the iOS version.
 
-The event note moved into `useRingingSession` as part of this. A scan-only Knowt
-has no open event to attach a note to, so its note has to go in with the
-completion, which means the code writing the completion has to be able to read
-it. That is better on the timed path too: the note used to be saved after the
-screen had decided to leave, which made it the last thing in a queue of awaits
-behind a navigation.
+Emphasis is therefore size and color. The Mode support text is `textPrimary`
+at `md` against `textMuted` at `sm` around it, which is as close to bold as
+this project gets. Real weight needs the SF Pro Rounded faces bundled through
+expo-font, which is native and costs a build. Do not promise bold as a JS
+change.
 
 ## A scan that does nothing settles nothing
 

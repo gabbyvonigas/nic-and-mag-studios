@@ -14,9 +14,7 @@ import {
   type EventMethod,
   type KnowtWithDetail,
 } from '../db';
-import { completeOccurrence } from '../knowts/completeOccurrence';
 import { requiresScan } from '../knowts/modes';
-import { isScanOnly } from '../knowts/scanOnly';
 import { nfcFailureMessage, nfcReader } from '../nfc';
 
 /**
@@ -75,14 +73,11 @@ export function useRingingSession(
       // One event per ringing session. Guarded so a re-run of this effect
       // cannot open a second event for the same firing.
       //
-      // Not for a scan-only Knowt. `startRinging` stamps `fired_at`, which
-      // means "an alarm went off at this moment", and nothing went off: the
-      // person opened the screen themselves. A false `fired_at` would put the
-      // Knowt into Avg complete time with a duration measured from the moment
-      // the card was tapped, and would make the resume gate think a firing had
-      // been dealt with. Its event is written at completion instead, by
-      // `completeOccurrence`, which leaves `fired_at` null.
-      if (loaded && !startedRef.current && !isScanOnly(loaded)) {
+      // `fired_at` is honest here: this screen is only reached by an alarm
+      // that actually rang. It used to be opened by tapping a Scan Knowt's
+      // card on Daily, which is why it carried a branch for one; that routing
+      // is gone and a Scan Knowt is scanned from its own detail screen.
+      if (loaded && !startedRef.current) {
         startedRef.current = true;
         eventIdRef.current = await startRinging(loaded.id, scheduleId);
       }
@@ -97,10 +92,6 @@ export function useRingingSession(
     if (resolvedRef.current || rearmedRef.current) return;
     const current = knowtRef.current;
     if (!current) return;
-    // Walking away from a scan-only Knowt is not abandoning an alarm, because
-    // there was no alarm. Arming a re-fire here would be the app inventing a
-    // ring for something the person chose never to be rung by.
-    if (isScanOnly(current)) return;
     rearmedRef.current = true;
     try {
       await rearmKnowtAlarm({
@@ -148,31 +139,15 @@ export function useRingingSession(
       if (mounted.current) setResolved(true);
 
       const current = knowtRef.current;
-      // Two ways to write a completion, because there are two things being
-      // recorded. A firing has an event already open, waiting to be closed. A
-      // scan-only Knowt has none, and `completeOccurrence` writes one with no
-      // `fired_at`, names no schedule, clears any one-shot and resyncs. Both
-      // land in the same table and the same Log.
-      const write =
-        current && isScanOnly(current)
-          ? completeOccurrence({
-              knowtId: current.id,
-              scheduleId: null,
-              method,
-              note: noteRef.current.trim() || null,
-              completedAt,
-            })
-          : eventIdRef.current
-            ? completeRinging(
-                eventIdRef.current,
-                method,
-                noteRef.current.trim() || null,
-                completedAt,
-              )
-            : null;
-
-      if (write) {
-        const written = await settled(write);
+      if (eventIdRef.current) {
+        const written = await settled(
+          completeRinging(
+            eventIdRef.current,
+            method,
+            noteRef.current.trim() || null,
+            completedAt,
+          ),
+        );
         if (!written.ok) {
           // Nothing was recorded, so the alarm is still unanswered and the
           // screen is right to stay up. Say what happened.
@@ -191,8 +166,7 @@ export function useRingingSession(
       // This firing is done, so nothing armed for it should still ring. Only
       // the one-shots go: a stale re-fire, a snooze, a leftover test alarm. The
       // knowt's recurring alarm stays, because doing today's 8:00 am does not
-      // cancel tomorrow's. `completeOccurrence` has already done both of these
-      // on the scan-only path, and doing them twice is harmless.
+      // cancel tomorrow's.
       if (current) {
         await settled(cancelKnowtOneShots(current.id));
         // An interval or one-off schedule arms a single occurrence, and that

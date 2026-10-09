@@ -1,7 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from './Icon';
-import { STOP_CHOICES, type StopChoice } from '../knowts/modes';
+import {
+  NEEDS_TAG_NOTE,
+  STOP_CHOICES,
+  stopChoice,
+  type StopChoice,
+} from '../knowts/modes';
 import { theme } from '../theme';
 
 /**
@@ -32,45 +37,61 @@ export function StopChoiceRow({
   onChange: (next: StopChoice) => void;
 }) {
   return (
-    <View style={styles.row}>
-      {STOP_CHOICES.map((choice) => {
-        const on = value === choice.value;
-        const blocked = choice.needsTag && !tagged;
-        const tint = blocked
-          ? theme.color.textMuted
-          : on
-            ? theme.color.onHighlight
-            : theme.color.textSecondary;
-        return (
-          <Pressable
-            key={choice.value}
-            accessibilityRole="button"
-            accessibilityLabel={choice.label}
-            accessibilityHint={choice.detail}
-            accessibilityState={{ selected: on, disabled: blocked }}
-            disabled={blocked}
-            onPress={() => onChange(choice.value)}
-            style={[
-              styles.card,
-              on && styles.cardOn,
-              blocked && styles.cardBlocked,
-            ]}>
-            <Icon name={choice.icon} size={18} color={tint} />
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.85}
+    <>
+      <View style={styles.row}>
+        {STOP_CHOICES.map((choice) => {
+          const on = value === choice.value;
+          const blocked = choice.needsTag && !tagged;
+          const tint = blocked
+            ? theme.color.textMuted
+            : on
+              ? theme.color.onHighlight
+              : theme.color.textSecondary;
+          return (
+            <Pressable
+              key={choice.value}
+              accessibilityRole="button"
+              accessibilityLabel={choice.label}
+              accessibilityHint={choice.detail}
+              accessibilityState={{ selected: on, disabled: blocked }}
+              disabled={blocked}
+              onPress={() => onChange(choice.value)}
               style={[
-                styles.label,
-                on && styles.labelOn,
-                blocked && styles.labelBlocked,
+                styles.card,
+                on && styles.cardOn,
+                blocked && styles.cardBlocked,
               ]}>
-              {choice.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
+              <Icon name={choice.icon} size={18} color={tint} />
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+                style={[
+                  styles.label,
+                  on && styles.labelOn,
+                  blocked && styles.labelBlocked,
+                ]}>
+                {choice.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* The chosen option explains itself, under the row rather than inside
+          three columns a hundred points wide each.
+
+          Emphasized by ink and size, not by weight. `fontWeight` does nothing
+          useful with the rounded family: RCTFont.mm resolves the private
+          family name to the regular face and then matches the weight against
+          plain San Francisco, so asking for bold either changes nothing or
+          silently drops the rounding. Real bold needs the SF Pro Rounded faces
+          bundled through expo-font, which is native and costs a build. */}
+      <Text style={styles.support}>{stopChoice(value).detail}</Text>
+      {value === 'both' && !tagged ? (
+        <Text style={styles.needsTag}>{NEEDS_TAG_NOTE}</Text>
+      ) : null}
+    </>
   );
 }
 
@@ -103,4 +124,17 @@ const styles = StyleSheet.create({
   },
   labelOn: { color: theme.color.onHighlight },
   labelBlocked: { color: theme.color.textMuted },
+  support: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.md,
+    lineHeight: 22,
+    color: theme.color.textPrimary,
+    marginTop: theme.spacing.xs,
+  },
+  needsTag: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    lineHeight: 19,
+    color: theme.color.warningText,
+  },
 });

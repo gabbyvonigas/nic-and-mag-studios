@@ -37,7 +37,10 @@ import {
   type StopChoice,
 } from '../knowts/modes';
 import { StopChoiceRow } from '../components/StopChoiceRow';
+import { PinToggle } from '../components/PinToggle';
 import { buildSnoozed } from '../knowts/snoozed';
+import { isScanOnly } from '../knowts/scanOnly';
+import { scanKnowtTag } from '../knowts/scanKnowt';
 import {
   archiveKnowt,
   attachTag,
@@ -55,6 +58,7 @@ import {
   listEvents,
   ModeUnavailableError,
   setMode,
+  setScanOnly,
   setPinned,
   TagInUseError,
   updateNotes,
@@ -221,9 +225,12 @@ export function KnowtDetailScreen() {
             await deleteSchedule(schedule.id);
           }
         }
+        // The flag is what makes it a Scan Knowt. Set after the schedules are
+        // gone, so a failure part way through leaves a plain unscheduled Knowt
+        // rather than a Scan Knowt that still rings.
+        await setScanOnly(knowt.id, true);
         // Strict only if there is a tag to require, since `setMode` refuses it
-        // otherwise. Either way the Knowt is scan-only, because that is decided
-        // by having no schedule rather than by the mode.
+        // otherwise. The mode only decides the glyph here.
         await setMode(knowt.id, knowt.tag_uid ? 'strict' : 'open');
         // The alarms armed for those schedules come down with them, or it keeps
         // ringing for a schedule that no longer exists.
@@ -232,6 +239,9 @@ export function KnowtDetailScreen() {
         return;
       }
 
+      // Off first: a ringing Knowt is not a Scan Knowt, and leaving the flag
+      // on would keep it off Daily however good its schedule was.
+      await setScanOnly(knowt.id, false);
       await setMode(knowt.id, want.mode);
       await reload();
 
@@ -281,6 +291,40 @@ export function KnowtDetailScreen() {
    */
   const openEditor = () =>
     navigation.navigate('EditKnowt', { knowtId: knowt.id });
+
+  const scanOnly = isScanOnly(knowt);
+
+  /**
+   * Whether its scan or check-in has already landed today.
+   *
+   * Read from today's events rather than from anything stored, which is the
+   * whole of the daily reset: a new day is a new empty window, so nothing has
+   * to run at midnight and nothing has to be cleared.
+   */
+  const doneToday = (() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = start.getTime() + 86_400_000;
+    return (events ?? []).some(
+      (event) =>
+        event.completed_at !== null &&
+        event.completed_at >= start.getTime() &&
+        event.completed_at < end,
+    );
+  })();
+
+  /** Scanning the tag to log it. The copy lives in `nfc/failureText.ts`. */
+  const scanToLog = async () => {
+    setNotice(null);
+    setBusy(true);
+    try {
+      const outcome = await scanKnowtTag(knowt);
+      if (outcome.kind === 'failed') setNotice(outcome.message);
+      if (outcome.kind === 'done') await reloadEvents();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   /**
    * Whether this Knowt is sitting under a snooze.
@@ -472,20 +516,19 @@ export function KnowtDetailScreen() {
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>How it stops</Text>
+        <Text style={styles.sectionTitle}>Mode</Text>
         <StopChoiceRow
           value={stopChoiceOf(knowt)}
           tagged={!!knowt.tag_uid}
           onChange={(next) => void chooseStop(next)}
         />
-        {/* The selected option explains itself, rather than three columns of
-            small print competing for a hundred points of width each. */}
-        <Text style={styles.hint}>
-          {stopChoice(stopChoiceOf(knowt)).detail}
-          {knowt.tag_uid
-            ? ''
-            : ' Scan + Alarm needs a tag attached first.'}
-        </Text>
+        <PinToggle
+          pinned={knowt.is_pinned === 1}
+          onToggle={async () => {
+            await setPinned(knowt.id, knowt.is_pinned !== 1);
+            await reload();
+          }}
+        />
 
         <Button
           label={
@@ -596,7 +639,42 @@ export function KnowtDetailScreen() {
               just did this", which left the one thing you came here to do
               looking like the same weight as Archive. Putting it off is the
               quieter choice, so those sit under it as outlined buttons. */}
-          {dueYet ? (
+          {/* A Scan Knowt leads with the scan, because scanning the tag is the
+              only thing that was ever meant to complete one and there was no
+              way to do it: tapping the Knowt used to open the ringing screen.
+              The wording matches the Mode support text on purpose, and the
+              two controls cannot be confused: this is the filled black button
+              in the actions, that is a selectable card in the row of three. */}
+          {scanOnly ? (
+            <>
+              <Button
+                label={
+                  busy
+                    ? 'Scanning'
+                    : doneToday
+                      ? 'Done today'
+                      : knowt.tag_uid
+                        ? 'Scan Knowt'
+                        : 'Add a Knowt Tag to scan'
+                }
+                disabled={busy || doneToday}
+                onPress={() =>
+                  knowt.tag_uid ? void scanToLog() : void scanToAttach()
+                }
+              />
+              {doneToday ? (
+                <Text style={styles.hint}>
+                  Scanned today. It comes back tomorrow.
+                </Text>
+              ) : (
+                <Button
+                  label="Mark done"
+                  variant="secondary"
+                  onPress={() => void finishNow()}
+                />
+              )}
+            </>
+          ) : dueYet ? (
             <Button label="Done" onPress={() => void finishNow()} />
           ) : null}
           {snoozed ? (
@@ -613,16 +691,6 @@ export function KnowtDetailScreen() {
               />
             </>
           ) : null}
-          {/* The list's long press is a shortcut, not an affordance, so the
-              control has to exist somewhere it can be found. */}
-          <Button
-            label={knowt.is_pinned === 1 ? 'Unpin' : 'Pin to the top'}
-            variant="secondary"
-            onPress={async () => {
-              await setPinned(knowt.id, knowt.is_pinned !== 1);
-              await reload();
-            }}
-          />
 
           {/* Two different promises, so two buttons. Archive pauses something
               and keeps it whole. Delete is for something you are finished

@@ -101,7 +101,7 @@ export function SetupKnowtScreen() {
   );
 
   /**
-   * How it stops, which is also whether it has a schedule at all.
+   * The mode, which is also whether it has a schedule at all.
    *
    * One piece of state for both, because they are one question. Scan Knowt
    * means no schedule, so step 2 has nothing to ask and collapses to a line.
@@ -227,6 +227,9 @@ export function SetupKnowtScreen() {
         // held by another Knowt is moved below, so it is not attached yet and
         // `setMode` would refuse it.
         mode: tagUid && !takeFrom ? stopChoice(stops).mode : 'open',
+        // The flag, not "it happens to have no schedule". A preset Knowt also
+        // has none and is not this.
+        scanOnly: stops === 'scan',
         // A tag still held by another knowt cannot be written here: tag_uid is
         // unique. The row is created without it and the move runs below.
         tagUid: takeFrom ? null : tagUid,
@@ -428,7 +431,7 @@ export function SetupKnowtScreen() {
 
           <Step
             index={3}
-            title="How it stops"
+            title="Mode"
             note="This is the part that makes MindKnowt work. Put a tag where the
                   thing actually lives, and the alarm only stops when you are there.">
             <StopChoiceRow
@@ -439,7 +442,6 @@ export function SetupKnowtScreen() {
                 setStops(next);
               }}
             />
-            <Text style={styles.stepNote}>{stopChoice(stops).detail}</Text>
 
             {tagUid ? (
               <View style={styles.tagged}>

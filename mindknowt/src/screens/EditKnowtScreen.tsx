@@ -29,6 +29,7 @@ import {
   type StopChoice,
 } from '../knowts/modes';
 import { StopChoiceRow } from '../components/StopChoiceRow';
+import { PinToggle } from '../components/PinToggle';
 import { isScanOnly } from '../knowts/scanOnly';
 import {
   attachTag,
@@ -46,6 +47,8 @@ import {
   PRIORITY_LOW,
   PRIORITY_NORMAL,
   setMode,
+  setPinned,
+  setScanOnly,
   updateKnowt,
 } from '../db';
 import { askToDropSchedules } from '../knowts/deletePrompt';
@@ -139,9 +142,12 @@ export function EditKnowtScreen() {
             await deleteSchedule(schedule.id);
           }
         }
+        // The flag is what makes it a Scan Knowt. Set after the schedules are
+        // gone, so a failure part way through leaves a plain unscheduled Knowt
+        // rather than a Scan Knowt that still rings.
+        await setScanOnly(knowt.id, true);
         // Strict only if there is a tag to require, since `setMode` refuses it
-        // otherwise. Either way it is scan-only, because that is decided by
-        // having no schedule rather than by the mode.
+        // otherwise. The mode only decides the glyph here.
         await setMode(knowt.id, knowt.tag_uid ? 'strict' : 'open');
         // The alarms armed for those schedules come down with them, or it
         // keeps ringing for a schedule that no longer exists.
@@ -150,6 +156,9 @@ export function EditKnowtScreen() {
         return;
       }
 
+      // Off first: a ringing Knowt is not a Scan Knowt, and leaving the flag
+      // on would keep it off Daily however good its schedule was.
+      await setScanOnly(knowt.id, false);
       await setMode(knowt.id, want.mode);
       await reload();
 
@@ -217,7 +226,7 @@ export function EditKnowtScreen() {
         priority,
       });
 
-      // How it stops is not saved here. It is applied the moment it is
+      // The mode is not saved here. It is applied the moment it is
       // chosen, because one of the three options deletes schedules and that
       // cannot sit in local state waiting for a button. The same reasoning
       // already applied to attaching a tag.
@@ -308,7 +317,7 @@ export function EditKnowtScreen() {
             <Text style={styles.link}>Manage categories</Text>
           </Pressable>
 
-          <Text style={styles.label}>How it stops</Text>
+          <Text style={styles.label}>Mode</Text>
           {/* Applied immediately rather than on Save, the same as attaching a
               tag just above. Scan Knowt deletes schedules, which is not a draft
               edit that can sit in local state waiting for a button. */}
@@ -317,10 +326,13 @@ export function EditKnowtScreen() {
             tagged={tagged}
             onChange={(next) => void chooseStop(next)}
           />
-          <Text style={styles.hint}>
-            {stopChoice(stops).detail}
-            {tagged ? '' : ' Scan + Alarm needs a tag attached first.'}
-          </Text>
+          <PinToggle
+            pinned={knowt.is_pinned === 1}
+            onToggle={async () => {
+              await setPinned(knowt.id, knowt.is_pinned !== 1);
+              await reload();
+            }}
+          />
 
           <Button
             label={tagged ? 'Replace the Knowt tag' : 'Add a Knowt tag to scan'}

@@ -238,6 +238,13 @@ export type NewKnowt = {
   priority?: number;
   /** Started but not finished. Excluded from every list but Drafts. */
   isDraft?: boolean;
+  /**
+   * Scan Knowt: no alarm, no schedule, scanned when passed.
+   *
+   * Stored rather than inferred from having no schedule, because a knowt from a
+   * preset has no schedule either and is not this.
+   */
+  scanOnly?: boolean;
   schedule?: {
     label?: string | null;
     time: string;
@@ -264,8 +271,8 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
       `INSERT INTO knowts
          (id, tag_uid, mode, name, icon, category_id, location_note, notes,
           link_url, suggested_mode, priority, refire_minutes, snooze_minutes,
-          archived, is_draft, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 5, 5, 0, ?, ?)`,
+          archived, is_draft, scan_only, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 5, 5, 0, ?, ?, ?)`,
       id,
       input.tagUid ?? null,
       input.mode ?? 'open',
@@ -277,6 +284,7 @@ export async function createKnowt(input: NewKnowt): Promise<string> {
       input.suggestedMode ?? null,
       input.priority ?? PRIORITY_NORMAL,
       input.isDraft ? 1 : 0,
+      input.scanOnly ? 1 : 0,
       Date.now(),
     );
 
@@ -461,6 +469,45 @@ export async function listTagged(): Promise<KnowtWithDetail[]> {
       ORDER BY name`,
   );
   return attachDetail(rows);
+}
+
+/**
+ * Turns Scan Knowt on or off.
+ *
+ * Only the flag. Deleting the schedules that would otherwise make it ring is
+ * the caller's job, because that is destructive and has to be confirmed where
+ * the person can see what it costs.
+ */
+export async function setScanOnly(
+  knowtId: string,
+  on: boolean,
+): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE knowts SET scan_only = ? WHERE id = ?',
+    on ? 1 : 0,
+    knowtId,
+  );
+}
+
+/**
+ * The knowts whose scan or check-in landed today, by id.
+ *
+ * For the Knowts tab, which shows "Done today" on a Scan Knowt row. Keyed on
+ * the day rather than on anything stored, which is the whole of the daily
+ * reset: a new day is a new empty window and nothing has to run at midnight.
+ */
+export async function completedTodayIds(now = new Date()): Promise<Set<string>> {
+  const db = await getDatabase();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = start.getTime() + 86_400_000;
+  const rows = await db.getAllAsync<{ knowt_id: string }>(
+    `SELECT DISTINCT knowt_id FROM events
+      WHERE completed_at >= ? AND completed_at < ?`,
+    start.getTime(),
+    end,
+  );
+  return new Set(rows.map((row) => row.knowt_id));
 }
 
 /**

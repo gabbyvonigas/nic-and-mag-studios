@@ -17,13 +17,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../components/ui';
-import { Icon } from '../components/Icon';
 import { HoldToConfirm } from '../components/HoldToConfirm';
 import { TimePicker } from '../components/TimePicker';
 import { describeRepeat, formatTime } from '../db';
 import { leaveRinging } from '../navigation/navigationRef';
 import { canScan, requiresScan } from '../knowts/modes';
-import { isScanOnly } from '../knowts/scanOnly';
 import { shouldLeaveAfter } from '../ringing/finishAction';
 import { useRingingSession } from '../ringing/useRingingSession';
 import { theme } from '../theme';
@@ -245,16 +243,6 @@ export function RingingScreen() {
   }
 
   const schedule = knowt.schedules.find((s) => s.id === params.scheduleId) ?? null;
-  /**
-   * A standing item with no alarm, opened by tapping its card rather than by
-   * anything going off. The screen is the same screen, because the scan, the
-   * sheet, the note and the completion are all the same; what changes is
-   * everything that assumes a ring. Nothing says RINGING, nothing offers to
-   * snooze or remind later, and a Knowt with no tag gets a way to attach one
-   * rather than being stuck.
-   */
-  const scanOnly = isScanOnly(knowt);
-  const tagged = !!knowt.tag_uid;
   const scanRequired = requiresScan(knowt.mode);
   // Alarm Only with a tag can still be scanned, it just does not have to be.
   const scanOffered = canScan(knowt.mode, knowt.tag_uid);
@@ -267,21 +255,9 @@ export function RingingScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled">
-          {scanOnly ? (
-            <View style={styles.standingRow}>
-              <Icon name="scan" role="row" color={theme.color.textSecondary} />
-              <Text style={styles.standingLabel}>SCAN ONLY</Text>
-            </View>
-          ) : (
-            <RingIndicator active={!resolved} />
-          )}
+          <RingIndicator active={!resolved} />
 
           <Text style={styles.name}>{knowt.name}</Text>
-          {scanOnly ? (
-            <Text style={styles.scheduleLabel}>
-              No alarm. Scan its tag whenever you pass it.
-            </Text>
-          ) : null}
           {schedule ? (
             <Text style={styles.scheduleLabel}>
               {schedule.label ? `${schedule.label} · ` : ''}
@@ -361,95 +337,47 @@ export function RingingScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          {/* Nothing here defers, because there is nothing to defer. A snooze
-              and a "remind me in" both reschedule an alarm, and a scan-only
-              Knowt has none to reschedule: offering them would promise a ring
-              that the person chose not to have. */}
-          {scanOnly ? (
-            tagged ? (
-              <>
-                <Button
-                  label={scanning ? 'Scanning' : 'Scan the tag'}
-                  disabled={scanning}
-                  onPress={() => void finish(scanToStop)}
-                />
-                <Button
-                  label="Mark done"
-                  variant="secondary"
-                  onPress={() => void finish(() => complete('tap'))}
-                />
-                <Text style={styles.footerNote}>
-                  Marking it done records it without a scan, which is what the
-                  Log will show.
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.footerNote}>
-                  This Knowt has no tag yet, so there is nothing to scan.
-                  Attach one and it will be ready the next time you pass it.
-                </Text>
-                <Button
-                  label="Attach a Knowt Tag"
-                  onPress={() =>
-                    navigation.navigate('EditKnowt', { knowtId: knowt.id })
-                  }
-                />
-                <Button
-                  label="Mark done"
-                  variant="secondary"
-                  onPress={() => void finish(() => complete('tap'))}
-                />
-              </>
-            )
+          {scanRequired ? (
+            <Button
+              label={scanning ? 'Scanning' : 'Scan the tag'}
+              disabled={scanning}
+              onPress={() => void finish(scanToStop)}
+            />
           ) : (
-            <>
-              {scanRequired ? (
-                <Button
-                  label={scanning ? 'Scanning' : 'Scan the tag'}
-                  disabled={scanning}
-                  onPress={() => void finish(scanToStop)}
-                />
-              ) : (
-                <Button
-                  label="Done"
-                  onPress={() => void finish(() => complete('tap'))}
-                />
-              )}
-
-              {!scanRequired && scanOffered ? (
-                <Button
-                  label={scanning ? 'Scanning' : 'Scan the tag instead'}
-                  variant="secondary"
-                  disabled={scanning}
-                  onPress={() => void finish(scanToStop)}
-                />
-              ) : null}
-
-              {/* The duration is the whole question a person has about this
-                  button, and it was the one thing the label did not say. */}
-              <Button
-                label={`Snooze ${knowt.snooze_minutes} min`}
-                variant="secondary"
-                onPress={() => void finish(snooze)}
-              />
-
-              <View style={styles.remindRow}>
-                <Text style={styles.remindLabel}>Remind me in</Text>
-                {REMIND_OPTIONS.map((option) => (
-                  <Pressable
-                    key={option.minutes}
-                    accessibilityRole="button"
-                    hitSlop={8}
-                    onPress={() => void finish(() => remindIn(option.minutes))}>
-                    <Text style={styles.remindOption}>{option.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </>
+            <Button label="Done" onPress={() => void finish(() => complete('tap'))} />
           )}
 
-          {!scanOnly && scanRequired && (
+          {!scanRequired && scanOffered ? (
+            <Button
+              label={scanning ? 'Scanning' : 'Scan the tag instead'}
+              variant="secondary"
+              disabled={scanning}
+              onPress={() => void finish(scanToStop)}
+            />
+          ) : null}
+
+          {/* The duration is the whole question a person has about this
+              button, and it was the one thing the label did not say. */}
+          <Button
+            label={`Snooze ${knowt.snooze_minutes} min`}
+            variant="secondary"
+            onPress={() => void finish(snooze)}
+          />
+
+          <View style={styles.remindRow}>
+            <Text style={styles.remindLabel}>Remind me in</Text>
+            {REMIND_OPTIONS.map((option) => (
+              <Pressable
+                key={option.minutes}
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => void finish(() => remindIn(option.minutes))}>
+                <Text style={styles.remindOption}>{option.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {scanRequired && (
             <View style={styles.overrideArea}>
               {overrideOpen ? (
                 <View style={styles.overridePanel}>
@@ -538,26 +466,6 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.xs,
     color: theme.color.dangerText,
     letterSpacing: 1,
-  },
-  // The same place and the same weight as RINGING, in the quiet gray rather
-  // than the alarm red, and with no pulse: nothing is happening to you here.
-  standingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
-  },
-  standingLabel: {
-    fontFamily: theme.font.body,
-    fontSize: theme.font.size.xs,
-    color: theme.color.textSecondary,
-    letterSpacing: 1,
-  },
-  footerNote: {
-    fontFamily: theme.font.face.regular,
-    fontSize: theme.font.size.sm,
-    lineHeight: 19,
-    color: theme.color.textMuted,
   },
   name: {
     fontFamily: theme.font.body,

@@ -1,16 +1,19 @@
 import { isScanOnly } from './scanOnly';
-import type { KnowtMode, ScheduleRow } from '../db/types';
+import type { KnowtMode } from '../db/types';
 
 /**
  * How a Knowt stops, as a person chooses it.
  *
- * Three options, and they are not three stored values. Two of them share the
- * same `mode`, and what separates them is whether the Knowt has a schedule at
- * all:
+ * Three options over two columns:
  *
- *   Alarm Only     mode `open`,   has a schedule
- *   Scan Knowt     no schedule    (scan-only; the mode only decides the glyph)
- *   Scan + Alarm   mode `strict`, has a schedule
+ *   Alarm Only     scan_only 0, mode `open`
+ *   Scan Knowt     scan_only 1, no schedule
+ *   Scan + Alarm   scan_only 0, mode `strict`
+ *
+ * Scan Knowt is read from `scan_only`, not from having no schedule. Those are
+ * different facts, and reading the second as the first put four preset Knowts
+ * on Daily that nobody had chosen. A Knowt with no schedule and `scan_only` 0
+ * is a plain unscheduled Knowt: Alarm Only, waiting for a time.
  *
  * **The stored values did not change and there is no migration.** `strict` is
  * still `strict`. What changed is the label on it: it used to read "Scan Knowt"
@@ -62,7 +65,8 @@ export const STOP_CHOICES: {
     value: 'alarm',
     icon: 'alarm',
     label: 'Alarm Only',
-    detail: 'Rings at a set time, and you can dismiss it on screen.',
+    detail:
+      'Rings at the time you set. Dismiss it on screen when it goes off. No tag needed.',
     mode: 'open',
     rings: true,
     needsTag: false,
@@ -71,7 +75,8 @@ export const STOP_CHOICES: {
     value: 'scan',
     icon: 'scan',
     label: 'Scan Knowt',
-    detail: 'No alarm and no schedule. Scan its tag whenever you pass it.',
+    detail:
+      'No alarm and no schedule. After you save, find this in the Knowts tab and press Scan Knowt to log when you tap its tag. Pin it to keep it at the top of your Knowts.',
     mode: 'strict',
     rings: false,
     needsTag: false,
@@ -80,12 +85,23 @@ export const STOP_CHOICES: {
     value: 'both',
     icon: 'scan',
     label: 'Scan + Alarm',
-    detail: 'Rings at a set time, and keeps ringing until you scan its tag.',
+    detail:
+      'Rings at the time you set and keeps ringing until you scan its tag. Nothing else stops it.',
     mode: 'strict',
     rings: true,
     needsTag: true,
   },
 ];
+
+/**
+ * Shown only when Scan + Alarm is picked with no tag on the Knowt.
+ *
+ * It is not in that option's own text, because a requirement stated before it
+ * applies reads as a requirement of the whole screen. The other two never need
+ * one: Alarm Only does not involve a tag, and Scan Knowt works without one
+ * through the manual fallback.
+ */
+export const NEEDS_TAG_NOTE = 'Scan + Alarm needs a tag attached first.';
 
 export function stopChoice(value: StopChoice) {
   return STOP_CHOICES.find((choice) => choice.value === value) as
@@ -95,13 +111,13 @@ export function stopChoice(value: StopChoice) {
 /**
  * Which button a stored Knowt is on.
  *
- * Scan-only is asked first, because it is the one the mode cannot answer: a
- * scan-only Knowt stores `strict` once a tag is attached and `open` before
- * that, and either way it has no schedule, which is what decides this.
+ * `scan_only` is asked first and answers on its own. The mode cannot: a Scan
+ * Knowt stores `strict` once a tag is attached and `open` before that, and
+ * `strict` with a schedule is Scan + Alarm.
  */
 export function stopChoiceOf(knowt: {
   mode: KnowtMode;
-  schedules: readonly ScheduleRow[];
+  scan_only?: number;
 }): StopChoice {
   if (isScanOnly(knowt)) return 'scan';
   return requiresScan(knowt.mode) ? 'both' : 'alarm';
@@ -110,7 +126,7 @@ export function stopChoiceOf(knowt: {
 /** The label for a stored Knowt, which is what every chip and row shows. */
 export function stopLabelOf(knowt: {
   mode: KnowtMode;
-  schedules: readonly ScheduleRow[];
+  scan_only?: number;
 }): string {
   return stopChoice(stopChoiceOf(knowt)).label;
 }
