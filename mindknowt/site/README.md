@@ -76,10 +76,11 @@ Two deliberate differences from the app, both noted in the CSS:
 
 ## Before this goes live
 
-1. **Fill in the social links.** The three icons in the footer are TikTok,
-   Instagram and Pinterest, and every `href` is `#` because there is no
-   MindKnowt profile on any of them yet. Replace the `href` and nothing else
-   changes.
+1. **Fill in the Pinterest link.** TikTok and Instagram point at the real
+   profiles and open in a new tab. Pinterest's `href` is still `#` because
+   there is no profile yet; give it a URL and add the `target="_blank"` and
+   `rel="noopener noreferrer"` the other two carry. The footer is repeated on
+   all four pages, so it is four edits, not one.
 2. **Swap the Knowt Tag disc for the real one.** `assets/knowt-tag.png` is
    built from the app's own tag mark on a white circle, standing in for the
    product shot with the sticker on it. One file, eight places on the page.
