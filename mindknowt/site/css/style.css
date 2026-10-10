@@ -71,7 +71,9 @@
   --display: 'Quicksand', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
   --body: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
-  --measure: 1120px;
+  /* Measured off the mockup: its panels sit 46 points from the edge of a
+     1280 page, which is this width with this gutter. */
+  --measure: 1240px;
   --gutter: 24px;
 }
 
@@ -363,9 +365,9 @@ img {
 /* The lime bar under the headline, and the shorter dash over a caption. */
 .rule {
   display: block;
-  width: 118px;
-  height: 6px;
-  margin: 22px 0 0;
+  width: 131px;
+  height: 4px;
+  margin: 40px 0 0;
   border-radius: 999px;
   background: var(--lime);
 }
@@ -399,27 +401,42 @@ img {
  * selector to turn into a button, and the markup already has it in both of
  * the places a button belongs.
  */
+/*
+ * A pill rather than a line of text with a dot in front of it, and the same
+ * pill the price wears, so the two sit together in the kit panel as one
+ * family rather than as a control beside a sentence.
+ *
+ * No Apple logo. Apple's identity guidelines do not allow the mark to be
+ * redrawn or set into a line of text, and the only sanctioned artwork is the
+ * "Download on the App Store" badge, which needs a store link this does not
+ * have yet. When there is one, that badge replaces this pill.
+ */
 .cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: var(--white);
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  box-shadow: 0 6px 18px rgba(17, 17, 17, 0.06);
   font-family: var(--display);
   font-weight: 700;
-  font-size: 16px;
+  font-size: 15px;
   letter-spacing: 0.01em;
   color: var(--ink);
 }
 
 .cta::before {
   content: '';
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  margin-right: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: var(--lime);
-  vertical-align: 0.06em;
 }
 
 .cta-hero {
-  margin-top: 24px;
+  margin-top: 26px;
 }
 
 /*
@@ -433,15 +450,19 @@ img {
 .device {
   position: relative;
   border-radius: 13%/6.2%;
-  padding: 1.9%;
-  background: linear-gradient(150deg, #efe9de 0%, #cfc7b7 38%, #e8e1d5 62%, #c7bfaf 100%);
-  box-shadow: 0 18px 44px rgba(17, 17, 17, 0.16);
+  /* A percentage, so the bezel is the same thickness on all four sides: a
+     percentage padding resolves against the width whichever side it is on. */
+  padding: 1.5%;
+  /* Cool gray, the color of the metal, not the warm titanium the first pass
+     drew. */
+  background: linear-gradient(150deg, #f3f4f6 0%, #c6cbd1 36%, #e8eaed 62%, #b9bfc6 100%);
+  box-shadow: 0 16px 40px rgba(17, 24, 32, 0.15);
 }
 
 .device-screen {
   position: relative;
   overflow: hidden;
-  border-radius: 11%/5.3%;
+  border-radius: 11.4%/5.5%;
   background: var(--page);
 }
 
@@ -468,12 +489,17 @@ img {
  * The Knowt Tag disc.
  *
  * One file, `/assets/knowt-tag.png`, used in the hero, in two of the step
- * cards and five times in the kit cluster. It is transparent outside the
- * disc, so the shadow is drawn here and a sticker version dropped in later
- * picks it up everywhere with no code change.
+ * cards and five times in the kit cluster. Swap that file and all eight
+ * change together.
+ *
+ * The lighting and both shadows are painted into the file rather than added
+ * here, because what replaces it is a photograph of the real sticker and a
+ * photograph brings its own. That is also why the file is bigger than the
+ * disc: the shadow needs room around it, every width below sizes the whole
+ * box, and `--disc-in-box` is how much of that box is actually the disc.
  */
-.tag-disc {
-  filter: drop-shadow(0 10px 22px rgba(17, 17, 17, 0.18));
+:root {
+  --disc-in-box: 0.74;
 }
 
 /* Three short lime strokes, the mockup's "this just happened" mark. */
@@ -521,8 +547,10 @@ img {
  */
 .hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.7fr) minmax(0, 0.95fr);
-  gap: clamp(20px, 3vw, 40px);
+  /* The mockup's three columns, measured: 513, 257 and 370 of its 1188
+     points of content. */
+  grid-template-columns: minmax(0, 513fr) minmax(0, 257fr) minmax(0, 370fr);
+  gap: clamp(18px, 2vw, 24px);
   align-items: start;
 }
 
@@ -530,27 +558,37 @@ img {
    set by the narrowest the first line can be and still hold "One less
    thing" without a third line appearing. */
 .hero-copy h1 {
-  font-size: clamp(34px, 4vw, 52px);
+  font-size: clamp(34px, 4.4vw, 56px);
+  line-height: 1.06;
   letter-spacing: -0.035em;
 }
 
 .hero-panel {
-  margin-top: clamp(24px, 3vw, 38px);
-  padding: clamp(22px, 2.6vw, 30px);
+  margin-top: clamp(22px, 2.4vw, 30px);
+  padding: clamp(22px, 2.6vw, 32px);
   border-radius: 26px;
   background: var(--pale-lime);
 }
 
+/*
+ * One weight across the whole sentence.
+ *
+ * It was 500 for "A simpler way to" and 700 for the rest, which is the
+ * mockup's emphasis, and Quicksand's two weights are far enough apart that
+ * the opening read as a different typeface rather than as lighter text. The
+ * `strong` stays in the markup for what it means and carries no weight of
+ * its own.
+ */
 .hero-lead {
   font-family: var(--display);
-  font-weight: 500;
+  font-weight: 700;
   font-size: clamp(21px, 2.4vw, 28px);
   line-height: 1.28;
   letter-spacing: -0.02em;
 }
 
 .hero-lead strong {
-  font-weight: 700;
+  font-weight: inherit;
 }
 
 .hero-sub {
@@ -570,7 +608,7 @@ img {
  */
 .hero-art {
   position: relative;
-  padding: 0 9% 12% 0;
+  padding: 0 10% 10% 0;
 }
 
 .device-hero {
@@ -579,9 +617,12 @@ img {
 
 .tag-hero {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 42%;
+  right: -6%;
+  bottom: -6%;
+  /* 72 of the box is a disc of 53, which against a 232 point phone is what
+     the mockup shows. The overhang lands in the grid gap on a wide screen
+     and in the page gutter on a narrow one. */
+  width: 72%;
 }
 
 .steps {
@@ -589,19 +630,19 @@ img {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: clamp(12px, 1.4vw, 18px);
+  gap: clamp(11px, 1.1vw, 14px);
 }
 
 .step {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(96px, 9vw, 124px);
+  grid-template-columns: minmax(0, 1fr) clamp(84px, 7.6vw, 100px);
   grid-template-areas:
     'num art'
     'body art';
-  gap: 10px clamp(10px, 1.2vw, 18px);
+  gap: 8px clamp(10px, 1.2vw, 16px);
   align-items: center;
-  padding: clamp(18px, 1.8vw, 24px);
+  padding: clamp(16px, 1.5vw, 20px);
   border-radius: 24px;
   background: var(--white);
   box-shadow: 0 10px 30px rgba(17, 17, 17, 0.07);
@@ -613,8 +654,8 @@ img {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   border-radius: 999px;
   background: var(--lime);
   font-family: var(--display);
@@ -628,7 +669,7 @@ img {
 }
 
 .step-body h2 {
-  font-size: clamp(22px, 2.2vw, 27px);
+  font-size: clamp(21px, 2vw, 25px);
 }
 
 .step-body p {
@@ -657,16 +698,16 @@ img {
 
 .tag-step {
   position: absolute;
-  right: -10%;
-  bottom: -8%;
-  width: 52%;
+  right: -16%;
+  bottom: -14%;
+  width: 70%;
 }
 
 .tag-step-tap {
   right: auto;
-  left: -14%;
-  bottom: 14%;
-  width: 56%;
+  left: -20%;
+  bottom: 8%;
+  width: 74%;
 }
 
 /* ---------- A simple system, a better you ---------- */
@@ -710,21 +751,21 @@ img {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
-  gap: clamp(24px, 3vw, 44px);
+  gap: clamp(24px, 3vw, 40px);
   align-items: center;
-  padding: clamp(26px, 3.4vw, 48px);
+  padding: clamp(24px, 2.8vw, 38px);
   border-radius: 34px;
   background: var(--pale-lime);
 }
 
 .kit-copy h2 {
-  margin-top: 14px;
+  margin-top: 10px;
   font-size: clamp(32px, 4.2vw, 52px);
   letter-spacing: -0.035em;
 }
 
 .kit-sub {
-  margin-top: 14px;
+  margin-top: 12px;
   font-size: 17px;
   color: var(--charcoal);
 }
@@ -732,7 +773,7 @@ img {
 /* Four features on one line, separated by hairlines rather than by boxes. */
 .kit-features {
   list-style: none;
-  margin: clamp(22px, 2.6vw, 32px) 0 0;
+  margin: clamp(20px, 2.2vw, 26px) 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -759,7 +800,7 @@ img {
 }
 
 .kit-buy {
-  margin-top: clamp(22px, 2.6vw, 32px);
+  margin-top: clamp(20px, 2.2vw, 26px);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -770,7 +811,7 @@ img {
   display: inline-flex;
   align-items: baseline;
   gap: 10px;
-  padding: 12px 26px;
+  padding: 10px 24px;
   border-radius: 999px;
   background: var(--white);
   box-shadow: 0 8px 22px rgba(17, 17, 17, 0.08);
@@ -796,11 +837,15 @@ img {
 /* The phone, with five discs loose around it. */
 .kit-art {
   position: relative;
-  padding: 2% 0 8%;
+  padding: 2% 0 6%;
 }
 
+/* Measured off the mockup, where the phone inside the panel is about 205
+   points wide against 1188 of panel, with the tags crowding its right edge
+   rather than sitting in a group beside it. */
 .device-kit {
-  width: 56%;
+  width: 38%;
+  margin-left: 10%;
 }
 
 .tag-cluster {
@@ -814,13 +859,18 @@ img {
   width: 23%;
 }
 
-/* Placed by hand rather than by a rule, because a cluster that is evenly
-   spaced reads as a diagram instead of as five tags set down. */
-.tag-cluster .tag-disc:nth-child(1) { right: 4%; top: 10%; }
-.tag-cluster .tag-disc:nth-child(2) { right: 0%; top: 36%; }
-.tag-cluster .tag-disc:nth-child(3) { right: 20%; top: 28%; }
-.tag-cluster .tag-disc:nth-child(4) { right: 10%; top: 58%; }
-.tag-cluster .tag-disc:nth-child(5) { right: 29%; top: 64%; }
+/*
+ * Placed and turned by hand, because five tags on an even grid at one angle
+ * read as a diagram. They overlap, and each is a few degrees off, so the
+ * group reads as tags set down rather than laid out. The rotation is small
+ * enough that the light baked into the file still comes from the same side
+ * on all five.
+ */
+.tag-cluster .tag-disc:nth-child(1) { right: 9%; top: 9%; transform: rotate(-9deg); }
+.tag-cluster .tag-disc:nth-child(2) { right: 3%; top: 29%; transform: rotate(6deg); }
+.tag-cluster .tag-disc:nth-child(3) { right: 22%; top: 24%; transform: rotate(-3deg); }
+.tag-cluster .tag-disc:nth-child(4) { right: 14%; top: 47%; transform: rotate(11deg); }
+.tag-cluster .tag-disc:nth-child(5) { right: 36%; top: 41%; transform: rotate(-6deg); }
 
 /* ---------- More space for what matters ---------- */
 
@@ -833,19 +883,19 @@ img {
   grid-template-columns: minmax(0, 0.78fr) minmax(0, 2fr);
   gap: clamp(22px, 3vw, 48px);
   align-items: center;
-  padding: clamp(24px, 2.8vw, 36px) clamp(24px, 3vw, 40px);
+  padding: clamp(20px, 2.2vw, 28px) clamp(24px, 3vw, 36px);
   border-radius: 28px;
   background: var(--beige);
 }
 
 .space-copy h2 {
-  font-size: clamp(22px, 2.4vw, 28px);
-  margin-bottom: 14px;
+  font-size: clamp(20px, 1.9vw, 24px);
+  margin-bottom: 12px;
 }
 
 .space-copy p {
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.5;
   color: var(--charcoal);
 }
 
@@ -861,7 +911,7 @@ img {
 .space-cats li {
   display: grid;
   justify-items: center;
-  gap: 12px;
+  gap: 10px;
   text-align: center;
   font-family: var(--display);
   font-weight: 500;
@@ -873,8 +923,8 @@ img {
 }
 
 .cat-icon {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
 }
 
 /* ---------- Prose pages ---------- */
@@ -945,7 +995,7 @@ img {
 
 .site-footer {
   border-top: 1px solid var(--line);
-  padding: clamp(24px, 3vw, 36px) 0 clamp(28px, 4vw, 44px);
+  padding: clamp(20px, 2.2vw, 28px) 0 clamp(22px, 2.6vw, 32px);
 }
 
 .footer-bar {
@@ -956,7 +1006,7 @@ img {
 }
 
 .footer-brand img {
-  width: 128px;
+  width: 108px;
 }
 
 .footer-nav {
@@ -1027,7 +1077,7 @@ img {
 }
 
 .footer-legal {
-  margin-top: 22px;
+  margin-top: 16px;
   /* One step down from the links above it, and italic, so the legal line
      reads as a note rather than as more navigation. */
   font-size: 14px;
@@ -1100,9 +1150,22 @@ img {
     margin: 0 auto;
   }
 
+  /* Narrower, and the cluster moves off the screen it was covering: at this
+     width the same offsets put two tags over the Knowts list. */
   .device-kit {
-    width: 58%;
+    width: 50%;
+    margin-left: 0;
   }
+
+  .tag-cluster .tag-disc {
+    width: 27%;
+  }
+
+  .tag-cluster .tag-disc:nth-child(1) { right: 0%; top: 8%; }
+  .tag-cluster .tag-disc:nth-child(2) { right: -5%; top: 30%; }
+  .tag-cluster .tag-disc:nth-child(3) { right: 13%; top: 24%; }
+  .tag-cluster .tag-disc:nth-child(4) { right: 5%; top: 50%; }
+  .tag-cluster .tag-disc:nth-child(5) { right: 22%; top: 43%; }
 }
 
 @media (max-width: 768px) {

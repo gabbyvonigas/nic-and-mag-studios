@@ -13,14 +13,27 @@
 
 ## knowt-tag.png
 
-**Square, 1000 by 1000, transparent outside the disc.** The shadow under it is
-drawn in CSS, not baked into the file, so a replacement does not need one and
-cannot end up with two.
+**Square, 2000 by 2000, with the disc filling the middle 74 percent and
+everything else transparent.** That margin is not spare: both shadows are
+painted into the file and need room around the disc. The page sizes the whole
+box, and `--disc-in-box` in the stylesheet is the 0.74 that turns a box width
+into a disc width, so a replacement has to keep the same proportion or every
+placement on the page shifts.
 
-The current file is built from the app's own `assets/brand/mindknowt-tag-mark.png`
-on a plain white circle, with the mark at 40 percent of the disc. It stands in
-for the real product shot, which will have a sticker on it.
+2000 is twice the largest the page can draw it, so it stays sharp on a phone.
 
-The page never sizes it by its own height, only by a percentage width of the
-box it sits in, so a replacement at a different resolution needs no code
-change as long as it stays square and keeps the disc centered.
+The lighting is in the file too: an off white radial gradient with its
+highlight up and to the left, cooling toward the bottom right, a thin rim of
+light along the top edge, a little thickness along the bottom, then a tight
+contact shadow and a wider soft one underneath. A photograph of the real
+sticker brings all of that with it, which is why none of it is drawn in CSS.
+
+The mark on it is the app's own `assets/brand/mindknowt-tag-mark.png`, placed
+by its rounded rectangle rather than by its bounding box: the rectangle is
+centered on the disc and the signal arcs overhang its top right corner, the
+way they do on the product. Centering the whole drawing instead pushes the
+rectangle down and to the left.
+
+The five tags in the kit cluster are this one file, each turned a few degrees
+by the stylesheet. Keep the rotation small, or the light baked into the file
+starts coming from a different direction on each one.
