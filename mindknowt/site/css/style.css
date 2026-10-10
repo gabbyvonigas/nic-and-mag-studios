@@ -61,9 +61,12 @@
   --home-tint: #ffeae8;
   --daily-tint: #f7fed8;
   --wellness-tint: #e0f6f5;
-  /* The offer band. Near black rather than pure, matching the app's ink. */
-  --band: #111111;
-  --band-muted: #9ba0a6;
+  /* The app's neonPale, the panel tint the mockup uses for the hero copy
+     and the kit. Lifted, not re-picked, same as the lime above it. */
+  --pale-lime: #f1ffbe;
+  /* The warm neutral under the category strip. The only color on the site
+     that is not in the app, because the app has no warm neutral. */
+  --beige: #f6f3ea;
 
   --display: 'Quicksand', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
   --body: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -133,6 +136,14 @@ button:focus-visible {
 img {
   max-width: 100%;
   display: block;
+  /*
+   * The `width` and `height` attributes on an `img` are presentational
+   * hints, so a file with `height="1000"` and a percentage width in CSS
+   * keeps the 1000 and comes out stretched. The attributes stay, because
+   * they are what reserves the right box before the file loads, and this is
+   * what keeps them to the aspect ratio they describe.
+   */
+  height: auto;
 }
 
 .wrap {
@@ -335,80 +346,242 @@ img {
   box-shadow: inset 0 -0.18em 0 var(--lime);
 }
 
-/* ---------- Hero ---------- */
+/* ---------- Pieces the landing page reuses ---------- */
 
-.hero {
-  padding: clamp(40px, 7vw, 88px) 0 clamp(56px, 8vw, 104px);
+/*
+ * One stroke style for every drawn mark on the page: the step
+ * illustrations, the kit features, the category row and the social links are
+ * all `.line-art`, all outline, all painted by `currentColor`. The app has
+ * the same rule for the same reason, which is that a filled glyph beside an
+ * outlined one reads as two sets.
+ */
+.line-art {
+  display: block;
+  color: var(--ink);
 }
 
-.hero-inner h1 {
-  font-size: clamp(34px, 5.6vw, 64px);
-}
-
-/* Holds "on your mind." together, so the break is the one in the markup and
-   not whatever the column width produces. */
-.nowrap {
-  white-space: nowrap;
-}
-
-/* A short lime stroke under the headline. Sized in the markup's own terms
-   rather than to the text, because it is a mark, not an underline. */
+/* The lime bar under the headline, and the shorter dash over a caption. */
 .rule {
   display: block;
-  width: 80px;
-  height: 3px;
-  margin-top: 22px;
+  width: 118px;
+  height: 6px;
+  margin: 22px 0 0;
   border-radius: 999px;
   background: var(--lime);
 }
 
-.hero-inner p {
-  margin-top: 26px;
-  max-width: 50ch;
-  font-size: clamp(17px, 1.7vw, 20px);
-  color: var(--charcoal);
+.dash {
+  display: block;
+  width: 26px;
+  height: 4px;
+  margin-bottom: 12px;
+  border-radius: 999px;
+  background: var(--lime);
 }
 
-.hero-status {
-  margin-top: 30px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+/* Small, spaced, uppercase. Written in sentence case in the markup so it is
+   read out as words rather than as letters. */
+.eyebrow {
   font-family: var(--display);
   font-weight: 500;
-  font-size: 15px;
-  padding: 10px 18px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  font-size: clamp(12px, 1.3vw, 14px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
   color: var(--charcoal);
+  margin: 0;
 }
 
-.hero-status::before {
+/*
+ * The call to action, in both of its slots.
+ *
+ * It is a line of text today because there is nothing to link to yet: no App
+ * Store page and no checkout on this site. When there is, this is the one
+ * selector to turn into a button, and the markup already has it in both of
+ * the places a button belongs.
+ */
+.cta {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.cta::before {
   content: '';
+  display: inline-block;
   width: 9px;
   height: 9px;
-  border-radius: 50%;
+  margin-right: 10px;
+  border-radius: 999px;
   background: var(--lime);
-  /* A dot of lime, not a badge. There is nothing to link to yet. */
-  box-shadow: 0 0 0 3px rgba(217, 250, 60, 0.3);
+  vertical-align: 0.06em;
 }
 
-/* ---------- How it works, and the Knowt Tag beside it ---------- */
-
-.works {
-  padding-bottom: clamp(56px, 8vw, 104px);
+.cta-hero {
+  margin-top: 24px;
 }
 
-.works-grid {
+/*
+ * The phone.
+ *
+ * Drawn here rather than baked into the screenshots, so a replacement
+ * screenshot is a plain capture with no device chrome around it. The frame
+ * is a warm metal edge, a dark screen well and the island; everything else
+ * inside is the picture.
+ */
+.device {
+  position: relative;
+  border-radius: 13%/6.2%;
+  padding: 1.9%;
+  background: linear-gradient(150deg, #efe9de 0%, #cfc7b7 38%, #e8e1d5 62%, #c7bfaf 100%);
+  box-shadow: 0 18px 44px rgba(17, 17, 17, 0.16);
+}
+
+.device-screen {
+  position: relative;
+  overflow: hidden;
+  border-radius: 11%/5.3%;
+  background: var(--page);
+}
+
+.device-screen img {
+  width: 100%;
+  height: auto;
+}
+
+/* The island, over the status bar the screenshot already has. Sized from the
+   screen's width so it holds its proportions at every size on the page. */
+.device-screen::after {
+  content: '';
+  position: absolute;
+  top: 1.3%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 31%;
+  aspect-ratio: 5.6 / 1;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+/*
+ * The Knowt Tag disc.
+ *
+ * One file, `/assets/knowt-tag.png`, used in the hero, in two of the step
+ * cards and five times in the kit cluster. It is transparent outside the
+ * disc, so the shadow is drawn here and a sticker version dropped in later
+ * picks it up everywhere with no code change.
+ */
+.tag-disc {
+  filter: drop-shadow(0 10px 22px rgba(17, 17, 17, 0.18));
+}
+
+/* Three short lime strokes, the mockup's "this just happened" mark. */
+.spark {
+  position: absolute;
+  top: 6%;
+  right: 2%;
+  width: 26px;
+  height: 26px;
+}
+
+.spark::before,
+.spark::after {
+  content: '';
+  position: absolute;
+  width: 3.5px;
+  border-radius: 999px;
+  background: var(--lime);
+}
+
+.spark::before {
+  height: 16px;
+  top: 0;
+  right: 15px;
+  transform: rotate(-28deg);
+}
+
+.spark::after {
+  height: 20px;
+  top: 2px;
+  right: 4px;
+  transform: rotate(12deg);
+}
+
+/* ---------- Hero, with the three steps beside it ---------- */
+
+.hero {
+  padding: clamp(10px, 2vw, 26px) 0 clamp(34px, 5vw, 64px);
+}
+
+/*
+ * Three columns on a wide screen: the copy, the phone, the steps. The DOM
+ * order is the stacked order, so the narrow layout is the same markup with
+ * the columns removed and nothing relies on grid reordering.
+ */
+.hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
-  gap: clamp(28px, 4vw, 56px);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.7fr) minmax(0, 0.95fr);
+  gap: clamp(20px, 3vw, 40px);
   align-items: start;
 }
 
-.section-head {
-  font-size: clamp(22px, 2.6vw, 28px);
-  margin-bottom: 20px;
+/* Two lines, which is what the `br` in the markup asks for. The ceiling is
+   set by the narrowest the first line can be and still hold "One less
+   thing" without a third line appearing. */
+.hero-copy h1 {
+  font-size: clamp(34px, 4vw, 52px);
+  letter-spacing: -0.035em;
+}
+
+.hero-panel {
+  margin-top: clamp(24px, 3vw, 38px);
+  padding: clamp(22px, 2.6vw, 30px);
+  border-radius: 26px;
+  background: var(--pale-lime);
+}
+
+.hero-lead {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(21px, 2.4vw, 28px);
+  line-height: 1.28;
+  letter-spacing: -0.02em;
+}
+
+.hero-lead strong {
+  font-weight: 700;
+}
+
+.hero-sub {
+  margin-top: 14px;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--charcoal);
+}
+
+/*
+ * The phone, with one disc overlapping its bottom right corner.
+ *
+ * The overhang is padding on this box rather than a negative offset on the
+ * disc. A negative offset reaches outside the grid column, which is free
+ * space on a wide screen and the edge of the page on a narrow one, and it
+ * put a scrollbar under the whole site at 1024 and at 390.
+ */
+.hero-art {
+  position: relative;
+  padding: 0 9% 12% 0;
+}
+
+.device-hero {
+  width: 100%;
+}
+
+.tag-hero {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 42%;
 }
 
 .steps {
@@ -416,322 +589,292 @@ img {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 14px;
+  gap: clamp(12px, 1.4vw, 18px);
 }
 
-/*
- * Each tile carries a soft wash of the accent its matching phone screen uses,
- * so the three rows of the page agree with each other. The padding on the left
- * and the gap after the dot are the same value on purpose: the dot then sits
- * in its own square of space rather than looking wedged against the edge.
- */
 .step {
+  position: relative;
   display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
-  gap: 26px;
+  grid-template-columns: minmax(0, 1fr) clamp(96px, 9vw, 124px);
+  grid-template-areas:
+    'num art'
+    'body art';
+  gap: 10px clamp(10px, 1.2vw, 18px);
   align-items: center;
+  padding: clamp(18px, 1.8vw, 24px);
   border-radius: 24px;
-  padding: 26px;
+  background: var(--white);
+  box-shadow: 0 10px 30px rgba(17, 17, 17, 0.07);
 }
 
-.step-lime {
-  background: var(--daily-tint);
-}
-
-.step-coral {
-  background: var(--home-tint);
-}
-
-.step-teal {
-  background: var(--wellness-tint);
-}
-
-.step-dot {
-  display: flex;
+.step-num {
+  grid-area: num;
+  justify-self: start;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 28px;
-  /* Ink on every accent, which is the legible pairing on all three. White on
-     coral is 3.29 and on teal 2.22, so it is not an option here. */
-  color: var(--ink);
-}
-
-.step-lime .step-dot {
-  background: var(--daily);
-}
-
-.step-coral .step-dot {
-  background: var(--home);
-}
-
-.step-teal .step-dot {
-  background: var(--wellness);
-}
-
-.step h3 {
-  font-size: 34px;
-  /* Tight to its own sentence, so the pair reads as one block. */
-  margin-bottom: 2px;
-}
-
-.step p {
-  color: var(--charcoal);
-  font-size: 16px;
-  line-height: 1.45;
-}
-
-/* ---------- Knowt Tag ---------- */
-
-/*
- * Compact, and a column rather than a wide card, because it sits beside the
- * three tiles now. It is one part of the kit, not the headline.
- */
-.tag {
-  background: rgba(217, 250, 60, 0.18);
-  border-radius: 24px;
-  padding: clamp(22px, 2.6vw, 30px);
-}
-
-.tag-art {
-  width: 108px;
-  aspect-ratio: 1;
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--white);
-}
-
-.tag-art img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.tag-copy h2 {
-  margin-top: 20px;
-  font-size: clamp(21px, 2.4vw, 26px);
-}
-
-.tag-copy p {
-  margin-top: 12px;
-  font-size: 16px;
-  color: var(--charcoal);
-}
-
-/* The plain-language line. Quieter, because it explains rather than sells. */
-.tag-copy .tag-note {
-  font-size: 14px;
-  color: var(--gray);
-  line-height: 1.6;
-}
-
-/* ---------- The kit ---------- */
-
-/*
- * The one thing on this page that asks for a decision, so it carries the most
- * weight. That weight used to come from a near-black block; it comes from a
- * solid lime one now. Lime is the brand's loudest color and this is the place
- * to spend it.
- */
-.offer {
-  padding-bottom: clamp(56px, 8vw, 104px);
-}
-
-.offer-band {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18px clamp(28px, 4vw, 64px);
-  align-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
   background: var(--lime);
-  border-radius: 28px;
-  padding: clamp(28px, 4vw, 48px);
-}
-
-.offer-eyebrow {
   font-family: var(--display);
   font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  /* Ink on lime is 15.9. Everything on this band is ink or charcoal. */
-  color: var(--ink);
-  opacity: 0.72;
-}
-
-.offer-line {
-  margin-top: 12px;
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: clamp(28px, 3.6vw, 44px);
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  font-size: 17px;
   color: var(--ink);
 }
 
-/*
- * Five tags, as five dots. Shapes only, because there is no product photo and
- * inventing one would be a picture of something that does not exist.
- *
- * Every dot carries an ink ring. Without it the lime one is invisible against
- * a lime band, 1.0 to 1, and the teal and coral ones sit at 1.9 and 2.8. The
- * ring is what makes all five read as five.
- */
-.offer-dots {
+.step-body {
+  grid-area: body;
+}
+
+.step-body h2 {
+  font-size: clamp(22px, 2.2vw, 27px);
+}
+
+.step-body p {
+  margin-top: 6px;
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: var(--charcoal);
+}
+
+/* The illustration well: a pale tile with the drawing and, on two of the
+   three, a Knowt Tag overlapping it. */
+.step-art {
+  grid-area: art;
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 20px;
+  background: var(--page);
+  display: grid;
+  place-items: center;
+}
+
+.step-art .line-art {
+  width: 62%;
+  height: auto;
+}
+
+.tag-step {
+  position: absolute;
+  right: -10%;
+  bottom: -8%;
+  width: 52%;
+}
+
+.tag-step-tap {
+  right: auto;
+  left: -14%;
+  bottom: 14%;
+  width: 56%;
+}
+
+/* ---------- A simple system, a better you ---------- */
+
+.system {
+  padding: clamp(28px, 4vw, 54px) 0;
+}
+
+.system-grid {
+  margin-top: clamp(22px, 3vw, 38px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(18px, 3vw, 44px);
+}
+
+.system-item {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: clamp(14px, 1.8vw, 24px);
+  align-items: center;
+}
+
+.system-copy h3 {
+  font-size: clamp(21px, 2.2vw, 27px);
+}
+
+.system-copy p {
+  margin-top: 8px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--charcoal);
+}
+
+/* ---------- The MindKnowt Kit ---------- */
+
+.kit {
+  padding: clamp(18px, 3vw, 36px) 0;
+}
+
+.kit-panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+  gap: clamp(24px, 3vw, 44px);
+  align-items: center;
+  padding: clamp(26px, 3.4vw, 48px);
+  border-radius: 34px;
+  background: var(--pale-lime);
+}
+
+.kit-copy h2 {
+  margin-top: 14px;
+  font-size: clamp(32px, 4.2vw, 52px);
+  letter-spacing: -0.035em;
+}
+
+.kit-sub {
+  margin-top: 14px;
+  font-size: 17px;
+  color: var(--charcoal);
+}
+
+/* Four features on one line, separated by hairlines rather than by boxes. */
+.kit-features {
   list-style: none;
-  display: flex;
-  gap: 10px;
-  margin: 22px 0 0;
+  margin: clamp(22px, 2.6vw, 32px) 0 0;
   padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.offer-dots li {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2px solid var(--ink);
+.kit-features li {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 4px clamp(6px, 1vw, 14px);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--charcoal);
 }
 
-.offer-dots li:nth-child(1) {
-  background: var(--daily);
+.kit-features li + li {
+  border-left: 1px solid rgba(17, 17, 17, 0.14);
 }
 
-.offer-dots li:nth-child(2) {
-  background: var(--home);
+.feature-icon {
+  width: 26px;
+  height: 26px;
 }
 
-.offer-dots li:nth-child(3) {
-  background: var(--wellness);
-}
-
-.offer-dots li:nth-child(4) {
-  background: var(--routine);
-}
-
-.offer-dots li:nth-child(5) {
-  background: var(--activity);
-}
-
-/* Lifted onto white so the price separates from the lime around it. */
-.offer-price {
-  text-align: right;
-  background: var(--white);
-  border-radius: 22px;
-  padding: 22px 26px;
-}
-
-/* The price and the badge are one unit, so they share a line and wrap
-   together rather than drifting apart. */
-.offer-price-row {
+.kit-buy {
+  margin-top: clamp(22px, 2.6vw, 32px);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
+  gap: 14px clamp(16px, 2vw, 26px);
 }
 
-.offer-amount {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: clamp(42px, 5.2vw, 62px);
-  line-height: 1;
-  letter-spacing: -0.03em;
-  color: var(--ink);
-}
-
-/* Ink filled with lime type, which is 15.9, so the badge still carries the
-   brand color now that the band itself is lime. */
-.offer-badge {
-  background: var(--ink);
-  color: var(--lime);
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: clamp(15px, 1.5vw, 18px);
-  padding: 12px 20px;
+.price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 26px;
   border-radius: 999px;
-  white-space: nowrap;
+  background: var(--white);
+  box-shadow: 0 8px 22px rgba(17, 17, 17, 0.08);
 }
 
-.offer-terms {
-  margin-top: 16px;
+.price-amount {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(28px, 3.2vw, 38px);
+  letter-spacing: -0.03em;
+}
+
+.price-note {
+  font-size: 15px;
+  color: var(--charcoal);
+}
+
+.kit-platform {
   font-size: 16px;
   color: var(--charcoal);
 }
 
-.offer-platform {
-  margin-top: 6px;
+/* The phone, with five discs loose around it. */
+.kit-art {
+  position: relative;
+  padding: 2% 0 8%;
+}
+
+.device-kit {
+  width: 56%;
+}
+
+.tag-cluster {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tag-cluster .tag-disc {
+  position: absolute;
+  width: 23%;
+}
+
+/* Placed by hand rather than by a rule, because a cluster that is evenly
+   spaced reads as a diagram instead of as five tags set down. */
+.tag-cluster .tag-disc:nth-child(1) { right: 4%; top: 10%; }
+.tag-cluster .tag-disc:nth-child(2) { right: 0%; top: 36%; }
+.tag-cluster .tag-disc:nth-child(3) { right: 20%; top: 28%; }
+.tag-cluster .tag-disc:nth-child(4) { right: 10%; top: 58%; }
+.tag-cluster .tag-disc:nth-child(5) { right: 29%; top: 64%; }
+
+/* ---------- More space for what matters ---------- */
+
+.space {
+  padding: clamp(18px, 3vw, 34px) 0 clamp(30px, 4vw, 56px);
+}
+
+.space-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 2fr);
+  gap: clamp(22px, 3vw, 48px);
+  align-items: center;
+  padding: clamp(24px, 2.8vw, 36px) clamp(24px, 3vw, 40px);
+  border-radius: 28px;
+  background: var(--beige);
+}
+
+.space-copy h2 {
+  font-size: clamp(22px, 2.4vw, 28px);
+  margin-bottom: 14px;
+}
+
+.space-copy p {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--charcoal);
+}
+
+.space-cats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: clamp(8px, 1.2vw, 18px);
+}
+
+.space-cats li {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
   font-family: var(--display);
   font-weight: 500;
-  font-size: 14px;
-  color: var(--gray);
-}
-
-/*
- * Inside the band, along its bottom edge. Charcoal rather than gray: gray on
- * lime is 3.99, which fails at this size.
- */
-.offer-later {
-  grid-column: 1 / -1;
-  margin-top: 4px;
-  font-size: 13px;
-  color: var(--charcoal);
-  opacity: 0.8;
-}
-
-/* ---------- Phone vignettes ---------- */
-
-.screens {
-  padding: 0 0 clamp(28px, 4vw, 48px);
-}
-
-/*
- * Ten percent narrower than the column it sits in, centered. Scaling the row
- * rather than each frame keeps the three identical and keeps them aligned.
- */
-.screen-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(16px, 3vw, 40px);
-  align-items: start;
-  width: 90%;
-  margin-inline: auto;
-}
-
-.screen {
-  margin: 0;
-}
-
-/*
- * The device is drawn in CSS: a radius and a shadow around a plain screenshot.
- * No frame image to keep in sync, and a real screenshot drops in as a file
- * swap. The aspect ratio is the iPhone logical one, so a straight screenshot
- * fits with nothing cropped.
- */
-.screen-frame {
-  position: relative;
-  aspect-ratio: 402 / 874;
-  border-radius: 13% / 6%;
-  overflow: hidden;
-  background: var(--page);
-  box-shadow:
-    0 0 0 1px var(--line),
-    0 30px 60px -28px rgba(17, 17, 17, 0.45);
-}
-
-.screen-frame img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.screen figcaption {
-  margin-top: 14px;
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1.5;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--charcoal);
+}
+
+.cat-icon {
+  width: 30px;
+  height: 30px;
 }
 
 /* ---------- Prose pages ---------- */
@@ -805,13 +948,15 @@ img {
   padding: clamp(24px, 3vw, 36px) 0 clamp(28px, 4vw, 44px);
 }
 
-/* The wordmark appears once on the page, in the header, so the footer leads
-   with its links rather than repeating the logo above them. */
-.footer-grid {
+.footer-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 32px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 18px clamp(20px, 3vw, 44px);
+}
+
+.footer-brand img {
+  width: 128px;
 }
 
 .footer-nav {
@@ -834,6 +979,53 @@ img {
   box-shadow: inset 0 -0.14em 0 var(--lime);
 }
 
+/* The address pushes to the right edge, with the icons after it. */
+.footer-mail {
+  margin-left: auto;
+  font-size: 15px;
+  color: var(--charcoal);
+}
+
+.footer-mail a {
+  color: var(--charcoal);
+  text-decoration: none;
+}
+
+.footer-mail a:hover {
+  box-shadow: inset 0 -0.14em 0 var(--lime);
+}
+
+.footer-social {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.footer-social a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 44 square, because that is the smallest thing a thumb reliably hits,
+     with the mark inside it kept small so the row stays quiet. */
+  width: 44px;
+  height: 44px;
+  margin: -10px;
+  color: var(--charcoal);
+}
+
+.footer-social a:hover {
+  color: var(--ink);
+}
+
+.social-icon {
+  width: 21px;
+  height: 21px;
+  color: inherit;
+}
+
 .footer-legal {
   margin-top: 22px;
   /* One step down from the links above it, and italic, so the legal line
@@ -850,91 +1042,141 @@ img {
 
 /* ---------- Narrow screens ---------- */
 
-@media (max-width: 768px) {
-  /*
-   * One column, in the order the markup already has: hero, How it works, the
-   * Knowt Tag, the kit, the screens.
-   */
-  .works-grid {
-    grid-template-columns: 1fr;
+/*
+ * The page is built as one column with columns added, not the other way
+ * around, so these blocks mostly take columns away. Every section stacks in
+ * the order the markup already has: hero copy, hero phone, the three steps,
+ * the system row, the kit panel, the category strip.
+ */
+
+@media (max-width: 940px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.78fr);
   }
 
+  /* Alone in its column the phone balloons, so it keeps the width it had
+     when there were three columns and centers in the space. */
+  .hero-art {
+    max-width: 330px;
+    justify-self: center;
+    align-self: center;
+  }
+
+  /* The steps drop under the pair above them and run three across. */
+  .steps {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .system-item {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    text-align: center;
+  }
+
+  .system-copy .dash {
+    margin-inline: auto;
+  }
+
+  .space-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .space-cats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 22px 12px;
+  }
+}
+
+@media (max-width: 860px) {
+  .kit-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The phone and its tags stop being a side panel and become a picture
+     under the copy, held to a width the cluster still fits beside. */
+  .kit-art {
+    max-width: 440px;
+    margin: 0 auto;
+  }
+
+  .device-kit {
+    width: 58%;
+  }
+}
+
+@media (max-width: 768px) {
   .brand img {
     /* Still twice what it was, sized to the narrower page. */
     width: 168px;
   }
 
-  .step {
-    grid-template-columns: 56px minmax(0, 1fr);
-    gap: 20px;
-    padding: 20px;
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .step-dot {
-    width: 56px;
-    height: 56px;
-    font-size: 24px;
+  .hero-art {
+    max-width: 340px;
+    margin: 4px auto 0;
   }
 
-  .step h3 {
-    font-size: 27px;
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .tag-art {
-    width: 96px;
+  .system-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
   }
 
-  /* The band stacks in the order asked for: eyebrow, line, dots, price,
-     badge, then the fine print. */
-  .offer-band {
-    grid-template-columns: 1fr;
-    gap: 26px;
-  }
-
-  .offer-price {
+  /* Back to the phone beside its words, which is the shape that fits a
+     narrow screen without three tall columns of one-word lines. */
+  .system-item {
+    grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+    justify-items: start;
     text-align: left;
   }
 
-  .offer-price-row {
-    justify-content: flex-start;
+  .system-copy .dash {
+    margin-inline: 0;
   }
 
-  /*
-   * The three stay on one line and scroll sideways. Squeezing them three
-   * across at this width leaves each caption three words wide, which is
-   * worse than a swipe. The row scrolls inside the page gutters: an earlier
-   * version bled past them with a negative margin, and the matching padding
-   * did not hold on a scroll container, so the first frame sat at x 0 while
-   * everything else started at 24.
-   */
-  .screen-row {
-    width: auto;
-    display: flex;
-    gap: 14px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 6px;
-    scrollbar-width: none;
+  .kit-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 0;
   }
 
-  .screen-row::-webkit-scrollbar {
-    display: none;
+  .kit-features li:nth-child(odd) {
+    border-left: 0;
   }
 
-  .screen {
-    flex: 0 0 176px;
-    scroll-snap-align: start;
+  .space-cats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .footer-bar {
+    gap: 16px;
+  }
+
+  .footer-mail {
+    margin-left: 0;
   }
 }
 
 @media (max-width: 420px) {
-  /* Keeps "on your mind." on one line at the narrowest width shipped. */
-  .hero-inner h1 {
-    font-size: 31px;
-  }
-
   .brand img {
     width: 150px;
+  }
+
+  .hero-copy h1 {
+    font-size: 34px;
+  }
+
+  .system-item {
+    grid-template-columns: minmax(0, 112px) minmax(0, 1fr);
+  }
+
+  .space-cats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
