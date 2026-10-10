@@ -1,0 +1,929 @@
+import { useCallback, useEffect, useState } from 'react';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { Button, Card, Pill, SubScreenHeader } from '../components/ui';
+import {
+  cancelKnowtOneShots,
+  describeError,
+  pendingForKnowt,
+  rearmKnowtAlarm,
+  resyncAlarmsQuietly,
+  settled,
+} from '../alarms';
+import { Icon } from '../components/Icon';
+import { completeOccurrence } from '../knowts/completeOccurrence';
+import { openOccurrence } from '../knowts/completions';
+import {
+  requiresScan,
+  stopChoice,
+  stopChoiceOf,
+  stopLabelOf,
+  type StopChoice,
+} from '../knowts/modes';
+import { StopChoiceRow } from '../components/StopChoiceRow';
+import { PinToggle } from '../components/PinToggle';
+import { buildSnoozed } from '../knowts/snoozed';
+import { isScanOnly } from '../knowts/scanOnly';
+import { scanKnowtTag } from '../knowts/scanKnowt';
+import {
+  archiveKnowt,
+  attachTag,
+  deleteKnowt,
+  deleteSchedule,
+  detachTag,
+  findKnowtByTagUid,
+  reassignTag,
+  finishDraft,
+  restoreKnowt,
+  describeRepeat,
+  formatTime,
+  getKnowt,
+  isDueOn,
+  listEvents,
+  ModeUnavailableError,
+  setMode,
+  setScanOnly,
+  setPinned,
+  TagInUseError,
+  updateNotes,
+} from '../db';
+import {
+  askToDelete,
+  askToDropSchedules,
+  sayTagFreed,
+} from '../knowts/deletePrompt';
+import { askToReassign, askToUnassign } from '../knowts/tagConflict';
+import { nfcFailureMessage, nfcReader } from '../nfc';
+import { useQuery } from '../db/useQuery';
+import { theme } from '../theme';
+import type { RootStackParamList } from '../navigation/types';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+/**
+ * Just the clock, the way a person would say it.
+ *
+ * The full locale string carried a date, seconds and often a timezone, which
+ * is more than a history row needs to be read at a glance.
+ */
+function clockTime(at: number): string {
+  const date = new Date(at);
+  const hours = date.getHours();
+  const minutes = `${date.getMinutes()}`.padStart(2, '0');
+  return `${hours % 12 === 0 ? 12 : hours % 12}:${minutes} ${hours < 12 ? 'AM' : 'PM'}`;
+}
+type Route = RouteProp<RootStackParamList, 'KnowtDetail'>;
+
+export function KnowtDetailScreen() {
+  const navigation = useNavigation<Nav>();
+  const { params } = useRoute<Route>();
+  const { data: knowt, loading, reload } = useQuery(
+    () => getKnowt(params.knowtId),
+    [params.knowtId],
+  );
+  const { data: events, reload: reloadEvents } = useQuery(
+    () => listEvents(params.knowtId),
+    [params.knowtId],
+  );
+  // What is armed for this Knowt right now, which is how the screen knows it
+  // was opened from the Snoozed section rather than from the list.
+  const { data: pending, reload: reloadPending } = useQuery(
+    () => pendingForKnowt(params.knowtId),
+    [params.knowtId],
+  );
+
+  const [draftNotes, setDraftNotes] = useState('');
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  // Closed by default. History is the least urgent thing on this screen and it
+  // grows without limit, so it should not push everything else off the top.
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * A failure from a button in the actions, reported in the actions.
+   *
+   * Separate from `notice` because of where each one is read. `notice` renders
+   * near the top, beside the tag and Mode controls that raise it. The actions
+   * are the last thing on a long screen, so a scan started from down there
+   * reporting up there is a scan that says nothing: the person taps, the sheet
+   * does not open, and the explanation is a screen away. Same failure, same
+   * copy, shown where the finger was.
+   */
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (knowt && !dirty) setDraftNotes(knowt.notes ?? '');
+  }, [knowt, dirty]);
+
+  // Coming back from the editor lands on a screen that already rendered, so
+  // the query has to run again or it shows the values from before the edit.
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+      void reloadEvents();
+      void reloadPending();
+    }, [reload, reloadEvents, reloadPending]),
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <ActivityIndicator color={theme.color.textSecondary} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!knowt) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.content}>
+          <SubScreenHeader onBack={() => navigation.goBack()} />
+          <Text style={styles.body}>That Knowt no longer exists.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const saveNotes = async () => {
+    await updateNotes(knowt.id, draftNotes);
+    setDirty(false);
+    await reload();
+  };
+
+  /**
+   * Spec section 5.6: attaching a tag promotes an Open knowt in place. Name,
+   * notes, schedules and history all survive. Only the UID and mode change.
+   * The same path re-scans a replacement tag onto an already-tagged knowt.
+   */
+  /**
+   * Attaching or replacing the tag.
+   *
+   * `report` is where a failure goes, because this runs from two places: the
+   * control in the header, and the actions button on a Scan Knowt with no tag
+   * yet. Each reports next to itself.
+   */
+  const scanToAttach = async (report = setNotice) => {
+    report(null);
+    setBusy(true);
+    try {
+      const tag = await nfcReader.scanTag();
+      const owner = await findKnowtByTagUid(tag.rawUid);
+      if (owner && owner.id !== knowt.id) {
+        // Interrupts at the scan rather than reporting it somewhere the person
+        // is not looking. Tags are rewritable, so a conflict is a choice.
+        if (!(await askToReassign(owner.name, knowt.name))) return;
+        await reassignTag(tag.rawUid, knowt.id);
+        await reload();
+        return;
+      }
+      await attachTag(knowt.id, tag.rawUid);
+      await reload();
+      // The label, not the stored value. "is now strict" leaked a column into
+      // a sentence, and the word no longer names one thing anyway: with a
+      // schedule it is Scan + Alarm, without one it is Scan Knowt. Read after
+      // the reload, so it reports what the Knowt became.
+      const refreshed = await getKnowt(knowt.id);
+      report(
+        refreshed
+          ? `Tag attached. ${refreshed.name} is now ${stopLabelOf(refreshed)}.`
+          : 'Tag attached.',
+      );
+    } catch (err) {
+      // Null only for backing out of the sheet, which is not a failure. Every
+      // other reason says what happened; the copy is in `nfc/failureText.ts`.
+      const failure = nfcFailureMessage(err);
+      if (failure) report(failure.text);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Moving a Knowt between the three ways it can stop.
+   *
+   * Two of them store the same mode, so there is no single field to set. What
+   * separates Scan Knowt from Scan + Alarm is whether a schedule exists, which
+   * means each direction has to do the thing that makes the choice true:
+   * picking Scan Knowt removes the schedules, and picking either ringing option
+   * from Scan Knowt has to go and get a time, because the app never invents
+   * one.
+   */
+  const chooseStop = async (next: StopChoice) => {
+    setNotice(null);
+    const want = stopChoice(next);
+    const current = stopChoiceOf(knowt);
+    if (next === current) return;
+
+    try {
+      if (!want.rings) {
+        // Removing schedules is real data and the only way to stop something
+        // ringing, so it asks. History survives: completions belong to the
+        // Knowt, not to the schedule that prompted them.
+        if (knowt.schedules.length > 0) {
+          if (!(await askToDropSchedules(knowt.name, knowt.schedules.length))) {
+            return;
+          }
+          for (const schedule of knowt.schedules) {
+            await deleteSchedule(schedule.id);
+          }
+        }
+        // The flag is what makes it a Scan Knowt. Set after the schedules are
+        // gone, so a failure part way through leaves a plain unscheduled Knowt
+        // rather than a Scan Knowt that still rings.
+        await setScanOnly(knowt.id, true);
+        // Strict only if there is a tag to require, since `setMode` refuses it
+        // otherwise. The mode only decides the glyph here.
+        await setMode(knowt.id, knowt.tag_uid ? 'strict' : 'open');
+        // The alarms armed for those schedules come down with them, or it keeps
+        // ringing for a schedule that no longer exists.
+        await resyncAlarmsQuietly();
+        await reload();
+        return;
+      }
+
+      // Off first: a ringing Knowt is not a Scan Knowt, and leaving the flag
+      // on would keep it off Daily however good its schedule was.
+      await setScanOnly(knowt.id, false);
+      await setMode(knowt.id, want.mode);
+      await reload();
+
+      // It has to ring, and nothing can ring without a time. Backing out of
+      // that screen leaves it with no schedule, so it reads as Scan Knowt
+      // again, which is the honest outcome of not giving it one.
+      if (knowt.schedules.length === 0) {
+        navigation.navigate('EditSchedule', { knowtId: knowt.id });
+      }
+    } catch (err) {
+      setNotice(
+        err instanceof ModeUnavailableError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err),
+      );
+    }
+  };
+
+  /**
+   * Whether there is anything to check in against yet.
+   *
+   * "I just did this" on a knowt that rings at eight, read at seven, is an
+   * invitation to log a thing that has not happened. It appears once the knowt
+   * has actually come due: a schedule whose time has passed today, an alarm
+   * that fired and was never closed, or no schedule at all, which is the
+   * untimed case where any moment is as good as another.
+   */
+  const dueYet = (() => {
+    if (knowt.schedules.length === 0) return true;
+    if ((events ?? []).some((e) => e.fired_at && !e.completed_at)) return true;
+
+    const now = new Date();
+    const minutesNow = now.getHours() * 60 + now.getMinutes();
+    return knowt.schedules.some((schedule) => {
+      if (!isDueOn(schedule, now)) return false;
+      const [hour, minute] = schedule.time.split(':').map(Number);
+      return (hour ?? 0) * 60 + (minute ?? 0) <= minutesNow;
+    });
+  })();
+
+  /**
+   * Where Edit goes. The Schedules card goes to the same place through the same
+   * function on purpose: two call sites navigating to "the editor" by hand is
+   * how they end up on different screens after a rename.
+   */
+  const openEditor = () =>
+    navigation.navigate('EditKnowt', { knowtId: knowt.id });
+
+  const scanOnly = isScanOnly(knowt);
+
+  /**
+   * Whether its scan or check-in has already landed today.
+   *
+   * Read from today's events rather than from anything stored, which is the
+   * whole of the daily reset: a new day is a new empty window, so nothing has
+   * to run at midnight and nothing has to be cleared.
+   */
+  const doneToday = (() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = start.getTime() + 86_400_000;
+    return (events ?? []).some(
+      (event) =>
+        event.completed_at !== null &&
+        event.completed_at >= start.getTime() &&
+        event.completed_at < end,
+    );
+  })();
+
+  /**
+   * What the one scan button says, in the four states it has.
+   *
+   * Hoisted out of the JSX because the button moved up the screen and the
+   * label should not have moved with it twice.
+   */
+  const scanLabel = busy
+    ? 'Scanning'
+    : doneToday
+      ? 'Done today'
+      : knowt.tag_uid
+        ? 'Scan Knowt'
+        : 'Add a Knowt Tag to scan';
+
+  /**
+   * Scanning the tag to log it.
+   *
+   * Reports into the actions, next to the button that started it. The copy for
+   * every reason lives in `nfc/failureText.ts`, and only backing out of the
+   * sheet is silent.
+   */
+  const scanToLog = async () => {
+    setActionNotice(null);
+    setBusy(true);
+    try {
+      const outcome = await scanKnowtTag(knowt);
+      if (outcome.kind === 'failed') setActionNotice(outcome.message);
+      if (outcome.kind === 'done') await reloadEvents();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Whether this Knowt is sitting under a snooze.
+   *
+   * `buildSnoozed` is the same rule Daily's Snoozed section uses, over the one
+   * Knowt instead of all of them, so the screen you land on from that section
+   * agrees with the section you tapped.
+   */
+  const snoozed =
+    buildSnoozed({
+      alarms: pending ?? [],
+      knowts: [knowt],
+      now: Date.now(),
+    }).length > 0;
+
+  /**
+   * Done.
+   *
+   * `completeOccurrence` records it, clears the Knowt's one-shots, which is
+   * what takes it out of the Snoozed section, and resyncs so the next
+   * occurrence is armed. Then the screen closes: this is the primary action,
+   * and a primary action that leaves you looking at the same screen reads as
+   * having done nothing. Bounded for the same reason the Ringing screen's is.
+   */
+  const finishNow = async () => {
+    setNotice(null);
+    // Spec section 3: a completion with no alarm pending is a valid check-in,
+    // which is why the schedule can still come out null here.
+    //
+    // When one of today's occurrences is what is being checked in against,
+    // though, it has to be named. Recording every check-in against no schedule
+    // meant Daily went on showing the knowt as not done and the alarm armed for
+    // it went on ringing.
+    const open = openOccurrence({
+      schedules: knowt.schedules,
+      events: events ?? [],
+    });
+    const done = await settled(
+      completeOccurrence({
+        knowtId: knowt.id,
+        scheduleId: open?.id ?? null,
+        method: 'tap',
+      }),
+    );
+    if (!done.ok) {
+      setNotice(`That could not be recorded. ${describeError(done.error)}`);
+      await reloadEvents();
+      return;
+    }
+    navigation.navigate('Tabs', { screen: 'Daily' });
+  };
+
+  /** Puts it off again, for the Knowt's own snooze length. */
+  const snoozeAgain = async () => {
+    setNotice(null);
+    const armed = await settled(
+      rearmKnowtAlarm({
+        knowtId: knowt.id,
+        title: knowt.name,
+        minutes: knowt.snooze_minutes,
+        kind: 'snooze',
+        requiresScan: requiresScan(knowt.mode),
+        snoozeMinutes: knowt.snooze_minutes,
+      }),
+    );
+    if (!armed.ok) {
+      setNotice(`That could not be snoozed. ${describeError(armed.error)}`);
+      return;
+    }
+    navigation.navigate('Tabs', { screen: 'Daily' });
+  };
+
+  /**
+   * Stops it asking again today without saying it was done.
+   *
+   * The one-shots are what is left of today's firing, so clearing them is the
+   * whole of it: nothing is marked complete, the Log still shows it as not
+   * done, and the recurring alarm is untouched, so tomorrow is unaffected.
+   * There is no stored "skipped" state and this does not invent one.
+   */
+  const skipToday = async () => {
+    setNotice(null);
+    const cleared = await settled(cancelKnowtOneShots(knowt.id));
+    if (!cleared.ok) {
+      setNotice(`That could not be cleared. ${describeError(cleared.error)}`);
+      return;
+    }
+    await settled(resyncAlarmsQuietly());
+    navigation.navigate('Tabs', { screen: 'Daily' });
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <SubScreenHeader
+          title={knowt.name}
+          subtitle={knowt.location_note ?? undefined}
+          onBack={() => navigation.goBack()}
+          action={
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={12}
+              onPress={openEditor}>
+              <Text style={styles.editLink}>Edit</Text>
+            </Pressable>
+          }
+        />
+
+        <View style={styles.pills}>
+          {knowt.category ? (
+            <Pill label={knowt.category.name} color={knowt.category.color} />
+          ) : null}
+          {/* Reads from the Knowt rather than from its mode alone, because the
+              mode cannot tell Scan Knowt from Scan + Alarm: both store
+              `strict`, and what separates them is having no schedule. */}
+          <Pill label={stopLabelOf(knowt)} />
+          {knowt.tag_uid ? (
+            <Pill label="Tagged" icon="knowtTag" />
+          ) : (
+            <Pill label="No tag" />
+          )}
+        </View>
+
+        {/* The one thing you came here to do, reachable without scrolling. It
+            used to sit in the actions at the very bottom, past Notes, Mode,
+            the tag controls, Schedules and History, which on a small iPhone is
+            several screens below the title. Only this button moved: Mark done
+            and everything else stayed where they were. */}
+        {scanOnly ? (
+          <View style={styles.leadAction}>
+            <Button
+              label={scanLabel}
+              disabled={busy || doneToday}
+              // The brand mark rather than a bracket, lime on the black fill,
+              // which is the pairing the palette allows on near black.
+              icon={doneToday ? 'check' : 'knowtTag'}
+              iconColor={theme.color.highlight}
+              onPress={() =>
+                knowt.tag_uid
+                  ? void scanToLog()
+                  : void scanToAttach(setActionNotice)
+              }
+            />
+            {/* Whatever the button did, said next to the button. A scan that
+                failed used to report at the top of the screen, which on a
+                Knowt with notes, schedules and history is out of sight from
+                the finger that started it: the sheet does not open, nothing
+                changes, and the reason is a screen away. */}
+            {actionNotice ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
+                onPress={() => setActionNotice(null)}
+                style={styles.notice}>
+                <Text style={styles.noticeText}>{actionNotice}</Text>
+              </Pressable>
+            ) : null}
+            {doneToday ? (
+              <Text style={styles.hint}>
+                Scanned today. It comes back tomorrow.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        <Text style={styles.sectionTitle}>Notes</Text>
+        <TextInput
+          style={[styles.input, styles.multiline]}
+          value={draftNotes}
+          onChangeText={(text) => {
+            setDraftNotes(text);
+            setDirty(true);
+          }}
+          placeholder="Anything worth knowing when this goes off."
+          placeholderTextColor={theme.color.textMuted}
+          multiline
+          textAlignVertical="top"
+        />
+        {dirty ? <Button label="Save notes" onPress={() => void saveNotes()} /> : null}
+
+        {knowt.is_draft ? (
+          <View style={styles.draft}>
+            <Text style={styles.draftText}>
+              This is a draft. It does not ring and it is not in your knowts
+              yet.
+            </Text>
+            {/* Into the same guided setup a new knowt gets, rather than just
+                flipping the flag: a draft has no time and no tag, which is
+                exactly what that screen asks for. */}
+            <Button
+              label="Finish setting it up"
+              variant="highlight"
+              onPress={() =>
+                navigation.navigate('SetupKnowt', {
+                  name: knowt.name,
+                  categoryId: knowt.category_id,
+                  notes: knowt.notes,
+                  draftId: knowt.id,
+                })
+              }
+            />
+            <Button
+              label="Keep it as it is"
+              variant="quiet"
+              onPress={async () => {
+                await finishDraft(knowt.id);
+                // It may already carry a schedule that nothing has armed.
+                await resyncAlarmsQuietly();
+                await reload();
+              }}
+            />
+          </View>
+        ) : null}
+
+        {knowt.archived ? (
+          <View style={styles.draft}>
+            <Text style={styles.draftText}>
+              Archived. Nothing here rings until it is back.
+            </Text>
+            <Button
+              label="Restore"
+              variant="secondary"
+              onPress={async () => {
+                await restoreKnowt(knowt.id);
+                await resyncAlarmsQuietly();
+                await reload();
+              }}
+            />
+          </View>
+        ) : null}
+
+        {notice ? (
+          <View style={styles.notice}>
+            <Text style={styles.noticeText}>{notice}</Text>
+          </View>
+        ) : null}
+
+        <Text style={styles.sectionTitle}>Mode</Text>
+        <StopChoiceRow
+          value={stopChoiceOf(knowt)}
+          tagged={!!knowt.tag_uid}
+          onChange={(next) => void chooseStop(next)}
+        />
+        <PinToggle
+          pinned={knowt.is_pinned === 1}
+          onToggle={async () => {
+            await setPinned(knowt.id, knowt.is_pinned !== 1);
+            await reload();
+          }}
+        />
+
+        <Button
+          label={
+            knowt.tag_uid
+              ? 'Replace the Knowt tag'
+              : 'Add a Knowt tag to scan'
+          }
+          variant="secondary"
+          disabled={busy}
+          onPress={() => void scanToAttach()}
+        />
+        {knowt.tag_uid ? (
+          <>
+            <Text style={styles.tagUid} selectable>
+              {knowt.tag_uid}
+            </Text>
+            {/* The tags are rewritable hardware, so one stuck on the wrong
+                thing is a label to peel off, not a permanent pairing. */}
+            <Button
+              label="Free this tag for something else"
+              variant="quiet"
+              disabled={busy}
+              onPress={async () => {
+                if (!(await askToUnassign(knowt.name))) return;
+                await detachTag(knowt.id);
+                await reload();
+                setNotice(
+                  `${knowt.name} is Alarm Only now. The tag is free to use.`,
+                );
+              }}
+            />
+          </>
+        ) : null}
+
+        <Text style={styles.sectionTitle}>Schedules</Text>
+        {knowt.schedules.length === 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add a schedule"
+            onPress={() =>
+              navigation.navigate('EditSchedule', { knowtId: knowt.id })
+            }
+            style={({ pressed }) => [styles.addRow, pressed && styles.pressed]}>
+            <Text style={styles.addRowText}>Tap to add a schedule</Text>
+          </Pressable>
+        ) : (
+          knowt.schedules.map((schedule) => (
+            // The card was the one part of this screen that showed a schedule
+            // and did nothing when tapped, which left Edit at the top right as
+            // the only way in. The chevron is there so it reads as a way in
+            // before it is tapped rather than after.
+            <Pressable
+              key={schedule.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit the ${formatTime(schedule.time)} schedule`}
+              onPress={openEditor}
+              style={({ pressed }) => [pressed && styles.pressed]}>
+              <Card>
+                <View style={styles.scheduleRow}>
+                  <View style={styles.scheduleMain}>
+                    <Text style={styles.cardTitle}>
+                      {formatTime(schedule.time)}
+                      {schedule.label ? ` · ${schedule.label}` : ''}
+                    </Text>
+                    <Text style={styles.body}>{describeRepeat(schedule)}</Text>
+                  </View>
+                  <Icon name="forward" size={18} />
+                </View>
+              </Card>
+            </Pressable>
+          ))
+        )}
+
+        {/* A brand new knowt has no history, and a heading over the words
+            "nothing recorded yet" is a divider around an absence. */}
+        {(events ?? []).length > 0 ? (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: historyOpen }}
+              accessibilityLabel={`History, ${(events ?? []).length} entries`}
+              onPress={() => setHistoryOpen((open) => !open)}
+              style={({ pressed }) => [
+                styles.historyHead,
+                pressed && styles.pressed,
+              ]}>
+              <Text style={styles.sectionTitle}>History</Text>
+              <Icon name={historyOpen ? 'collapse' : 'expand'} size={14} color={theme.color.textSecondary} />
+            </Pressable>
+
+            {historyOpen
+              ? (events ?? []).map((event) => (
+                  <View key={event.id} style={styles.eventRow}>
+                    <Text style={styles.body}>
+                      {event.completed_at
+                        ? clockTime(event.completed_at)
+                        : 'Not completed'}
+                    </Text>
+                  </View>
+                ))
+              : null}
+          </>
+        ) : null}
+
+        <View style={styles.actions}>
+          {/* Done leads, filled and full width, the same control the Ringing
+              screen leads with. It was a white secondary button reading "I
+              just did this", which left the one thing you came here to do
+              looking like the same weight as Archive. Putting it off is the
+              quieter choice, so those sit under it as outlined buttons. */}
+          {/* Mark done stays here, where it has always been. The scan itself
+              leads the screen from the top now; this is the quieter fallback
+              for a day the tag is out of reach. */}
+          {scanOnly ? (
+            doneToday ? null : (
+              <Button
+                label="Mark done"
+                variant="secondary"
+                onPress={() => void finishNow()}
+              />
+            )
+          ) : dueYet ? (
+            <Button label="Done" onPress={() => void finishNow()} />
+          ) : null}
+          {snoozed ? (
+            <>
+              <Button
+                label={`Snooze ${knowt.snooze_minutes} min again`}
+                variant="secondary"
+                onPress={() => void snoozeAgain()}
+              />
+              <Button
+                label="Skip for today"
+                variant="secondary"
+                onPress={() => void skipToday()}
+              />
+            </>
+          ) : null}
+
+          {/* Two different promises, so two buttons. Archive pauses something
+              and keeps it whole. Delete is for something you are finished
+              with, and it still lands somewhere you can reach. */}
+          <Button
+            label="Archive"
+            variant="quiet"
+            onPress={async () => {
+              await archiveKnowt(knowt.id);
+              // An archived knowt must stop ringing.
+              await resyncAlarmsQuietly();
+              navigation.goBack();
+            }}
+          />
+          <Button
+            label="Delete"
+            variant="quiet"
+            onPress={async () => {
+              if (!(await askToDelete(knowt.name))) return;
+              const { tagFreed } = await deleteKnowt(knowt.id);
+              // A deleted knowt must stop ringing, the same as an archived one.
+              await resyncAlarmsQuietly();
+              if (tagFreed) sayTagFreed();
+              navigation.goBack();
+            }}
+          />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  pressed: { opacity: 0.7 },
+  draft: {
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  draftText: {
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.md,
+    color: theme.color.textSecondary,
+  },
+  addRow: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.lg,
+    paddingVertical: theme.spacing.lg,
+    alignItems: 'center',
+  },
+  addRowText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.md,
+    color: theme.color.accent,
+  },
+  editLink: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+  },
+  container: { flex: 1, backgroundColor: theme.color.background },
+  content: {
+    paddingHorizontal: theme.spacing.xl,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.xxl,
+    gap: theme.spacing.md,
+  },
+  pills: { flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' },
+  // Its own block, so the failure message and the "comes back tomorrow" line
+  // sit with the button rather than against the Notes heading below.
+  leadAction: { gap: theme.spacing.sm },
+  historyHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: theme.spacing.md,
+  },
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  scheduleMain: { flex: 1 },
+  cardTitle: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.lg,
+    color: theme.color.textPrimary,
+    ...theme.font.tabular,
+  },
+  body: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    color: theme.color.textBody,
+  },
+  meta: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.xs,
+    color: theme.color.textMuted,
+  },
+  input: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    color: theme.color.textPrimary,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  multiline: { minHeight: 100 },
+  eventRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.color.surfaceMuted,
+  },
+  actions: { gap: theme.spacing.sm, marginTop: theme.spacing.lg },
+  notice: {
+    backgroundColor: theme.color.warningSurface,
+    borderColor: theme.color.warningBorder,
+    borderWidth: 1,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+  },
+  noticeText: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    color: theme.color.warningText,
+  },
+  modeRow: { flexDirection: 'row', gap: theme.spacing.sm },
+  modeChipBlocked: { backgroundColor: theme.color.surfaceMuted },
+  modeTextBlocked: { color: theme.color.textMuted },
+  modeChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.sm,
+    paddingVertical: theme.spacing.sm,
+  },
+  modeChipSelected: {
+    borderColor: theme.color.highlight,
+    backgroundColor: theme.color.highlight,
+  },
+  modeText: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.md,
+    color: theme.color.textSecondary,
+  },
+  modeTextSelected: { color: theme.color.onHighlight },
+  hint: {
+    fontFamily: theme.font.body,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textMuted,
+  },
+  tagUid: {
+    fontFamily: theme.font.mono,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
+});

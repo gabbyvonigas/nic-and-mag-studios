@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# American English only. See the copy rules in AGENTS.md.
+#
+# Install once per clone:
+#
+#   git config core.hooksPath mindknowt/.githooks   # nic-and-mag-studios
+#   git config core.hooksPath .githooks             # mindknowt-app
+#
+# or run `npm run hooks:install` from the app directory, which picks the right
+# path for whichever of the two repos it is in.
+#
+# Only staged files are checked, so an old file nobody touched cannot block an
+# unrelated commit. `npm run verify` checks everything.
+set -e
+
+root=$(git rev-parse --show-toplevel)
+if [ -f "$root/mindknowt/package.json" ]; then
+  app="$root/mindknowt"
+else
+  app="$root"
+fi
+
+# Added, copied or modified, with paths relative to the app directory.
+staged=$(git diff --cached --name-only --diff-filter=ACM \
+  | sed "s|^mindknowt/||" \
+  | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|json|md|txt)$' || true)
+
+[ -z "$staged" ] && exit 0
+
+cd "$app"
+# shellcheck disable=SC2086
+echo "$staged" | tr '\n' '\0' | xargs -0 node scripts/check-spelling.mjs

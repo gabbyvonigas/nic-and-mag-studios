@@ -1,0 +1,286 @@
+diff --git a/node_modules/expo-alarm-kit/build/index.d.ts b/node_modules/expo-alarm-kit/build/index.d.ts
+index f84de8a..fe55b5b 100644
+--- a/node_modules/expo-alarm-kit/build/index.d.ts
++++ b/node_modules/expo-alarm-kit/build/index.d.ts
+@@ -185,3 +185,14 @@ declare const ExpoAlarmKit: {
+ };
+ export default ExpoAlarmKit;
+ //# sourceMappingURL=index.d.ts.map
++/** One snooze taken outside the app, recorded by the snooze App Intent. */
++export type SnoozeRecord = {
++    alarmId: string;
++    /** Epoch seconds when the snooze ends. */
++    endsAt: number;
++    /** Whatever the alarm was scheduled with, which for us is the Knowt id. */
++    payload: string | null;
++};
++export declare function getSnoozes(): SnoozeRecord[];
++export declare function clearSnooze(alarmId: string): void;
++export declare function clearAllSnoozes(): void;
+diff --git a/node_modules/expo-alarm-kit/build/index.js b/node_modules/expo-alarm-kit/build/index.js
+index 2ed6bf8..33366ee 100644
+--- a/node_modules/expo-alarm-kit/build/index.js
++++ b/node_modules/expo-alarm-kit/build/index.js
+@@ -134,3 +134,16 @@ const ExpoAlarmKit = {
+ };
+ export default ExpoAlarmKit;
+ //# sourceMappingURL=index.js.map
++/**
++ * Snoozes taken on the Lock Screen, which never launch the app. Read from App
++ * Group storage, because the launch payload is a static that does not survive.
++ */
++export function getSnoozes() {
++    return ExpoAlarmKitModule.getSnoozes?.() ?? [];
++}
++export function clearSnooze(alarmId) {
++    ExpoAlarmKitModule.clearSnooze?.(alarmId);
++}
++export function clearAllSnoozes() {
++    ExpoAlarmKitModule.clearAllSnoozes?.();
++}
+diff --git a/node_modules/expo-alarm-kit/ios/ExpoAlarmKitModule.swift b/node_modules/expo-alarm-kit/ios/ExpoAlarmKitModule.swift
+index eadb113..8bfd710 100644
+--- a/node_modules/expo-alarm-kit/ios/ExpoAlarmKitModule.swift
++++ b/node_modules/expo-alarm-kit/ios/ExpoAlarmKitModule.swift
+@@ -7,6 +7,14 @@ import SwiftUI
+ // MARK: - Storage Keys
+ private let alarmKeyPrefix = "ExpoAlarmKit.alarm:"
+ private let launchAppKeyPrefix = "ExpoAlarmKit.launchApp:"
++// Written when an alarm is scheduled, read back when its snooze button is
++// pressed. The intent is handed an alarm id and nothing else, so anything it
++// needs about the alarm has to be waiting for it in the App Group.
++private let snoozeSecondsKeyPrefix = "ExpoAlarmKit.snoozeSeconds:"
++private let snoozePayloadKeyPrefix = "ExpoAlarmKit.snoozePayload:"
++// Written when a snooze actually happens, including from the Lock Screen,
++// where the app is never launched and a static variable would not survive.
++private let snoozeEndKeyPrefix = "ExpoAlarmKit.snoozeEnd:"
+ 
+ // MARK: - App Group Storage Manager
+ @available(iOS 26.0, *)
+@@ -61,6 +69,67 @@ public class ExpoAlarmKitStorage {
+     public static func removeLaunchAppOnDismiss(alarmId: String) {
+         sharedDefaults?.removeObject(forKey: launchAppKeyPrefix + alarmId)
+     }
++
++    // MARK: - Snooze records
++    //
++    // AlarmKit performs a Lock Screen snooze itself, through
++    // `secondaryButtonBehavior: .countdown`, and the app is not launched. These
++    // write the snooze where the app can find it on its next launch.
++
++    public static func setSnoozeSeconds(alarmId: String, value: Double) {
++        sharedDefaults?.set(value, forKey: snoozeSecondsKeyPrefix + alarmId)
++    }
++
++    public static func getSnoozeSeconds(alarmId: String) -> Double {
++        let stored = sharedDefaults?.double(forKey: snoozeSecondsKeyPrefix + alarmId) ?? 0
++        // The module's own default when nothing was supplied.
++        return stored > 0 ? stored : 9 * 60
++    }
++
++    public static func setSnoozePayload(alarmId: String, value: String?) {
++        guard let value = value else {
++            sharedDefaults?.removeObject(forKey: snoozePayloadKeyPrefix + alarmId)
++            return
++        }
++        sharedDefaults?.set(value, forKey: snoozePayloadKeyPrefix + alarmId)
++    }
++
++    public static func getSnoozePayload(alarmId: String) -> String? {
++        return sharedDefaults?.string(forKey: snoozePayloadKeyPrefix + alarmId)
++    }
++
++    /// Records that this alarm is snoozed until `endsAt`, as epoch seconds.
++    public static func recordSnooze(alarmId: String, endsAt: Double) {
++        sharedDefaults?.set(endsAt, forKey: snoozeEndKeyPrefix + alarmId)
++    }
++
++    public static func removeSnooze(alarmId: String) {
++        sharedDefaults?.removeObject(forKey: snoozeEndKeyPrefix + alarmId)
++    }
++
++    /// Every snooze on record, with the payload the alarm was scheduled with.
++    public static func getAllSnoozes() -> [[String: Any]] {
++        guard let defaults = sharedDefaults?.dictionaryRepresentation() else { return [] }
++        var out: [[String: Any]] = []
++        for (key, value) in defaults {
++            guard key.hasPrefix(snoozeEndKeyPrefix) else { continue }
++            let alarmId = String(key.dropFirst(snoozeEndKeyPrefix.count))
++            let endsAt = (value as? Double) ?? 0
++            out.append([
++                "alarmId": alarmId,
++                "endsAt": endsAt,
++                "payload": getSnoozePayload(alarmId: alarmId) ?? NSNull(),
++            ])
++        }
++        return out
++    }
++
++    public static func clearAllSnoozes() {
++        guard let defaults = sharedDefaults?.dictionaryRepresentation() else { return }
++        for key in defaults.keys where key.hasPrefix(snoozeEndKeyPrefix) {
++            sharedDefaults?.removeObject(forKey: key)
++        }
++    }
+ }
+ 
+ // MARK: - Record Structs for Expo Module
+@@ -168,6 +237,7 @@ public struct AlarmDismissIntent: LiveActivityIntent {
+         // Clean up App Group storage
+         ExpoAlarmKitStorage.removeAlarm(id: self.alarmId)
+         ExpoAlarmKitStorage.removeLaunchAppOnDismiss(alarmId: self.alarmId)
++        ExpoAlarmKitStorage.removeSnooze(alarmId: self.alarmId)
+         
+         return .result()
+     }
+@@ -200,6 +270,7 @@ public struct AlarmDismissIntentWithLaunch: LiveActivityIntent {
+         // Clean up App Group storage
+         ExpoAlarmKitStorage.removeAlarm(id: self.alarmId)
+         ExpoAlarmKitStorage.removeLaunchAppOnDismiss(alarmId: self.alarmId)
++        ExpoAlarmKitStorage.removeSnooze(alarmId: self.alarmId)
+         
+         return .result()
+     }
+@@ -227,6 +298,17 @@ public struct AlarmSnoozeIntent: LiveActivityIntent {
+     
+     public func perform() async throws -> some IntentResult {
+         ExpoAlarmKitModule.launchPayload = buildLaunchPayload(alarmId: self.alarmId, payload: self.payload)
++        // The app is not launched for a Lock Screen snooze, and `launchPayload`
++        // is a static variable that dies with the process. Writing the snooze
++        // to the App Group is what lets the app find out it happened.
++        if let payload = self.payload {
++            ExpoAlarmKitStorage.setSnoozePayload(alarmId: self.alarmId, value: payload)
++        }
++        let seconds = ExpoAlarmKitStorage.getSnoozeSeconds(alarmId: self.alarmId)
++        ExpoAlarmKitStorage.recordSnooze(
++            alarmId: self.alarmId,
++            endsAt: Date().timeIntervalSince1970 + seconds
++        )
+         return .result()
+     }
+ }
+@@ -253,6 +335,17 @@ public struct AlarmSnoozeIntentWithLaunch: LiveActivityIntent {
+     
+     public func perform() async throws -> some IntentResult {
+         ExpoAlarmKitModule.launchPayload = buildLaunchPayload(alarmId: self.alarmId, payload: self.payload)
++        // The app is not launched for a Lock Screen snooze, and `launchPayload`
++        // is a static variable that dies with the process. Writing the snooze
++        // to the App Group is what lets the app find out it happened.
++        if let payload = self.payload {
++            ExpoAlarmKitStorage.setSnoozePayload(alarmId: self.alarmId, value: payload)
++        }
++        let seconds = ExpoAlarmKitStorage.getSnoozeSeconds(alarmId: self.alarmId)
++        ExpoAlarmKitStorage.recordSnooze(
++            alarmId: self.alarmId,
++            endsAt: Date().timeIntervalSince1970 + seconds
++        )
+         return .result()
+     }
+ }
+@@ -355,7 +448,7 @@ public class ExpoAlarmKitModule: Module {
+             let snoozeButton = AlarmButton(
+                 text: LocalizedStringResource(stringLiteral: snoozeLabel),
+                 textColor: snoozeColor,
+-                systemImageName: "clock.badge.checkmark"
++                systemImageName: "zzz"
+             )
+             
+             // Create alert presentation with intent if needed
+@@ -421,6 +514,14 @@ public class ExpoAlarmKitModule: Module {
+                 try await AlarmManager.shared.schedule(id: uuid, configuration: config)
+                 // Store alarm metadata in App Group
+                 ExpoAlarmKitStorage.setAlarm(id: options.id, value: options.epochSeconds)
++                ExpoAlarmKitStorage.setSnoozeSeconds(
++                    alarmId: options.id,
++                    value: Double(options.snoozeDuration ?? (9 * 60))
++                )
++                ExpoAlarmKitStorage.setSnoozePayload(
++                    alarmId: options.id,
++                    value: options.snoozePayload ?? options.dismissPayload
++                )
+                 return true
+             } catch {
+                 print("[ExpoAlarmKit] Failed to schedule alarm: \(error)")
+@@ -475,7 +576,7 @@ public class ExpoAlarmKitModule: Module {
+             let snoozeButton = AlarmButton(
+                 text: LocalizedStringResource(stringLiteral: snoozeLabel),
+                 textColor: snoozeColor,
+-                systemImageName: "clock.badge.checkmark"
++                systemImageName: "zzz"
+             )
+             
+             // Create alert presentation
+@@ -541,6 +642,14 @@ public class ExpoAlarmKitModule: Module {
+                 try await AlarmManager.shared.schedule(id: uuid, configuration: config)
+                 // Store alarm metadata in App Group (store -1 for repeating to indicate repeating type)
+                 ExpoAlarmKitStorage.setAlarm(id: options.id, value: -1)
++                ExpoAlarmKitStorage.setSnoozeSeconds(
++                    alarmId: options.id,
++                    value: Double(options.snoozeDuration ?? (9 * 60))
++                )
++                ExpoAlarmKitStorage.setSnoozePayload(
++                    alarmId: options.id,
++                    value: options.snoozePayload ?? options.dismissPayload
++                )
+                 return true
+             } catch {
+                 print("[ExpoAlarmKit] Failed to schedule repeating alarm: \(error)")
+@@ -666,6 +775,23 @@ public class ExpoAlarmKitModule: Module {
+             ExpoAlarmKitStorage.clearAllAlarms()
+         }
+         
++        // MARK: - Snoozes taken outside the app
++        //
++        // A Lock Screen snooze never launches the app, so the app has no other
++        // way to find out it happened. These records are written by the snooze
++        // intent and cleared once the app has taken them in.
++        Function("getSnoozes") { () -> [[String: Any]] in
++            return ExpoAlarmKitStorage.getAllSnoozes()
++        }
++
++        Function("clearSnooze") { (alarmId: String) in
++            ExpoAlarmKitStorage.removeSnooze(alarmId: alarmId)
++        }
++
++        Function("clearAllSnoozes") { () in
++            ExpoAlarmKitStorage.clearAllSnoozes()
++        }
++
+         // MARK: - Get Launch Payload
+         Function("getLaunchPayload") { () -> [String: Any]? in
+             let payload = ExpoAlarmKitModule.launchPayload
+diff --git a/node_modules/expo-alarm-kit/src/index.ts b/node_modules/expo-alarm-kit/src/index.ts
+index 90ebab0..1b80229 100644
+--- a/node_modules/expo-alarm-kit/src/index.ts
++++ b/node_modules/expo-alarm-kit/src/index.ts
+@@ -249,3 +249,30 @@ const ExpoAlarmKit = {
+ };
+ 
+ export default ExpoAlarmKit;
++
++/** One snooze taken outside the app, recorded by the snooze App Intent. */
++export type SnoozeRecord = {
++  alarmId: string;
++  /** Epoch seconds when the snooze ends. */
++  endsAt: number;
++  /** Whatever the alarm was scheduled with, which for us is the Knowt id. */
++  payload: string | null;
++};
++
++/**
++ * Snoozes taken on the Lock Screen, which never launch the app.
++ *
++ * Read from App Group storage rather than from a launch payload, because the
++ * payload is a static variable and the process that set it is gone.
++ */
++export function getSnoozes(): SnoozeRecord[] {
++  return (ExpoAlarmKitModule.getSnoozes?.() ?? []) as SnoozeRecord[];
++}
++
++export function clearSnooze(alarmId: string): void {
++  ExpoAlarmKitModule.clearSnooze?.(alarmId);
++}
++
++export function clearAllSnoozes(): void {
++  ExpoAlarmKitModule.clearAllSnoozes?.();
++}

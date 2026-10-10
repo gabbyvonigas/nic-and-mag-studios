@@ -1,0 +1,1182 @@
+/*
+ * MindKnowt marketing site.
+ *
+ * Tokens are lifted from the app, not re-picked: the category colors and the
+ * lime are the exact values in src/theme/categoryColors.ts and
+ * src/theme/palette.ts. If the app's palette moves, this moves with it.
+ *
+ * One deliberate difference. The app's page is #F4F5F6, a cool light gray,
+ * because white cards have to read as cards on it. The site is white, with
+ * that gray kept for section bands, so the two look like the same family
+ * without the site looking like an app screen.
+ *
+ * The app's type is SF Pro Rounded, reached through a private iOS family that
+ * does not exist on the web. Quicksand is the self hosted stand in for
+ * headings: open licensed, rounded, geometric. Body text is Helvetica Neue,
+ * which is a system font and needs no license.
+ */
+
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/assets/fonts/Quicksand-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/assets/fonts/Quicksand-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/assets/fonts/Quicksand-700.woff2') format('woff2');
+}
+
+:root {
+  --lime: #d9fa3c;
+  --ink: #111111;
+  --charcoal: #3a3a3a;
+  --gray: #6e7479;
+  --line: #dcdfe3;
+  --page: #f4f5f6;
+  --white: #ffffff;
+
+  /* The seven category colors, exactly as the app defines them. */
+  --home: #ff4d3d;
+  --daily: #d9fa3c;
+  --wellness: #24c2b5;
+  --routine: #a435f0;
+  --activity: #ff2d8a;
+  --admin: #1f5fd8;
+  --seasonal: #8a1f3d;
+
+  /* Tile tints, each its accent mixed toward white. Ink on all three clears
+     16 to 1, so the copy inside them is never the weak point. */
+  --home-tint: #ffeae8;
+  --daily-tint: #f7fed8;
+  --wellness-tint: #e0f6f5;
+  /* The app's neonPale, the panel tint the mockup uses for the hero copy
+     and the kit. Lifted, not re-picked, same as the lime above it. */
+  --pale-lime: #f1ffbe;
+  /* The warm neutral under the category strip. The only color on the site
+     that is not in the app, because the app has no warm neutral. */
+  --beige: #f6f3ea;
+
+  --display: 'Quicksand', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
+  --body: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  --measure: 1120px;
+  --gutter: 24px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--white);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--ink);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+  /*
+   * The `width` and `height` attributes on an `img` are presentational
+   * hints, so a file with `height="1000"` and a percentage width in CSS
+   * keeps the 1000 and comes out stretched. The attributes stay, because
+   * they are what reserves the right box before the file loads, and this is
+   * what keeps them to the aspect ratio they describe.
+   */
+  height: auto;
+}
+
+.wrap {
+  width: 100%;
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* Visible only to screen readers, and to anyone tabbing to the skip link. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -64px;
+  z-index: 100;
+  background: var(--ink);
+  color: var(--white);
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-family: var(--display);
+  font-weight: 500;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+/* ---------- Header and menu ---------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--white);
+  border-bottom: 1px solid transparent;
+}
+
+.site-header.is-stuck {
+  border-bottom-color: var(--line);
+}
+
+.header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 26px;
+  padding-bottom: 26px;
+}
+
+.brand {
+  display: inline-block;
+  line-height: 0;
+}
+
+.brand img {
+  width: 208px;
+  height: auto;
+}
+
+/* The menu overlay keeps the smaller lockup. At 208 it crowds the close
+   control on a narrow screen, and the overlay is not the page header. */
+.site-menu .brand img {
+  width: 132px;
+}
+
+/*
+ * One control at every width, as asked. A menu that changes shape at a
+ * breakpoint is two menus to keep working; this is one.
+ */
+/*
+ * Icon only. The button stays 44 by 44 because that is the smallest thing a
+ * thumb reliably hits, but the mark inside it is small and light so it reads
+ * as a quiet control rather than a feature. The label moved to aria-label,
+ * so it is still announced.
+ */
+.nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -11px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--charcoal);
+}
+
+.nav-toggle-bars {
+  display: block;
+  position: relative;
+  width: 19px;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+.nav-toggle-bars::before,
+.nav-toggle-bars::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 19px;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+.nav-toggle-bars::before {
+  top: -6px;
+}
+
+.nav-toggle-bars::after {
+  top: 6px;
+}
+
+.site-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--white);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  /*
+   * Hidden from assistive tech and from the tab order when shut, not just
+   * moved off screen. A menu that is invisible but still focusable sends a
+   * keyboard user into links they cannot see.
+   */
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.18s ease, visibility 0.18s ease;
+}
+
+.site-menu[data-open='true'] {
+  visibility: visible;
+  opacity: 1;
+}
+
+.menu-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.menu-close {
+  background: none;
+  border: 0;
+  padding: 8px;
+  margin: -8px;
+  cursor: pointer;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.menu-links {
+  list-style: none;
+  margin: 0;
+  padding: 8vh 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu-links a {
+  display: inline-block;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(34px, 9vw, 56px);
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  padding: 10px 0;
+}
+
+.menu-links a[aria-current='page'] {
+  /* The lime earns its keep marking where you are, same as the app's tab bar. */
+  box-shadow: inset 0 -0.18em 0 var(--lime);
+}
+
+.menu-links a:hover {
+  box-shadow: inset 0 -0.18em 0 var(--lime);
+}
+
+/* ---------- Pieces the landing page reuses ---------- */
+
+/*
+ * One stroke style for every drawn mark on the page: the step
+ * illustrations, the kit features, the category row and the social links are
+ * all `.line-art`, all outline, all painted by `currentColor`. The app has
+ * the same rule for the same reason, which is that a filled glyph beside an
+ * outlined one reads as two sets.
+ */
+.line-art {
+  display: block;
+  color: var(--ink);
+}
+
+/* The lime bar under the headline, and the shorter dash over a caption. */
+.rule {
+  display: block;
+  width: 118px;
+  height: 6px;
+  margin: 22px 0 0;
+  border-radius: 999px;
+  background: var(--lime);
+}
+
+.dash {
+  display: block;
+  width: 26px;
+  height: 4px;
+  margin-bottom: 12px;
+  border-radius: 999px;
+  background: var(--lime);
+}
+
+/* Small, spaced, uppercase. Written in sentence case in the markup so it is
+   read out as words rather than as letters. */
+.eyebrow {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(12px, 1.3vw, 14px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--charcoal);
+  margin: 0;
+}
+
+/*
+ * The call to action, in both of its slots.
+ *
+ * It is a line of text today because there is nothing to link to yet: no App
+ * Store page and no checkout on this site. When there is, this is the one
+ * selector to turn into a button, and the markup already has it in both of
+ * the places a button belongs.
+ */
+.cta {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.cta::before {
+  content: '';
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 10px;
+  border-radius: 999px;
+  background: var(--lime);
+  vertical-align: 0.06em;
+}
+
+.cta-hero {
+  margin-top: 24px;
+}
+
+/*
+ * The phone.
+ *
+ * Drawn here rather than baked into the screenshots, so a replacement
+ * screenshot is a plain capture with no device chrome around it. The frame
+ * is a warm metal edge, a dark screen well and the island; everything else
+ * inside is the picture.
+ */
+.device {
+  position: relative;
+  border-radius: 13%/6.2%;
+  padding: 1.9%;
+  background: linear-gradient(150deg, #efe9de 0%, #cfc7b7 38%, #e8e1d5 62%, #c7bfaf 100%);
+  box-shadow: 0 18px 44px rgba(17, 17, 17, 0.16);
+}
+
+.device-screen {
+  position: relative;
+  overflow: hidden;
+  border-radius: 11%/5.3%;
+  background: var(--page);
+}
+
+.device-screen img {
+  width: 100%;
+  height: auto;
+}
+
+/* The island, over the status bar the screenshot already has. Sized from the
+   screen's width so it holds its proportions at every size on the page. */
+.device-screen::after {
+  content: '';
+  position: absolute;
+  top: 1.3%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 31%;
+  aspect-ratio: 5.6 / 1;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+/*
+ * The Knowt Tag disc.
+ *
+ * One file, `/assets/knowt-tag.png`, used in the hero, in two of the step
+ * cards and five times in the kit cluster. It is transparent outside the
+ * disc, so the shadow is drawn here and a sticker version dropped in later
+ * picks it up everywhere with no code change.
+ */
+.tag-disc {
+  filter: drop-shadow(0 10px 22px rgba(17, 17, 17, 0.18));
+}
+
+/* Three short lime strokes, the mockup's "this just happened" mark. */
+.spark {
+  position: absolute;
+  top: 6%;
+  right: 2%;
+  width: 26px;
+  height: 26px;
+}
+
+.spark::before,
+.spark::after {
+  content: '';
+  position: absolute;
+  width: 3.5px;
+  border-radius: 999px;
+  background: var(--lime);
+}
+
+.spark::before {
+  height: 16px;
+  top: 0;
+  right: 15px;
+  transform: rotate(-28deg);
+}
+
+.spark::after {
+  height: 20px;
+  top: 2px;
+  right: 4px;
+  transform: rotate(12deg);
+}
+
+/* ---------- Hero, with the three steps beside it ---------- */
+
+.hero {
+  padding: clamp(10px, 2vw, 26px) 0 clamp(34px, 5vw, 64px);
+}
+
+/*
+ * Three columns on a wide screen: the copy, the phone, the steps. The DOM
+ * order is the stacked order, so the narrow layout is the same markup with
+ * the columns removed and nothing relies on grid reordering.
+ */
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.7fr) minmax(0, 0.95fr);
+  gap: clamp(20px, 3vw, 40px);
+  align-items: start;
+}
+
+/* Two lines, which is what the `br` in the markup asks for. The ceiling is
+   set by the narrowest the first line can be and still hold "One less
+   thing" without a third line appearing. */
+.hero-copy h1 {
+  font-size: clamp(34px, 4vw, 52px);
+  letter-spacing: -0.035em;
+}
+
+.hero-panel {
+  margin-top: clamp(24px, 3vw, 38px);
+  padding: clamp(22px, 2.6vw, 30px);
+  border-radius: 26px;
+  background: var(--pale-lime);
+}
+
+.hero-lead {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(21px, 2.4vw, 28px);
+  line-height: 1.28;
+  letter-spacing: -0.02em;
+}
+
+.hero-lead strong {
+  font-weight: 700;
+}
+
+.hero-sub {
+  margin-top: 14px;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--charcoal);
+}
+
+/*
+ * The phone, with one disc overlapping its bottom right corner.
+ *
+ * The overhang is padding on this box rather than a negative offset on the
+ * disc. A negative offset reaches outside the grid column, which is free
+ * space on a wide screen and the edge of the page on a narrow one, and it
+ * put a scrollbar under the whole site at 1024 and at 390.
+ */
+.hero-art {
+  position: relative;
+  padding: 0 9% 12% 0;
+}
+
+.device-hero {
+  width: 100%;
+}
+
+.tag-hero {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 42%;
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: clamp(12px, 1.4vw, 18px);
+}
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(96px, 9vw, 124px);
+  grid-template-areas:
+    'num art'
+    'body art';
+  gap: 10px clamp(10px, 1.2vw, 18px);
+  align-items: center;
+  padding: clamp(18px, 1.8vw, 24px);
+  border-radius: 24px;
+  background: var(--white);
+  box-shadow: 0 10px 30px rgba(17, 17, 17, 0.07);
+}
+
+.step-num {
+  grid-area: num;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background: var(--lime);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.step-body {
+  grid-area: body;
+}
+
+.step-body h2 {
+  font-size: clamp(22px, 2.2vw, 27px);
+}
+
+.step-body p {
+  margin-top: 6px;
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: var(--charcoal);
+}
+
+/* The illustration well: a pale tile with the drawing and, on two of the
+   three, a Knowt Tag overlapping it. */
+.step-art {
+  grid-area: art;
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 20px;
+  background: var(--page);
+  display: grid;
+  place-items: center;
+}
+
+.step-art .line-art {
+  width: 62%;
+  height: auto;
+}
+
+.tag-step {
+  position: absolute;
+  right: -10%;
+  bottom: -8%;
+  width: 52%;
+}
+
+.tag-step-tap {
+  right: auto;
+  left: -14%;
+  bottom: 14%;
+  width: 56%;
+}
+
+/* ---------- A simple system, a better you ---------- */
+
+.system {
+  padding: clamp(28px, 4vw, 54px) 0;
+}
+
+.system-grid {
+  margin-top: clamp(22px, 3vw, 38px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(18px, 3vw, 44px);
+}
+
+.system-item {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: clamp(14px, 1.8vw, 24px);
+  align-items: center;
+}
+
+.system-copy h3 {
+  font-size: clamp(21px, 2.2vw, 27px);
+}
+
+.system-copy p {
+  margin-top: 8px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--charcoal);
+}
+
+/* ---------- The MindKnowt Kit ---------- */
+
+.kit {
+  padding: clamp(18px, 3vw, 36px) 0;
+}
+
+.kit-panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+  gap: clamp(24px, 3vw, 44px);
+  align-items: center;
+  padding: clamp(26px, 3.4vw, 48px);
+  border-radius: 34px;
+  background: var(--pale-lime);
+}
+
+.kit-copy h2 {
+  margin-top: 14px;
+  font-size: clamp(32px, 4.2vw, 52px);
+  letter-spacing: -0.035em;
+}
+
+.kit-sub {
+  margin-top: 14px;
+  font-size: 17px;
+  color: var(--charcoal);
+}
+
+/* Four features on one line, separated by hairlines rather than by boxes. */
+.kit-features {
+  list-style: none;
+  margin: clamp(22px, 2.6vw, 32px) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.kit-features li {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 4px clamp(6px, 1vw, 14px);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--charcoal);
+}
+
+.kit-features li + li {
+  border-left: 1px solid rgba(17, 17, 17, 0.14);
+}
+
+.feature-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.kit-buy {
+  margin-top: clamp(22px, 2.6vw, 32px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px clamp(16px, 2vw, 26px);
+}
+
+.price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 26px;
+  border-radius: 999px;
+  background: var(--white);
+  box-shadow: 0 8px 22px rgba(17, 17, 17, 0.08);
+}
+
+.price-amount {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(28px, 3.2vw, 38px);
+  letter-spacing: -0.03em;
+}
+
+.price-note {
+  font-size: 15px;
+  color: var(--charcoal);
+}
+
+.kit-platform {
+  font-size: 16px;
+  color: var(--charcoal);
+}
+
+/* The phone, with five discs loose around it. */
+.kit-art {
+  position: relative;
+  padding: 2% 0 8%;
+}
+
+.device-kit {
+  width: 56%;
+}
+
+.tag-cluster {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tag-cluster .tag-disc {
+  position: absolute;
+  width: 23%;
+}
+
+/* Placed by hand rather than by a rule, because a cluster that is evenly
+   spaced reads as a diagram instead of as five tags set down. */
+.tag-cluster .tag-disc:nth-child(1) { right: 4%; top: 10%; }
+.tag-cluster .tag-disc:nth-child(2) { right: 0%; top: 36%; }
+.tag-cluster .tag-disc:nth-child(3) { right: 20%; top: 28%; }
+.tag-cluster .tag-disc:nth-child(4) { right: 10%; top: 58%; }
+.tag-cluster .tag-disc:nth-child(5) { right: 29%; top: 64%; }
+
+/* ---------- More space for what matters ---------- */
+
+.space {
+  padding: clamp(18px, 3vw, 34px) 0 clamp(30px, 4vw, 56px);
+}
+
+.space-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 2fr);
+  gap: clamp(22px, 3vw, 48px);
+  align-items: center;
+  padding: clamp(24px, 2.8vw, 36px) clamp(24px, 3vw, 40px);
+  border-radius: 28px;
+  background: var(--beige);
+}
+
+.space-copy h2 {
+  font-size: clamp(22px, 2.4vw, 28px);
+  margin-bottom: 14px;
+}
+
+.space-copy p {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--charcoal);
+}
+
+.space-cats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: clamp(8px, 1.2vw, 18px);
+}
+
+.space-cats li {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--charcoal);
+}
+
+.cat-icon {
+  width: 30px;
+  height: 30px;
+}
+
+/* ---------- Prose pages ---------- */
+
+.page-head {
+  padding: clamp(28px, 4vw, 56px) 0 clamp(16px, 2vw, 28px);
+}
+
+.page-head h1 {
+  font-size: clamp(32px, 5.6vw, 52px);
+}
+
+.page-head .updated {
+  margin-top: 16px;
+  color: var(--gray);
+  font-size: 15px;
+}
+
+.prose {
+  padding-bottom: clamp(36px, 5vw, 64px);
+  max-width: 72ch;
+}
+
+.prose h2 {
+  font-size: clamp(21px, 3vw, 26px);
+  margin-top: 44px;
+  margin-bottom: 12px;
+}
+
+.prose h3 {
+  font-size: 18px;
+  margin-top: 28px;
+  margin-bottom: 8px;
+}
+
+.prose p,
+.prose li {
+  color: var(--charcoal);
+}
+
+.prose p + p {
+  margin-top: 16px;
+}
+
+.prose ul {
+  margin: 14px 0 0;
+  padding-left: 22px;
+}
+
+.prose li + li {
+  margin-top: 8px;
+}
+
+.prose strong {
+  color: var(--ink);
+}
+
+.faq {
+  margin-top: 8px;
+}
+
+.faq h2 {
+  font-size: 20px;
+  margin-top: 36px;
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: clamp(24px, 3vw, 36px) 0 clamp(28px, 4vw, 44px);
+}
+
+.footer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px clamp(20px, 3vw, 44px);
+}
+
+.footer-brand img {
+  width: 128px;
+}
+
+.footer-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 26px;
+}
+
+.footer-nav a {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 16px;
+  text-decoration: none;
+}
+
+.footer-nav a:hover {
+  box-shadow: inset 0 -0.14em 0 var(--lime);
+}
+
+/* The address pushes to the right edge, with the icons after it. */
+.footer-mail {
+  margin-left: auto;
+  font-size: 15px;
+  color: var(--charcoal);
+}
+
+.footer-mail a {
+  color: var(--charcoal);
+  text-decoration: none;
+}
+
+.footer-mail a:hover {
+  box-shadow: inset 0 -0.14em 0 var(--lime);
+}
+
+.footer-social {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.footer-social a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 44 square, because that is the smallest thing a thumb reliably hits,
+     with the mark inside it kept small so the row stays quiet. */
+  width: 44px;
+  height: 44px;
+  margin: -10px;
+  color: var(--charcoal);
+}
+
+.footer-social a:hover {
+  color: var(--ink);
+}
+
+.social-icon {
+  width: 21px;
+  height: 21px;
+  color: inherit;
+}
+
+.footer-legal {
+  margin-top: 22px;
+  /* One step down from the links above it, and italic, so the legal line
+     reads as a note rather than as more navigation. */
+  font-size: 14px;
+  font-style: italic;
+  color: var(--gray);
+  line-height: 1.7;
+}
+
+.footer-legal a {
+  color: var(--gray);
+}
+
+/* ---------- Narrow screens ---------- */
+
+/*
+ * The page is built as one column with columns added, not the other way
+ * around, so these blocks mostly take columns away. Every section stacks in
+ * the order the markup already has: hero copy, hero phone, the three steps,
+ * the system row, the kit panel, the category strip.
+ */
+
+@media (max-width: 940px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.78fr);
+  }
+
+  /* Alone in its column the phone balloons, so it keeps the width it had
+     when there were three columns and centers in the space. */
+  .hero-art {
+    max-width: 330px;
+    justify-self: center;
+    align-self: center;
+  }
+
+  /* The steps drop under the pair above them and run three across. */
+  .steps {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .system-item {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    text-align: center;
+  }
+
+  .system-copy .dash {
+    margin-inline: auto;
+  }
+
+  .space-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .space-cats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 22px 12px;
+  }
+}
+
+@media (max-width: 860px) {
+  .kit-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The phone and its tags stop being a side panel and become a picture
+     under the copy, held to a width the cluster still fits beside. */
+  .kit-art {
+    max-width: 440px;
+    margin: 0 auto;
+  }
+
+  .device-kit {
+    width: 58%;
+  }
+}
+
+@media (max-width: 768px) {
+  .brand img {
+    /* Still twice what it was, sized to the narrower page. */
+    width: 168px;
+  }
+
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-art {
+    max-width: 340px;
+    margin: 4px auto 0;
+  }
+
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .system-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  /* Back to the phone beside its words, which is the shape that fits a
+     narrow screen without three tall columns of one-word lines. */
+  .system-item {
+    grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+    justify-items: start;
+    text-align: left;
+  }
+
+  .system-copy .dash {
+    margin-inline: 0;
+  }
+
+  .kit-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 0;
+  }
+
+  .kit-features li:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .space-cats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .footer-bar {
+    gap: 16px;
+  }
+
+  .footer-mail {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand img {
+    width: 150px;
+  }
+
+  .hero-copy h1 {
+    font-size: 34px;
+  }
+
+  .system-item {
+    grid-template-columns: minmax(0, 112px) minmax(0, 1fr);
+  }
+
+  .space-cats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
