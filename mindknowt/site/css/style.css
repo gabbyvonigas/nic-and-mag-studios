@@ -79,6 +79,20 @@
      1280 page, which is this width with this gutter. */
   --measure: 1240px;
   --gutter: 24px;
+
+  /*
+   * The footer's legal line, and the one place it is written.
+   *
+   * Every page renders this string through `.footer-legal::after`, so the
+   * company changes in one edit here rather than in four identical lines of
+   * markup that can drift apart. The quotes are part of the value, because
+   * `content` needs them.
+   *
+   * It is deliberately only the name and the city: no street address, no
+   * claim about where the company is formed, and nothing like an EIN or a
+   * D-U-N-S number, which are identifiers for forms and not for a footer.
+   */
+  --legal-line: 'MindKnowt LLC, Tulsa, Oklahoma';
 }
 
 *,
@@ -1073,6 +1087,11 @@ img {
   width: 21px;
   height: 21px;
   color: inherit;
+}
+
+/* The text comes from `--legal-line` above. See the note there. */
+.footer-legal::after {
+  content: var(--legal-line);
 }
 
 .footer-legal {
