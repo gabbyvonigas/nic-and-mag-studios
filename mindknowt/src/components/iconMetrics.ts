@@ -89,6 +89,60 @@ export const BAND = {
  */
 export const LINE_BOX = 1.2;
 
+/**
+ * The two shapes the Mode row matches on.
+ *
+ * `size` sets the em box, and the em box is the wrong thing to match here.
+ * The alarm's bells sit above its clock face and its feet below, and the tag's
+ * signal waves hang off the top right of its rectangle, so two glyphs drawn to
+ * the same ink height put a 12 percent difference between the face and the
+ * rectangle, which is the pair of shapes the eye actually compares.
+ *
+ * Measured, not estimated. The clock face is the largest enclosed hole in
+ * `alarm-outline` grown by the 32 unit stroke on each side; the rectangle is
+ * the largest connected run of ink in the mark, which is the body with the
+ * waves left out as their own pieces. `alignment.test.ts` measures both again
+ * from the font and the file.
+ */
+export const SHAPE = {
+  /** The clock face, outer edge to outer edge, over the em box. */
+  clockFace: 351.75 / 512,
+  /**
+   * Its center above the baseline, over the em box. The face's bottom sits on
+   * the baseline, within a fifth of a unit.
+   */
+  clockFaceCenter: 176 / 512,
+  /** The tag's rectangle, over the mark's ink height. */
+  markRect: 370 / 463,
+  /**
+   * Its center above the ink bottom, over the ink height. The rectangle's
+   * bottom is 4 units up from the ink bottom, which is the stroke's own
+   * rounding and not a gap.
+   */
+  markRectCenter: 188.5 / 463,
+} as const;
+
+/** How tall the clock face comes out at a given size. */
+export function clockFaceHeight(size: number): number {
+  return size * SHAPE.clockFace;
+}
+
+/** How tall the tag's rectangle comes out at a given size. */
+export function markRectHeight(size: number): number {
+  return size * IONICON.ink * SHAPE.markRect;
+}
+
+/**
+ * The size that draws the tag's rectangle `height` tall.
+ *
+ * Paired with `clockFaceHeight`, this is how the two shapes are made equal:
+ * take the height the clock face already has and ask what size the mark needs
+ * to match it.
+ */
+export function sizeForMarkRect(height: number): number {
+  return half(height / (IONICON.ink * SHAPE.markRect));
+}
+
 /** Rounded to a half point, which is a whole pixel at 2x and 3x. */
 function half(value: number): number {
   return Math.round(value * 2) / 2;

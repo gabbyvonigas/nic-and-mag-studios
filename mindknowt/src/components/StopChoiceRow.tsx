@@ -1,7 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from './Icon';
-import { BAND, iconSizeForText } from './iconMetrics';
+import {
+  BAND,
+  clockFaceHeight,
+  iconSizeForText,
+  sizeForMarkRect,
+} from './iconMetrics';
 import {
   STOP_CHOICES,
   missingFor,
@@ -63,16 +68,20 @@ export function StopChoiceRow({
               accessibilityState={{ selected: on }}
               onPress={() => onChange(choice.value)}
               style={[styles.card, on && styles.cardOn]}>
-              {/* One size for every glyph on the row, including the pair.
-                  They used to shrink to 15 when there were two of them, which
-                  made Scan + Alarm read as two small marks beside two large
-                  ones rather than as a mark of its own. `Icon` draws a brand
-                  mark and an Ionicon to the same ink height at the same size
-                  and both end on the baseline, so the pair stands on one line
-                  at the same weight and the same height as a single. */}
+              {/* The same clock and the same tag on all three cards, at the
+                  sizes that make the face and the rectangle one height. The
+                  row is baseline aligned, and both shapes end on the baseline,
+                  so the pair on Scan + Alarm shares a vertical center without
+                  being pushed there, sits in an even gap, and centers in the
+                  card as a pair. */}
               <View style={styles.glyphs}>
                 {choice.icons.map((glyph) => (
-                  <Icon key={glyph} name={glyph} size={GLYPH} color={tint} />
+                  <Icon
+                    key={glyph}
+                    name={glyph}
+                    size={sizeOf(glyph)}
+                    color={tint}
+                  />
                 ))}
               </View>
               <Text
@@ -103,14 +112,25 @@ export function StopChoiceRow({
 }
 
 /**
- * Every glyph on the row, pair or single.
+ * Two sizes, so one pair of shapes comes out the same height.
  *
- * Sized to the `lg` text band rather than to a number picked by eye, which
- * lands within half a point of the 18 the single glyphs already used, and
- * `Icon` turns that one size into the same ink height and the same baseline
- * for a brand mark and for an Ionicon alike.
+ * `size` sets the em box, and one size for both glyphs matched the wrong
+ * thing. The alarm's bells sit above its clock face and the tag's signal
+ * waves hang off the corner of its rectangle, so at a shared 17.5 the face
+ * drew 12.02 points tall and the rectangle 10.54: the eye compares the face
+ * and the rectangle, and they were 12 percent apart.
+ *
+ * The clock keeps the size it had, from the `lg` text band, and the mark is
+ * sized from the height that produces: 20, which puts the rectangle at 12.05
+ * against the face's 12.02. Both shapes also sit on the baseline, so equal
+ * heights make equal centers, which is why the row needs no nudge to line the
+ * pair up on Scan + Alarm.
  */
-const GLYPH = iconSizeForText(theme.font.size.lg, BAND.ascender);
+const CLOCK = iconSizeForText(theme.font.size.lg, BAND.ascender);
+const MARK = sizeForMarkRect(clockFaceHeight(CLOCK));
+
+/** The mark is the only glyph on this row that is not an Ionicon. */
+const sizeOf = (glyph: string) => (glyph === 'knowtTag' ? MARK : CLOCK);
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: theme.spacing.sm },
