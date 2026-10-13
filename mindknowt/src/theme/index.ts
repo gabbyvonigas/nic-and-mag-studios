@@ -119,6 +119,12 @@ export const theme = {
       lg: 18,
       /** Section headings. Unchanged. */
       xl: 22,
+      /**
+       * A figure that is the point of its card, like the Log's Peak time and
+       * Avg complete time. Big enough to read as the answer rather than as
+       * more body text, and short of `display`, which is a screen title.
+       */
+      stat: 27,
       /** Screen titles. Unchanged. */
       display: 32,
       uid: 30,

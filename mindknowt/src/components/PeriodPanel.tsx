@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CategoryIcon } from './CategoryIcon';
+import { Icon, type IconName } from './Icon';
 import type { Insight } from '../history/insights';
 import type {
   PeriodKind,
@@ -209,35 +210,48 @@ function Trend({ summary }: { summary: PeriodSummary }) {
 }
 
 function FactCard({
+  icon,
   title,
   value,
+  tint,
   note,
 }: {
+  /** The mark in the lime badge, which says which reading this is. */
+  icon: IconName;
   title: string;
   value: string;
+  /** The value's color, matching the tile above that counts the same thing. */
+  tint: string;
   note: string;
 }) {
   return (
     <View style={[styles.card, styles.factCard]}>
-      {/* One line, always, and never truncated. "Avg complete time" is
-          seventeen characters of uppercase at 13pt, which measures within a
-          couple of points of the room two cards side by side leave on a 375pt
-          screen and over it on a 320pt one. The letter spacing comes down
-          first, because that is the cheapest width, and the shrink is a floor
-          rather than the plan. */}
+      <View style={styles.factHead}>
+        <View style={styles.factBadge}>
+          <Icon name={icon} size={16} color={theme.color.textPrimary} />
+        </View>
+        {/* Two lines of room, reserved whether or not it takes them. "Avg
+            complete time" is seventeen characters of uppercase and the badge
+            took 34 points off the line it used to have to itself, so it wraps
+            on a 375pt screen and "Peak time" does not. Without the fixed
+            height the two values would start at different heights and the
+            pair would read as misaligned. */}
+        <Text
+          style={[styles.cardTitle, styles.factTitle]}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}>
+          {title}
+        </Text>
+      </View>
+      {/* Two lines, and shrinking before either clipping or a third. At 27pt
+          every one of these values is wider than half a 375pt screen, so they
+          all wrap; the fixed height keeps the notes under them level. Dynamic
+          Type at its largest shrinks this rather than cutting it off, which is
+          what "Under a minute" needs. */}
       <Text
-        style={[styles.cardTitle, styles.factTitle]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.85}>
-        {title}
-      </Text>
-      {/* One line, always. "8am to 10am" and "Under a minute" are different
-          lengths and the two cards sit side by side, so a wrap on one of them
-          made the pair ragged. Shrinking is the lesser of the two. */}
-      <Text
-        style={styles.factValue}
-        numberOfLines={1}
+        style={[styles.factValue, { color: tint }]}
+        numberOfLines={2}
         adjustsFontSizeToFit
         minimumFontScale={0.7}>
         {value}
@@ -303,7 +317,9 @@ export function PeriodPanel({
 
       <View style={styles.facts}>
         <FactCard
+          icon="clock"
           title="Peak time"
+          tint={theme.color.tileLavenderInk}
           value={summary.peakHour === null ? '-' : hourRange(summary.peakHour)}
           note={
             summary.peakHour === null
@@ -312,7 +328,9 @@ export function PeriodPanel({
           }
         />
         <FactCard
+          icon="stopwatch"
           title="Avg complete time"
+          tint={theme.color.tileMintInk}
           value={
             summary.averageMinutes === null
               ? '-'
@@ -486,33 +504,57 @@ const styles = StyleSheet.create({
   },
 
   facts: { flexDirection: 'row', gap: theme.spacing.sm },
-  // The only two cards on this screen that are tinted. The lime says these
-  // are the readings worth looking at rather than the raw counts above.
+  // White, like every other card on this screen. They were filled pale lime to
+  // say they were the readings worth looking at, and a tint across a whole
+  // card is a loud way to say that; the lime is a badge now and the figure
+  // carries the emphasis.
   factCard: {
     flex: 1,
     gap: theme.spacing.xs,
-    backgroundColor: theme.color.highlightPale,
+  },
+  factHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    // Two lines of the label, always, so the value below starts at the same
+    // height on both cards.
+    minHeight: 34,
+  },
+  // Lime, with the mark in ink: 15.9 to 1, and the only lime left on these two
+  // cards.
+  factBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.color.highlight,
   },
   factTitle: {
-    // Charcoal rather than the muted gray, for the same reason `factNote` is:
-    // on the pale lime the gray reads at 4.46, under the floor for text this
-    // small. Charcoal is 10.72.
-    color: theme.color.textSecondary,
+    flex: 1,
     letterSpacing: 0.2,
+    lineHeight: 16,
   },
+  // The figure, in the color of the tile above that counts the same thing:
+  // Peak time in the completion rate's purple at 7.48 to 1 on white, Avg
+  // complete time in the Knowts completed green at 6.54 to 1. Both clear 4.5,
+  // so neither needed a darker shade.
   factValue: {
     fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.lg,
-    color: theme.color.textPrimary,
+    fontSize: theme.font.size.stat,
+    lineHeight: 31,
+    // Two lines, reserved, for the same reason the label's height is.
+    minHeight: 62,
     ...theme.font.tabular,
   },
   factNote: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.xs,
     lineHeight: 15,
-    // Charcoal rather than the muted gray: on the lime tint the gray is 4.22,
-    // which is under the floor for text this size.
-    color: theme.color.textSecondary,
+    // The muted gray, as on every other card now that these are white. It
+    // reads 4.73 to 1 here; on the old lime tint it was 4.22, which is why it
+    // used to be charcoal.
+    color: theme.color.textMuted,
   },
 
   catRow: {

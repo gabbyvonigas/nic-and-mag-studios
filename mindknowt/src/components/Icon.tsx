@@ -74,6 +74,8 @@ export const ICONS = {
   sun: 'sunny-outline',
   heart: 'heart-outline',
   clock: 'time-outline',
+  /** Elapsed time, as against a time of day. The Log's Avg complete time. */
+  stopwatch: 'stopwatch-outline',
   sparkle: 'sparkles-outline',
   car: 'car-outline',
   gift: 'gift-outline',
