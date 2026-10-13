@@ -16,26 +16,27 @@
  * which is a system font and needs no license.
  */
 
+/*
+ * One file, every weight.
+ *
+ * There used to be three, named 400, 500 and 700, and they were not three
+ * weights. The 700 file was the whole variable font; the other two were
+ * `&text=` subsets whose only letter from the alphabet was a capital A. So
+ * anything set at 400 or 500 drew its A from Quicksand and every other
+ * letter from the next font in the stack, which is why one letter in
+ * CLEANING, ADMIN and PLANT looked like a different typeface. It was: every
+ * letter except the A was.
+ *
+ * This is Quicksand's variable file, one `wght` axis from 300 to 700, so a
+ * weight cannot be missing and the files cannot disagree with their names.
+ */
 @font-face {
   font-family: 'Quicksand';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 300 700;
   font-display: swap;
-  src: url('/assets/fonts/Quicksand-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Quicksand';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/assets/fonts/Quicksand-500.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Quicksand';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/assets/fonts/Quicksand-700.woff2') format('woff2');
+  src: url('/assets/fonts/Quicksand-variable.woff2') format('woff2-variations');
+  src: url('/assets/fonts/Quicksand-variable.woff2') format('woff2') tech('variations');
 }
 
 :root {
@@ -46,6 +47,9 @@
   --line: #dcdfe3;
   --page: #f4f5f6;
   --white: #ffffff;
+  /* Off white. A card that is pure white disappears into the page beside a
+     watercolor wash; this keeps the card reading as a card. */
+  --card: #fbfbf9;
 
   /* The seven category colors, exactly as the app defines them. */
   --home: #ff4d3d;
@@ -440,12 +444,12 @@ img {
 }
 
 /*
- * The phone.
+ * The small phones in the system row: a frame drawn around a plain capture,
+ * so a replacement screenshot needs no device chrome of its own.
  *
- * Drawn here rather than baked into the screenshots, so a replacement
- * screenshot is a plain capture with no device chrome around it. The frame
- * is a warm metal edge, a dark screen well and the island; everything else
- * inside is the picture.
+ * The two large phones are not these. They are `/assets/phone-hero.png` and
+ * `/assets/phone-kit.png`, whole images, so a real device render can replace
+ * either without anyone matching a CSS frame to it. See `.phone` below.
  */
 .device {
   position: relative;
@@ -502,36 +506,29 @@ img {
   --disc-in-box: 0.74;
 }
 
-/* Three short lime strokes, the mockup's "this just happened" mark. */
-.spark {
-  position: absolute;
-  top: 6%;
-  right: 2%;
-  width: 26px;
-  height: 26px;
+/*
+ * The two large phones, and the three step illustrations.
+ *
+ * Every one of them is a file: `/assets/phone-hero.png`,
+ * `/assets/phone-kit.png`, `/assets/step-stick.png`, `/assets/step-set.png`
+ * and `/assets/step-tap.png`. Nothing here draws a device, a plant or a
+ * stroke of lime, so swapping any of them for a real render is a file swap
+ * and no CSS.
+ *
+ * The phones carry no baked shadow, because `drop-shadow` follows the alpha
+ * of a rounded body and a replacement render that brought its own would end
+ * up wearing two. The step illustrations carry their own wash and their own
+ * lime strokes and need no shadow at all.
+ */
+.phone {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 16px 36px rgba(17, 24, 32, 0.16));
 }
 
-.spark::before,
-.spark::after {
-  content: '';
-  position: absolute;
-  width: 3.5px;
-  border-radius: 999px;
-  background: var(--lime);
-}
-
-.spark::before {
-  height: 16px;
-  top: 0;
-  right: 15px;
-  transform: rotate(-28deg);
-}
-
-.spark::after {
-  height: 20px;
-  top: 2px;
-  right: 4px;
-  transform: rotate(12deg);
+.step-img {
+  width: 100%;
+  height: auto;
 }
 
 /* ---------- Hero, with the three steps beside it ---------- */
@@ -611,7 +608,7 @@ img {
   padding: 0 10% 10% 0;
 }
 
-.device-hero {
+.phone-hero {
   width: 100%;
 }
 
@@ -636,7 +633,7 @@ img {
 .step {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(84px, 7.6vw, 100px);
+  grid-template-columns: minmax(0, 1fr) clamp(104px, 9.6vw, 130px);
   grid-template-areas:
     'num art'
     'body art';
@@ -644,7 +641,9 @@ img {
   align-items: center;
   padding: clamp(16px, 1.5vw, 20px);
   border-radius: 24px;
-  background: var(--white);
+  /* Off white rather than white, so the wash behind each illustration is
+     the only thing on the card that reads as a panel of its own. */
+  background: var(--card);
   box-shadow: 0 10px 30px rgba(17, 17, 17, 0.07);
 }
 
@@ -679,35 +678,30 @@ img {
   color: var(--charcoal);
 }
 
-/* The illustration well: a pale tile with the drawing and, on two of the
-   three, a Knowt Tag overlapping it. */
+/* The illustration, and on two of the three a Knowt Tag over it. The wash
+   behind the drawing is part of the image, not a tile drawn here. */
 .step-art {
   grid-area: art;
   position: relative;
   aspect-ratio: 1 / 1;
-  border-radius: 20px;
-  background: var(--page);
   display: grid;
   place-items: center;
 }
 
-.step-art .line-art {
-  width: 62%;
-  height: auto;
-}
-
+/* Big enough to read as the product, small enough that the drawing behind
+   it still shows. At 86 it covered the pot and most of the phone. */
 .tag-step {
   position: absolute;
   right: -16%;
-  bottom: -14%;
-  width: 70%;
+  bottom: -12%;
+  width: 62%;
 }
 
 .tag-step-tap {
   right: auto;
-  left: -20%;
-  bottom: 8%;
-  width: 74%;
+  left: -18%;
+  bottom: 6%;
+  width: 66%;
 }
 
 /* ---------- A simple system, a better you ---------- */
@@ -843,7 +837,7 @@ img {
 /* Measured off the mockup, where the phone inside the panel is about 205
    points wide against 1188 of panel, with the tags crowding its right edge
    rather than sitting in a group beside it. */
-.device-kit {
+.phone-kit {
   width: 38%;
   margin-left: 10%;
 }
@@ -899,18 +893,23 @@ img {
   color: var(--charcoal);
 }
 
+/* Every label breaks onto exactly two lines in the markup, and the row
+   aligns to the top, so no icon and no label sits lower than the others
+   whatever the words are. */
 .space-cats {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: start;
   gap: clamp(8px, 1.2vw, 18px);
 }
 
 .space-cats li {
   display: grid;
   justify-items: center;
+  align-content: start;
   gap: 10px;
   text-align: center;
   font-family: var(--display);
@@ -1152,7 +1151,7 @@ img {
 
   /* Narrower, and the cluster moves off the screen it was covering: at this
      width the same offsets put two tags over the Knowts list. */
-  .device-kit {
+  .phone-kit {
     width: 50%;
     margin-left: 0;
   }

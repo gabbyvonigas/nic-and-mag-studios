@@ -26,7 +26,7 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <meta name="theme-color" content="#ffffff" />
 
-  <link rel="preload" href="/assets/fonts/Quicksand-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/Quicksand-variable.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/css/style.css" />
 
   <script type="application/ld+json">
@@ -106,12 +106,13 @@
         </div>
 
         <div class="hero-art">
-          <div class="device device-hero">
-            <div class="device-screen">
-              <img src="/assets/screens/daily.png" alt="The Daily screen in the MindKnowt app, showing the date, a week strip, one of two Knowts complete, and a Morning Smoothie Knowt set for 9:00 am every day." width="804" height="1748" />
-            </div>
-          </div>
-          <img class="tag-disc tag-hero" src="/assets/knowt-tag.png" alt="A Knowt Tag, a small round tag your iPhone reads with a tap." width="1000" height="1000" />
+          <img
+            class="phone phone-hero"
+            src="/assets/phone-hero.png"
+            alt="An iPhone showing the Daily screen in the MindKnowt app: the date, a week strip, one of two Knowts complete, and a Morning Smoothie Knowt set for 9:00 am every day."
+            width="852"
+            height="1796" />
+          <img class="tag-disc tag-hero" src="/assets/knowt-tag.png" alt="A Knowt Tag, a small round tag your iPhone reads with a tap." width="2000" height="2000" />
         </div>
 
         <ol class="steps">
@@ -122,14 +123,8 @@
               <p>Place a Knowt Tag where the task lives.</p>
             </div>
             <div class="step-art" aria-hidden="true">
-              <!-- A plant in a pot, with a Knowt Tag on the pot. -->
-              <svg class="line-art" viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" focusable="false">
-                <path d="M48 62V32" />
-                <path d="M48 46c0-9 7-17 16-18 1 9-5 17-16 18Z" />
-                <path d="M48 38c0-8-6-15-14-16-1 8 4 15 14 16Z" />
-                <path d="M31 62h34l-4 23H35l-4-23Z" />
-              </svg>
-              <img class="tag-disc tag-step" src="/assets/knowt-tag.png" alt="" width="1000" height="1000" />
+              <img class="step-img" src="/assets/step-stick.png" alt="" width="800" height="800" />
+              <img class="tag-disc tag-step" src="/assets/knowt-tag.png" alt="" width="2000" height="2000" />
             </div>
           </li>
 
@@ -140,16 +135,7 @@
               <p>Create your Knowt.</p>
             </div>
             <div class="step-art" aria-hidden="true">
-              <!-- A phone holding a short list, each line with its own dot. -->
-              <svg class="line-art" viewBox="0 0 96 96" fill="none" focusable="false">
-                <rect x="24" y="10" width="48" height="76" rx="9" stroke="currentColor" stroke-width="3.4" />
-                <circle cx="35" cy="30" r="3.4" fill="#ff4d3d" />
-                <circle cx="35" cy="43" r="3.4" fill="#d9fb3c" />
-                <circle cx="35" cy="56" r="3.4" fill="#24c2b5" />
-                <circle cx="35" cy="69" r="3.4" fill="#a435f0" />
-                <path d="M45 30h17M45 43h17M45 56h17M45 69h12" stroke="#cfd3d8" stroke-width="3.4" stroke-linecap="round" />
-              </svg>
-              <span class="spark" aria-hidden="true"></span>
+              <img class="step-img" src="/assets/step-set.png" alt="" width="800" height="800" />
             </div>
           </li>
 
@@ -160,12 +146,8 @@
               <p>Complete &amp; track.</p>
             </div>
             <div class="step-art" aria-hidden="true">
-              <!-- A phone meeting a Knowt Tag. -->
-              <svg class="line-art" viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="3.4" focusable="false">
-                <rect x="34" y="10" width="48" height="76" rx="9" />
-              </svg>
-              <img class="tag-disc tag-step tag-step-tap" src="/assets/knowt-tag.png" alt="" width="1000" height="1000" />
-              <span class="spark" aria-hidden="true"></span>
+              <img class="step-img" src="/assets/step-tap.png" alt="" width="800" height="800" />
+              <img class="tag-disc tag-step tag-step-tap" src="/assets/knowt-tag.png" alt="" width="2000" height="2000" />
             </div>
           </li>
         </ol>
@@ -268,22 +250,24 @@
           </div>
 
           <div class="kit-art">
-            <div class="device device-kit">
-              <div class="device-screen">
-                <img src="/assets/screens/knowts.png" alt="The Knowts screen, showing Knowts grouped under Wellness and Routine headings." width="804" height="1748" loading="lazy" />
-              </div>
-            </div>
+            <img
+              class="phone phone-kit"
+              src="/assets/phone-kit.png"
+              alt="An iPhone showing the Knowts screen, with Knowts grouped under Wellness and Routine headings."
+              width="852"
+              height="1796"
+              loading="lazy" />
             <!--
               Five discs, one image file. Each is placed by the stylesheet, so
               swapping assets/knowt-tag.png updates the cluster, the hero and
               the step cards together.
             -->
             <div class="tag-cluster" aria-hidden="true">
-              <img class="tag-disc" src="/assets/knowt-tag.png" alt="" width="1000" height="1000" loading="lazy" />
-              <img class="tag-disc" src="/assets/knowt-tag.png" alt="" width="1000" height="1000" loading="lazy" />
-              <img class="tag-disc" src="/assets/knowt-tag.png" alt="" width="1000" height="1000" loading="lazy" />
-              <img class="tag-disc" src="/assets/knowt-tag.png" alt="" width="1000" height="1000" loading="lazy" />
-              <img class="tag-disc" src="/assets/knowt-tag.png" alt="" width="1000" height="1000" loading="lazy" />
+              <img class="tag-disc" src="/assets/knowt-tag.png" alt="" width="2000" height="2000" loading="lazy" />
+              <img class="tag-disc" src="/assets/knowt-tag.png" alt="" width="2000" height="2000" loading="lazy" />
+              <img class="tag-disc" src="/assets/knowt-tag.png" alt="" width="2000" height="2000" loading="lazy" />
+              <img class="tag-disc" src="/assets/knowt-tag.png" alt="" width="2000" height="2000" loading="lazy" />
+              <img class="tag-disc" src="/assets/knowt-tag.png" alt="" width="2000" height="2000" loading="lazy" />
             </div>
             <p class="visually-hidden">Five Knowt Tags, small round tags your iPhone reads with a tap.</p>
           </div>
@@ -305,14 +289,14 @@
               <svg class="line-art cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                 <path d="M3.4 9.2v5.6M6.6 6.6v10.8M17.4 6.6v10.8M20.6 9.2v5.6M6.6 12h10.8" />
               </svg>
-              <span>Fitness &amp; Activity</span>
+              <span>Fitness &amp;<br />Activity</span>
             </li>
             <li>
               <svg class="line-art cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                 <rect x="2.8" y="8.4" width="18.4" height="7.2" rx="3.6" transform="rotate(-45 12 12)" />
                 <path d="M9.5 9.5 14.5 14.5" />
               </svg>
-              <span>Rx &amp; Vitamins</span>
+              <span>Rx &amp;<br />Vitamins</span>
             </li>
             <li>
               <svg class="line-art cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
@@ -320,7 +304,7 @@
                 <path d="M12 14.5c0-4 3-7.2 7.2-7.7.5 4.1-2.7 7.7-7.2 7.7Z" />
                 <path d="M12 16c0-3.4-2.6-6.1-6-6.6-.4 3.5 2.1 6.6 6 6.6Z" />
               </svg>
-              <span>Plant Care</span>
+              <span>Plant<br />Care</span>
             </li>
             <li>
               <svg class="line-art cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
@@ -328,14 +312,14 @@
                 <path d="M8.6 9.6V4.4h3.6v5.2" />
                 <path d="M14.4 4.4h2.2M16.8 6.8h2.2M15.8 2.2H18" />
               </svg>
-              <span>Chores &amp; Cleaning</span>
+              <span>Chores &amp;<br />Cleaning</span>
             </li>
             <li>
               <svg class="line-art cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                 <rect x="3.6" y="5" width="16.8" height="11.2" rx="2" />
                 <path d="M2 19.4h20" />
               </svg>
-              <span>Work &amp; Admin</span>
+              <span>Work &amp;<br />Admin</span>
             </li>
             <li>
               <svg class="line-art cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
@@ -344,7 +328,7 @@
                 <ellipse cx="17" cy="9.6" rx="2" ry="2.5" />
                 <path d="M12.2 13.2c2.5 0 4.8 2 4.8 4.2 0 1.6-1.3 2.4-2.9 2.1a7.6 7.6 0 0 0-3.8 0c-1.6.3-2.9-.5-2.9-2.1 0-2.2 2.3-4.2 4.8-4.2Z" />
               </svg>
-              <span>Pet Care</span>
+              <span>Pet<br />Care</span>
             </li>
             <li>
               <svg class="line-art cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
@@ -352,7 +336,7 @@
                 <path d="M12 6.8c1.6-1.4 3.6-2.1 6.4-2.1h2.4v13h-2.4c-2.8 0-4.8.7-6.4 2.1" />
                 <path d="M12 6.8v13" />
               </svg>
-              <span>Personal Growth</span>
+              <span>Personal<br />Growth</span>
             </li>
           </ul>
         </div>
