@@ -520,12 +520,19 @@ export async function setMode(knowtId: string, mode: KnowtMode): Promise<void> {
   const knowt = await getKnowt(knowtId);
   if (!knowt) return;
 
-  if (mode !== 'open' && !knowt.tag_uid) {
-    throw new ModeUnavailableError(
-      'Scanning needs a tag. Attach a Knowt Tag to this Knowt first.',
-    );
-  }
-
+  // No refusal here any more.
+  //
+  // It used to throw for `strict` without a tag, on the reasoning that an
+  // alarm only a tag can stop, with no tag, is an alarm nothing stops. That
+  // reasoning was right about the alarm and wrong about the mode: it meant the
+  // one mode that needs setting up was the one mode that could not be stored,
+  // so choosing Scan + Alarm on a Knowt with no tag silently left it as
+  // something else.
+  //
+  // The alarm is stopped where alarms are decided instead. `syncScheduledAlarms`
+  // arms nothing for a Knowt whose mode requires a scan and that has no tag, so
+  // the mode is remembered, the Knowt reads as incomplete, and nothing rings
+  // that could not be answered.
   const db = await getDatabase();
   await db.runAsync('UPDATE knowts SET mode = ? WHERE id = ?', mode, knowtId);
 }

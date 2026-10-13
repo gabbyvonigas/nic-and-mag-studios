@@ -10,7 +10,7 @@ import {
 
 import { Icon, type IconName } from './Icon';
 import { BAND, iconSizeForText } from './iconMetrics';
-import { theme } from '../theme';
+import { onCategoryFill, theme } from '../theme';
 
 /**
  * Glyphs are sized to the text they stand beside, never to a number of their
@@ -267,6 +267,13 @@ export function EmptyState({
  * the line the text drew, so the one chip with a glyph stood about two and a
  * half points above the chips next to it and looked looser inside. Every chip
  * is now exactly as tall as its text, which is the same text everywhere.
+ *
+ * `color` is a category's swatch, and the chip fills with it rather than
+ * drawing it as an outline and as its text. Five of the seven shipped
+ * swatches failed 4.5 to 1 as text on a light background, and Daily, which is
+ * the brand lime, measured 1.09, which is not low contrast but none. The
+ * border stays, in the fill's own color, so the chip keeps the height and the
+ * width it had and the row stays aligned; there is nothing left to see of it.
  */
 export function Pill({
   label,
@@ -277,11 +284,17 @@ export function Pill({
   color?: string;
   icon?: IconName;
 }) {
-  const tint = color ?? theme.color.textPrimary;
+  // Ink or white on the swatch, whichever carries. With no color the chip is
+  // the plain outlined one and keeps the ordinary secondary gray.
+  const tint = color ? onCategoryFill(color) : theme.color.textSecondary;
   return (
-    <View style={[styles.pill, color ? { borderColor: color } : null]}>
+    <View
+      style={[
+        styles.pill,
+        color ? { backgroundColor: color, borderColor: color } : null,
+      ]}>
       {icon ? <Icon name={icon} size={CHIP_GLYPH} color={tint} /> : null}
-      <Text style={[styles.pillText, color ? { color } : null]}>{label}</Text>
+      <Text style={[styles.pillText, { color: tint }]}>{label}</Text>
     </View>
   );
 }

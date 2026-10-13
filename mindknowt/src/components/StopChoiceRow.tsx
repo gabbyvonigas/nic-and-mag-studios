@@ -1,9 +1,10 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from './Icon';
+import { BAND, iconSizeForText } from './iconMetrics';
 import {
-  NEEDS_TAG_NOTE,
   STOP_CHOICES,
+  missingFor,
   stopChoice,
   type StopChoice,
 } from '../knowts/modes';
@@ -29,64 +30,56 @@ import { theme } from '../theme';
 export function StopChoiceRow({
   value,
   tagged,
+  scheduled,
   onChange,
 }: {
   value: StopChoice;
-  /** Whether a tag is attached. Scan + Alarm cannot be chosen without one. */
+  /** Whether a tag is attached. Scan + Alarm needs one to be complete. */
   tagged: boolean;
+  /** Whether it has a schedule. Scan + Alarm needs one of those too. */
+  scheduled: boolean;
   onChange: (next: StopChoice) => void;
 }) {
+  const missing = missingFor(value, { tagged, scheduled });
+
   return (
     <>
       <View style={styles.row}>
         {STOP_CHOICES.map((choice) => {
           const on = value === choice.value;
-          const blocked = choice.needsTag && !tagged;
-          const tint = blocked
-            ? theme.color.textMuted
-            : on
-              ? theme.color.onHighlight
-              : theme.color.textSecondary;
+          // No card is ever disabled. Scan + Alarm used to be, whenever there
+          // was no tag, which meant the one mode that needs setting up was the
+          // one mode that could not be chosen: it drew gray and the press did
+          // nothing at all. Choosing it now goes and gets what it needs.
+          const tint = on
+            ? theme.color.onHighlight
+            : theme.color.textSecondary;
           return (
             <Pressable
               key={choice.value}
               accessibilityRole="button"
               accessibilityLabel={choice.label}
               accessibilityHint={choice.detail}
-              accessibilityState={{ selected: on, disabled: blocked }}
-              disabled={blocked}
+              accessibilityState={{ selected: on }}
               onPress={() => onChange(choice.value)}
-              style={[
-                styles.card,
-                on && styles.cardOn,
-                blocked && styles.cardBlocked,
-              ]}>
-              {/* One glyph, or two smaller ones side by side for Scan +
-                  Alarm, which is both. Sized so a pair occupies about the
-                  same width as a single, and held in a fixed height row so
-                  every card is the same height whichever it got. The mark and
-                  the alarm are drawn to the same ink height at the same size
-                  and both end on the baseline, so a pair stands on one line
-                  and neither looks taller or lighter than the other. */}
+              style={[styles.card, on && styles.cardOn]}>
+              {/* One size for every glyph on the row, including the pair.
+                  They used to shrink to 15 when there were two of them, which
+                  made Scan + Alarm read as two small marks beside two large
+                  ones rather than as a mark of its own. `Icon` draws a brand
+                  mark and an Ionicon to the same ink height at the same size
+                  and both end on the baseline, so the pair stands on one line
+                  at the same weight and the same height as a single. */}
               <View style={styles.glyphs}>
                 {choice.icons.map((glyph) => (
-                  <Icon
-                    key={glyph}
-                    name={glyph}
-                    size={choice.icons.length > 1 ? 15 : 18}
-                    color={tint}
-                  />
+                  <Icon key={glyph} name={glyph} size={GLYPH} color={tint} />
                 ))}
               </View>
               <Text
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.85}
-                style={[
-                  styles.label,
-                  on && styles.labelOn,
-                  blocked && styles.labelBlocked,
-                ]}>
+                style={[styles.label, on && styles.labelOn]}>
                 {choice.label}
               </Text>
             </Pressable>
@@ -104,12 +97,20 @@ export function StopChoiceRow({
           silently drops the rounding. Real bold needs the SF Pro Rounded faces
           bundled through expo-font, which is native and costs a build. */}
       <Text style={styles.support}>{stopChoice(value).detail}</Text>
-      {value === 'both' && !tagged ? (
-        <Text style={styles.needsTag}>{NEEDS_TAG_NOTE}</Text>
-      ) : null}
+      {missing ? <Text style={styles.needsTag}>{missing}</Text> : null}
     </>
   );
 }
+
+/**
+ * Every glyph on the row, pair or single.
+ *
+ * Sized to the `lg` text band rather than to a number picked by eye, which
+ * lands within half a point of the 18 the single glyphs already used, and
+ * `Icon` turns that one size into the same ink height and the same baseline
+ * for a brand mark and for an Ionicon alike.
+ */
+const GLYPH = iconSizeForText(theme.font.size.lg, BAND.ascender);
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: theme.spacing.sm },
@@ -128,9 +129,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.highlight,
     borderColor: theme.color.highlight,
   },
-  cardBlocked: { backgroundColor: theme.color.surfaceMuted },
-  // Fixed height, so a card holding two small glyphs is exactly as tall as
-  // one holding a single larger glyph and the three stay level.
+  // Fixed height, so a card holding a pair is exactly as tall as one holding
+  // a single glyph and the three stay level. The gap to the label is the
+  // card's own, so the three share that too.
   glyphs: {
     flexDirection: 'row',
     // One bottom line for both, and the pair centered as a pair.
@@ -149,7 +150,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   labelOn: { color: theme.color.onHighlight },
-  labelBlocked: { color: theme.color.textMuted },
   support: {
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.md,

@@ -159,6 +159,32 @@ function blend(
 }
 
 /**
+ * Which of two text colors carries on a solid swatch.
+ *
+ * The caller passes the two candidates, so this file keeps its promise of
+ * holding no color it was not given and the theme keeps its promise of being
+ * the only place a token is named.
+ *
+ * A chip used to draw the swatch as its text, and five of the seven shipped
+ * categories failed 4.5 to 1 that way. Daily is the brand lime and measured
+ * 1.09, which is invisible rather than merely low. Filling the chip with the
+ * swatch and putting the readable one of ink or white on top clears the floor
+ * for all seven, because a swatch is chosen to be seen and the question is
+ * only what goes over it.
+ */
+export function textOn(
+  swatch: string,
+  dark: string,
+  light: string,
+): string {
+  const rgb = parseHex(swatch);
+  const darkRgb = parseHex(dark);
+  const lightRgb = parseHex(light);
+  if (!rgb || !darkRgb || !lightRgb) return dark;
+  return contrast(rgb, darkRgb) >= contrast(rgb, lightRgb) ? dark : light;
+}
+
+/**
  * Shades for a color nobody hand-picked shades for, which is every custom
  * category.
  *

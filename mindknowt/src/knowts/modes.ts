@@ -102,14 +102,35 @@ export const STOP_CHOICES: {
 ];
 
 /**
- * Shown only when Scan + Alarm is picked with no tag on the Knowt.
+ * What a chosen mode is still missing, or null when it is complete.
  *
- * It is not in that option's own text, because a requirement stated before it
- * applies reads as a requirement of the whole screen. The other two never need
- * one: Alarm Only does not involve a tag, and Scan Knowt works without one
- * through the manual fallback.
+ * Shown under the row rather than inside the option's own text, because a
+ * requirement stated before it applies reads as a requirement of the whole
+ * screen. The other two options are never incomplete: Alarm Only involves no
+ * tag, and Scan Knowt works without one through the manual fallback and wants
+ * no schedule at all.
+ *
+ * This replaced a flat "needs a tag attached first", which was written while
+ * Scan + Alarm could not be chosen without one. It can now, so the note says
+ * what is left rather than what is forbidden, and it names the schedule too,
+ * because an alarm with no time is as incomplete as one with no tag.
  */
-export const NEEDS_TAG_NOTE = 'Scan + Alarm needs a tag attached first.';
+export function missingFor(
+  value: StopChoice,
+  state: { tagged: boolean; scheduled: boolean },
+): string | null {
+  if (value !== 'both') return null;
+  if (!state.tagged && !state.scheduled) {
+    return 'Scan + Alarm needs a Knowt Tag and a schedule. It will not ring until it has both.';
+  }
+  if (!state.tagged) {
+    return 'Scan + Alarm needs a Knowt Tag. It will not ring until it has one.';
+  }
+  if (!state.scheduled) {
+    return 'Scan + Alarm needs a schedule. It will not ring until it has one.';
+  }
+  return null;
+}
 
 export function stopChoice(value: StopChoice) {
   return STOP_CHOICES.find((choice) => choice.value === value) as

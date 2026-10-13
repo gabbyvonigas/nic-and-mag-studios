@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { resyncAlarmsQuietly } from '../alarms';
 import { Button, SubScreenHeader } from '../components/ui';
 import { TimePicker } from '../components/TimePicker';
+import { MonthCalendar } from '../components/MonthCalendar';
 import {
   addSchedule,
   deleteSchedule,
@@ -39,6 +40,19 @@ import {
 } from '../knowts/scheduleQueue';
 import { theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
+
+/** Midnight on the day a date falls in. Local, because every other one is. */
+function midnight(at: Date): Date {
+  return new Date(at.getFullYear(), at.getMonth(), at.getDate());
+}
+
+/** Parses the `YYYY-MM-DD` the column stores, as a local day. */
+function fromISODate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [, y, m, d] = match;
+  return new Date(Number(y), Number(m) - 1, Number(d));
+}
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'EditSchedule'>;
@@ -83,6 +97,21 @@ export function EditScheduleScreen() {
   const [days, setDays] = useState<number[]>([]);
   const [intervalDays, setIntervalDays] = useState('2');
   const [label, setLabel] = useState('');
+  /**
+   * The date an interval counts from, and the day a one-off lands on.
+   *
+   * This screen never asked for it. It wrote `today` into the column and told
+   * you so in a line of hint text, which is the one thing the project's own
+   * rule says never to do: a default the person should have chosen. The
+   * calendar has existed since `8593265` and was only ever put in the Setup
+   * step, so "When it rings", "Add a schedule" and "Edit schedule" have never
+   * had one to show. Nothing removed it; it was never here.
+   */
+  const [startDate, setStartDate] = useState(() => midnight(new Date()));
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,6 +126,13 @@ export function EditScheduleScreen() {
       setDays(parseDays(existing.days_of_week));
       setIntervalDays(`${existing.interval_days ?? 2}`);
       setLabel(existing.label ?? '');
+      // Editing keeps the schedule's own date, so its rhythm does not
+      // silently restart on whatever day the screen was opened.
+      const stored = existing.start_date ? fromISODate(existing.start_date) : null;
+      if (stored) {
+        setStartDate(stored);
+        setVisibleMonth(new Date(stored.getFullYear(), stored.getMonth(), 1));
+      }
     }
     setLoaded(true);
   }, [existing, existingId, loaded]);
@@ -154,12 +190,9 @@ export function EditScheduleScreen() {
         daysOfWeek: shape.daysOfWeek,
         intervalDays: shape.intervalDays,
         intervalMonths: shape.intervalMonths,
-        // An interval counts from a start date, and a one-off needs a day to
-        // land on. Both are today unless one is already stored, so editing an
-        // existing schedule does not silently restart its rhythm.
-        startDate: shape.needsStartDate
-          ? (existing?.start_date ?? toISODate(new Date()))
-          : null,
+        // The day the calendar above is showing as chosen, which starts at
+        // today for a new schedule and at the stored date for an edited one.
+        startDate: shape.needsStartDate ? toISODate(startDate) : null,
       };
 
       if (existingId) {
@@ -273,15 +306,33 @@ export function EditScheduleScreen() {
             })}
           </View>
 
-          {/* An interval has to count from somewhere, and that somewhere is
-              invisible otherwise. Editing an existing schedule keeps its
-              original date, so the rhythm does not silently restart. */}
+          {/* An interval has to count from somewhere and a one-off has to land
+              on a day, and this screen used to write today into the column and
+              say so in a line of hint text. The calendar asks instead, which
+              is the rule everywhere else: never invent a default the person
+              should choose. It shows for every preset whose shape needs a
+              date, so a new schedule and an edited one both get one. */}
           {shapeFor(preset).needsStartDate ? (
-            <Text style={styles.hint}>
-              {existing?.start_date
-                ? `Counting from ${existing.start_date}.`
-                : 'Counting from today.'}
-            </Text>
+            <>
+              <Text style={styles.label}>
+                {shapeFor(preset).repeatType === 'once' ? 'Which day' : 'Starting'}
+              </Text>
+              <MonthCalendar
+                month={visibleMonth}
+                selected={startDate}
+                today={midnight(new Date())}
+                occursOn={() => false}
+                onPick={(day) => {
+                  setStartDate(day);
+                  setVisibleMonth(new Date(day.getFullYear(), day.getMonth(), 1));
+                }}
+                onShiftMonth={(delta) =>
+                  setVisibleMonth(
+                    (m) => new Date(m.getFullYear(), m.getMonth() + delta, 1),
+                  )
+                }
+              />
+            </>
           ) : null}
 
           {chosen.needsDay || chosen.needsDays ? (

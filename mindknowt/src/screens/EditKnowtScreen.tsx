@@ -324,6 +324,7 @@ export function EditKnowtScreen() {
           <StopChoiceRow
             value={stops}
             tagged={tagged}
+            scheduled={knowt.schedules.length > 0}
             onChange={(next) => void chooseStop(next)}
           />
           <PinToggle

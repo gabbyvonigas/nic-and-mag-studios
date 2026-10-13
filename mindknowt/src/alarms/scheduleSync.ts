@@ -249,12 +249,19 @@ export async function syncScheduledAlarms(now = new Date()): Promise<SyncResult>
   }
 
   for (const knowt of knowts) {
+    // A Knowt whose mode requires a scan, with no tag to scan, is an alarm
+    // nothing can stop, so nothing is armed for it and anything already armed
+    // comes down. `setMode` used to refuse to store that combination at all,
+    // which meant the mode was lost rather than the alarm withheld; the mode
+    // is kept now and this is what keeps it quiet until a tag arrives.
+    const unanswerable = requiresScan(knowt.mode) && !knowt.tag_uid;
+
     for (const schedule of knowt.schedules) {
       const key = keyOf(knowt.id, schedule.id);
       const existing = byKey.get(key);
       byKey.delete(key);
 
-      const desired = desiredFor(schedule, now, done);
+      const desired = unanswerable ? null : desiredFor(schedule, now, done);
 
       if (!desired) {
         if (existing) {

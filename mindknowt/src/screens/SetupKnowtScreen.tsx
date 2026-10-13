@@ -437,6 +437,7 @@ export function SetupKnowtScreen() {
             <StopChoiceRow
               value={stops}
               tagged={!!tagUid}
+              scheduled={scheduled}
               onChange={(next) => {
                 Keyboard.dismiss();
                 setStops(next);

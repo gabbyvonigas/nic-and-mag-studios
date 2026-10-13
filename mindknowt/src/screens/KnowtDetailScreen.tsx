@@ -263,9 +263,18 @@ export function KnowtDetailScreen() {
       await setMode(knowt.id, want.mode);
       await reload();
 
-      // It has to ring, and nothing can ring without a time. Backing out of
-      // that screen leaves it with no schedule, so it reads as Scan Knowt
-      // again, which is the honest outcome of not giving it one.
+      // Then go and get whatever the choice still needs, in the order the two
+      // steps actually cost. The tag is the system's own scan sheet, which
+      // opens over this screen and closes itself; the schedule is a screen
+      // that gets pushed. Asking for the tag first means the sheet is never
+      // opening on top of a screen that was pushed a moment earlier, and
+      // backing out of either one leaves the mode saved and the Knowt plainly
+      // incomplete rather than quietly changed to something else.
+      if (want.needsTag && !knowt.tag_uid) {
+        await scanToAttach(setNotice);
+      }
+
+      // It has to ring, and nothing can ring without a time.
       if (knowt.schedules.length === 0) {
         navigation.navigate('EditSchedule', { knowtId: knowt.id });
       }
@@ -337,6 +346,33 @@ export function KnowtDetailScreen() {
    * Hoisted out of the JSX because the button moved up the screen and the
    * label should not have moved with it twice.
    */
+  /**
+   * What a Scan + Alarm Knowt is still missing, and the one tap that fixes it.
+   *
+   * The tag comes first when both are missing, for the same reason the mode
+   * change asks for it first: it is a sheet rather than a screen. Null for
+   * every other mode, because no other mode can be half set up.
+   */
+  const incomplete = (() => {
+    if (stopChoiceOf(knowt) !== 'both') return null;
+    if (!knowt.tag_uid) {
+      return {
+        text: 'This Knowt will not ring until it has a Knowt Tag.',
+        action: 'Add a tag',
+        onPress: () => void scanToAttach(setNotice),
+      };
+    }
+    if (knowt.schedules.length === 0) {
+      return {
+        text: 'This Knowt will not ring until it has a schedule.',
+        action: 'Add a schedule',
+        onPress: () =>
+          navigation.navigate('EditSchedule', { knowtId: knowt.id }),
+      };
+    }
+    return null;
+  })();
+
   const scanLabel = busy
     ? 'Scanning'
     : doneToday
@@ -486,6 +522,24 @@ export function KnowtDetailScreen() {
           )}
         </View>
 
+        {/* What this Knowt is still waiting for, under the chips that say what
+            it is. Scan + Alarm is the only mode that can be incomplete, and it
+            is saved either way: the mode is remembered, nothing is armed, and
+            this says so in a line rather than leaving a Knowt that looks set up
+            and never rings. */}
+        {incomplete ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={incomplete.action}
+            onPress={incomplete.onPress}
+            style={styles.incomplete}>
+            <Icon name="info" size={15} color={theme.color.textSecondary} />
+            <Text style={styles.incompleteText}>
+              {incomplete.text} <Text style={styles.incompleteAction}>{incomplete.action}</Text>
+            </Text>
+          </Pressable>
+        ) : null}
+
         {/* The one thing you came here to do, reachable without scrolling. It
             used to sit in the actions at the very bottom, past Notes, Mode,
             the tag controls, Schedules and History, which on a small iPhone is
@@ -604,6 +658,7 @@ export function KnowtDetailScreen() {
         <StopChoiceRow
           value={stopChoiceOf(knowt)}
           tagged={!!knowt.tag_uid}
+          scheduled={knowt.schedules.length > 0}
           onChange={(next) => void chooseStop(next)}
         />
         <PinToggle
@@ -823,6 +878,25 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   pills: { flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' },
+  // Quiet, not a warning. Nothing has gone wrong: a Knowt is part way through
+  // being set up, which is an ordinary state to be in.
+  incomplete: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.sm,
+  },
+  incompleteText: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    lineHeight: 20,
+    color: theme.color.textSecondary,
+  },
+  incompleteAction: {
+    fontFamily: theme.font.face.medium,
+    color: theme.color.textPrimary,
+  },
   // Its own block, so the failure message and the "comes back tomorrow" line
   // sit with the button rather than against the Notes heading below.
   leadAction: { gap: theme.spacing.sm },
