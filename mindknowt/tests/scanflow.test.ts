@@ -192,10 +192,16 @@ check('the list reports above the scroll, where it cannot be scrolled off', () =
 // What the completion looks like.
 
 check('a scan writes a completion that resets with the day', () => {
-  // No schedule to name, which is what makes it readable per day, and
   // `completeOccurrence` rather than `logCompletion`, which is the rule for
-  // every completion path.
-  assert.match(scan, /completeOccurrence\(\{ knowtId: knowt\.id, scheduleId: null, method: 'scan' \}\)/);
+  // every completion path. With no occurrence passed there is no schedule to
+  // name, which is what makes a Scan Knowt readable per day; an Upcoming row
+  // passes one, because naming the firing is the only thing that stands its
+  // alarm down.
+  assert.match(scan, /scheduleId: occurrence\?\.scheduleId \?\? null,/);
+  assert.match(scan, /method: 'scan',/);
+  assert.match(scan, /completedAt: occurrence\?\.completedAt,/);
+  // Named in a comment, never called.
+  assert.doesNotMatch(scan, /await logCompletion|= logCompletion/);
 });
 
 check('the scan is bounded, so the button cannot stick on Scanning', () => {

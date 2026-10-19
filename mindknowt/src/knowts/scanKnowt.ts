@@ -23,16 +23,29 @@ import { describeError, settled } from '../alarms';
 
 export type ScanOutcome =
   /** The tag was read and the completion is written. */
-  | { kind: 'done' }
+  | { kind: 'done'; eventId: string }
   /** Nothing happened and nothing needs saying: the sheet was dismissed. */
   | { kind: 'canceled' }
   | { kind: 'failed'; message: string };
 
-export async function scanKnowtTag(knowt: {
-  id: string;
-  name: string;
-  tag_uid: string | null;
-}): Promise<ScanOutcome> {
+export async function scanKnowtTag(
+  knowt: {
+    id: string;
+    name: string;
+    tag_uid: string | null;
+  },
+  /**
+   * The occurrence this scan answers, when there is one.
+   *
+   * A Scan Knowt has no schedule and nothing armed, so it passes none and the
+   * completion names no firing, which is the rule everywhere else too. A scan
+   * started from an Upcoming row does have one, and naming it is the only
+   * thing that stands that firing's alarm down: `completedAt` is the
+   * occurrence's own moment, because which day a completion covers is read
+   * from it.
+   */
+  occurrence?: { scheduleId: string; completedAt: number },
+): Promise<ScanOutcome> {
   if (!knowt.tag_uid) {
     return {
       kind: 'failed',
@@ -56,15 +69,20 @@ export async function scanKnowtTag(knowt: {
   }
 
   /**
-   * No schedule id, because there is no occurrence to name. That is also what
-   * makes the daily reset work: the completion lands with a null schedule and
-   * is read back from the day's own window.
+   * With no occurrence there is no schedule id, because there is nothing to
+   * name. That is also what makes the daily reset work: the completion lands
+   * with a null schedule and is read back from the day's own window.
    *
    * `completeOccurrence` rather than `logCompletion`, so a leftover test alarm
    * is stood down and sync runs, which is the rule for every completion path.
    */
   const written = await settled(
-    completeOccurrence({ knowtId: knowt.id, scheduleId: null, method: 'scan' }),
+    completeOccurrence({
+      knowtId: knowt.id,
+      scheduleId: occurrence?.scheduleId ?? null,
+      method: 'scan',
+      completedAt: occurrence?.completedAt,
+    }),
   );
   if (!written.ok) {
     return {
@@ -72,5 +90,6 @@ export async function scanKnowtTag(knowt: {
       message: `The tag was read but it could not be recorded. ${describeError(written.error)}`,
     };
   }
-  return { kind: 'done' };
+  // The id is what an Undo deletes, so a caller that offers one needs it back.
+  return { kind: 'done', eventId: written.value };
 }

@@ -306,13 +306,34 @@ both be true at once.
 Taking a completion back (`undoCompletion`) puts an occurrence back in play and
 must resync, or "not done" also means "and it will not remind you".
 
-**Skip this one, on an Upcoming row.** Upcoming lists tomorrow onward, so the
-occurrence it offers is days out, and skipping it goes through
+**Completing one occurrence from an Upcoming row.** Upcoming lists tomorrow
+onward, so the occurrence it offers is days out, and it goes through
 `completeOccurrence` like everything else. Two things make it mean that firing
 and no other: the schedule id, and `completedAt` set to the occurrence's own
 moment, because which day a completion covers is read from
 `fired_at ?? completed_at`. Stamped at the moment the control was pressed it
 would cover today and leave the skipped firing armed.
+
+**The control is the open circle, and what it does depends on the Mode.** It
+was briefly a "Skip this one" pill, which was wrong twice over: it was a second
+answer to a question a Today row already answers with a ring, and the word
+"skip" invited a scan Knowt to be marked done without a scan. The ring is the
+same control a Today card carries, 26 points in the border gray with a 10 point
+hit slop, and `needsScan` decides what a tap means. Alarm Only records the
+completion. A scan Mode opens the reader and nothing else: there is no mark
+done on this screen, the expected UID goes down into the platform's sheet so a
+wrong tag is refused while the phone is still against it, and a cancel writes
+nothing. The label says which before anyone presses it.
+
+`skipOccurrence` and `undoSkip` stay as they are, under those names. They are
+the primitive that records one occurrence and takes it back, and the override
+flow on the ringing alarm is meant to reuse them.
+
+`scanKnowtTag` takes an optional occurrence for the same reason. Without one it
+names no firing, which is right for a Scan Knowt: it has no schedule and
+nothing armed. With one it names the firing and stamps the occurrence's own
+moment, which is the only thing that stands that alarm down. It returns the
+event id either way, because a caller that offers an Undo deletes by id.
 
 `listUpcoming` reads the same completions and passes the same predicate to
 `nextOccurrence`, so a skipped row moves on to the following firing rather than
@@ -560,13 +581,6 @@ returns, is a second account of a decision that has been reversed. `contrast`
 in `categoryColors.ts` stays: `shadesFromHex` steps a custom category's ink
 down until it clears 4.5, which is still how a color nobody picked shades for
 gets a readable one.
-
-**The dot is `CategoryDot`, which is where the ring lives.** The lime measures
-1.19 against a white card, so a plain lime dot is not there at all, and dimming
-it to fix that is what made the palette read washed out once already. The fill
-stays literal and a hairline of the category's own ink gives it an edge. The
-filter pills still draw their own ringless dot, so Daily's is the one that
-cannot be seen there; that is one line to change and has not been asked for.
 
 **The dot is `CategoryDot`, which is where the ring lives.** The lime measures
 1.19 against a white card, so a plain lime dot is not there at all, and dimming

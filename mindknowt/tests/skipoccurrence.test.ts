@@ -1,5 +1,5 @@
 /**
- * Skip this one, on an Upcoming row.
+ * Completing one occurrence from an Upcoming row.
  *
  * Upcoming lists tomorrow onward, so the occurrence being skipped is days out.
  * Two things have to be true of it and neither was before:
@@ -25,6 +25,7 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const read = (path: string) => readFileSync(`${ROOT}/${path}`, 'utf8');
 const home = read('src/screens/HomeScreen.tsx');
 const dashboard = read('src/db/dashboard.ts');
+const scan = read('src/knowts/scanKnowt.ts');
 
 const { completedOccurrences } = await import(`${ROOT}/src/knowts/completions.ts`);
 const { desiredFor, signatureOf } = await import(`${ROOT}/src/alarms/scheduleSync.ts`);
@@ -184,24 +185,89 @@ check('a schedule that rings on one weekday falls back rather than going silent'
 
 // --- The control. ---------------------------------------------------------
 
-check('the row carries a Skip this one control and still opens the Knowt', () => {
-  assert.match(home, /<Text style=\{styles\.upcomingSkipText\}>Skip this one<\/Text>/);
-  assert.match(home, /onPress=\{\(\) => onSkip\(entry\)\}/);
+check('the row carries the open circle and still opens the Knowt', () => {
+  // The same control a Today card has: an open ring at 26 in the border gray,
+  // with the same 10 point hit slop. The pill that stood here briefly is gone.
+  assert.match(home, /<Icon name="circle" size=\{26\} color=\{theme\.color\.border\} \/>/);
+  assert.match(home, /hitSlop=\{10\}/);
+  assert.match(home, /onPress=\{\(\) => onComplete\(entry\)\}/);
+  assert.match(home, /upcomingCheck: \{ alignItems: 'center', justifyContent: 'center' \},/);
+  assert.ok(!home.includes('Skip this one'), 'the Skip pill is still rendered');
+  assert.ok(!home.includes('upcomingSkip'), 'the Skip pill styles are still there');
   // The row's own press is untouched, and the inner Pressable wins the touch.
   assert.match(home, /onPress=\{\(\) => onOpen\(entry\.knowt\.id\)\}/);
+  // And the two line layout stays.
+  assert.match(home, /<View style=\{styles\.upcomingText\}>/);
+  assert.match(home, /\{whenLabel\(entry\.at, now\)\}/);
 });
 
-check('it names the schedule and the occurrence, through completeOccurrence', () => {
-  assert.match(home, /scheduleId: entry\.schedule\.id,/);
-  assert.match(home, /completedAt: entry\.at\.getTime\(\),/);
-  const at = home.indexOf('const skipOccurrence');
-  const after = home.slice(at, at + 1200);
-  assert.match(after, /completeOccurrence\(\{/);
-  assert.ok(!after.includes('logCompletion'), 'it bypasses the completion path');
+check('the same control is on both halves of the row, by Mode', () => {
+  // One circle, two behaviors, and the label says which before anyone finds
+  // out by pressing it.
+  assert.match(home, /needsScan\(entry\.knowt\)\n\s+\? `Scan the tag to mark \$\{entry\.knowt\.name\} done/);
+  assert.match(home, /: `Mark \$\{entry\.knowt\.name\} done for/);
+});
+
+check('an Alarm Only Knowt completes through completeOccurrence', () => {
+  const at = home.indexOf('const completeUpcoming');
+  const after = home.slice(at, at + 1400);
+  assert.match(after, /if \(!needsScan\(entry\.knowt\)\) \{\n\s+await skipOccurrence\(entry, 'tap'\);/);
+  // Through the shared primitive, which is the one that names the occurrence.
+  const prim = home.indexOf('const skipOccurrence');
+  const body = home.slice(prim, prim + 900);
+  assert.match(body, /completeOccurrence\(\{/);
+  assert.match(body, /scheduleId: entry\.schedule\.id,/);
+  assert.match(body, /completedAt: entry\.at\.getTime\(\),/);
+  assert.ok(!body.includes('logCompletion'), 'it bypasses the completion path');
+});
+
+check('a scan Mode cannot be completed from Upcoming without a scan', () => {
+  const at = home.indexOf('const completeUpcoming');
+  const after = home.slice(at, at + 1400);
+  // The direct path is gated on the negation and nothing else, so there is no
+  // value of the Mode that takes a scan Knowt down it.
+  assert.match(after, /if \(!needsScan\(entry\.knowt\)\) \{/);
+  // The only thing a scan Mode's tap does is open the reader, and the
+  // completion is written by the scan module after a successful read.
+  assert.match(after, /const outcome = await scanKnowtTag\(entry\.knowt, \{/);
+  assert.match(after, /scheduleId: entry\.schedule\.id,/);
+  assert.match(after, /completedAt: entry\.at\.getTime\(\),/);
+  // A cancel writes nothing and says nothing; a failure says what happened.
+  assert.match(after, /if \(outcome\.kind === 'canceled'\) return;/);
+  assert.match(after, /if \(outcome\.kind === 'failed'\) \{/);
+  assert.match(after, /setSkipNotice\(\{ tone: 'danger', text: outcome\.message \}\);/);
+  // And there is no branch that completes a scan Mode any other way: the only
+  // `skipOccurrence` call in this function is behind `!needsScan`.
+  assert.equal(after.match(/skipOccurrence\(/g)?.length, 1);
+  assert.equal(after.match(/'tap'/g)?.length, 1);
+  // Nowhere on this screen offers a mark done without scanning.
+  assert.ok(!home.includes('Mark done without'), 'an override is offered here');
+  assert.ok(!home.includes("method: 'override'"), 'Upcoming records overrides');
+});
+
+check('a wrong tag is refused by the reader, not by the screen', () => {
+  // The expected UID goes down into the platform's own sheet, so a wrong tag
+  // is rejected while the phone is still against it and nothing is written.
+  assert.match(scan, /expectRawUid: knowt\.tag_uid,/);
+  assert.match(scan, /if \(!knowt\.tag_uid\) \{/);
+  // The copy for every reason that is a failure lives in one place.
+  assert.match(scan, /const failure = nfcFailureMessage\(err\);/);
+});
+
+check('the skip primitive is still here, for the override flow to reuse', () => {
+  // `skipOccurrence` is what records one occurrence and stands its alarm down.
+  // The pill that called it is gone and the circle calls it instead; the
+  // function itself is deliberately untouched, because the override on the
+  // ringing alarm will want exactly this.
+  assert.match(home, /const skipOccurrence = async \(\n\s+entry: UpcomingEntry,\n\s+method: Extract<EventMethod, 'tap' \| 'scan'>,\n\s+\) => \{/);
+  assert.match(home, /const undoSkip = async \(notice: SkipNotice\) => \{/);
 });
 
 check('the confirmation and the Undo are there, and the Undo resyncs', () => {
-  assert.match(home, /text: `Skipped \$\{entry\.knowt\.name\} for \$\{when\}\. Its other days are unchanged\.`,/);
+  assert.match(home, /text: `Marked \$\{entry\.knowt\.name\} done for \$\{when\}\. Its other days are unchanged\.`,/);
+  assert.match(home, /text: `Scanned \$\{entry\.knowt\.name\} for \$\{whenLabel\(entry\.at, now\)\}\. Its other days are unchanged\.`,/);
+  // A scan's Undo deletes the row the scan module wrote, by its id.
+  assert.match(scan, /return \{ kind: 'done', eventId: written\.value \};/);
   assert.match(home, /\{notice\.tone === 'done' \? 'Undo' : 'Dismiss'\}/);
   const at = home.indexOf('const undoSkip');
   const after = home.slice(at, at + 900);
@@ -211,9 +277,9 @@ check('the confirmation and the Undo are there, and the Undo resyncs', () => {
 
 check('the copy is calm, capitalized and has no exclamation marks', () => {
   for (const text of [
-    'Skip this one',
     'The Knowt keeps its other days',
     'Its other days are unchanged.',
+    'Scan the tag to mark ',
   ]) {
     assert.ok(home.includes(text), `missing: ${text}`);
     assert.ok(!text.includes('!'), text);

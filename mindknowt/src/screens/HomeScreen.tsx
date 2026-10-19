@@ -29,11 +29,15 @@ import {
   undoCompletion,
   type DashboardCard,
   type DayMark,
+  type EventMethod,
+  type KnowtWithDetail,
   type SnoozedEntry,
   type UpcomingEntry,
 } from '../db';
 import { useQuery } from '../db/useQuery';
 import { completeOccurrence } from '../knowts/completeOccurrence';
+import { stopChoiceOf } from '../knowts/modes';
+import { scanKnowtTag } from '../knowts/scanKnowt';
 import {
   progressCount,
   progressLine,
@@ -89,7 +93,20 @@ function clock(at: number | Date): string {
 
 /** When something later is due, said the way a person would. */
 /**
- * What the Upcoming section has to say after a Skip this one.
+ * Whether this Knowt's occurrence can only be completed by scanning its tag.
+ *
+ * `stopChoiceOf` and not the mode column, because `strict` no longer names one
+ * thing: Scan Knowt and Scan + Alarm both store it and what separates them is
+ * having no schedule. A Scan Knowt therefore never reaches Upcoming at all,
+ * since the list walks schedules, but the question is asked of the Knowt so
+ * that stays true however the flag moves.
+ */
+function needsScan(knowt: KnowtWithDetail): boolean {
+  return stopChoiceOf(knowt) !== 'alarm';
+}
+
+/**
+ * What the Upcoming section has to say after completing one from here.
  *
  * `eventId` is what makes the Undo possible, so it is on the shape rather than
  * in a second piece of state that could get out of step with the message.
@@ -265,7 +282,7 @@ function UpcomingSection({
   expanded,
   onToggle,
   onOpen,
-  onSkip,
+  onComplete,
   notice,
   onUndo,
   onDismiss,
@@ -275,7 +292,7 @@ function UpcomingSection({
   expanded: boolean;
   onToggle: () => void;
   onOpen: (knowtId: string) => void;
-  onSkip: (entry: UpcomingEntry) => void;
+  onComplete: (entry: UpcomingEntry) => void;
   notice: SkipNotice | null;
   onUndo: () => void;
   onDismiss: () => void;
@@ -356,20 +373,32 @@ function UpcomingSection({
                   </Text>
                 </View>
 
-                {/* Nested inside the row's Pressable, the same as the scan pill
-                    on the Knowts list: the inner one wins the touch, so this
-                    skips and the rest of the row still opens the Knowt. */}
+                {/* The same control a Today row carries: an open ring, 26
+                    points, in the border gray, with the same 10 point hit
+                    slop. Nested inside the row's Pressable, the same as the
+                    scan pill on the Knowts list: the inner one wins the touch,
+                    so the ring completes the occurrence and the rest of the
+                    row still opens the Knowt.
+
+                    What a tap does depends on the Mode, and the label says
+                    which before anyone finds out. A scan Mode has no way to be
+                    marked done from here: the ring opens the reader and only a
+                    read of this Knowt's own tag records anything. */}
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Skip this one, ${entry.knowt.name} on ${whenLabel(entry.at, now)}`}
+                  accessibilityLabel={
+                    needsScan(entry.knowt)
+                      ? `Scan the tag to mark ${entry.knowt.name} done for ${whenLabel(entry.at, now)}`
+                      : `Mark ${entry.knowt.name} done for ${whenLabel(entry.at, now)}`
+                  }
                   accessibilityHint="The Knowt keeps its other days"
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  onPress={() => onSkip(entry)}
+                  hitSlop={10}
+                  onPress={() => onComplete(entry)}
                   style={({ pressed }) => [
-                    styles.upcomingSkip,
-                    pressed && styles.upcomingSkipPressed,
+                    styles.upcomingCheck,
+                    pressed && styles.pressed,
                   ]}>
-                  <Text style={styles.upcomingSkipText}>Skip this one</Text>
+                  <Icon name="circle" size={26} color={theme.color.border} />
                 </Pressable>
               </Pressable>
             );
@@ -442,6 +471,8 @@ export function HomeScreen() {
   }, [live]);
   const [upcomingOpen, setUpcomingOpen] = useState(true);
   const [skipNotice, setSkipNotice] = useState<SkipNotice | null>(null);
+  // A ref rather than state: it guards the next tap, and nothing renders it.
+  const busy = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -493,13 +524,16 @@ export function HomeScreen() {
    * and stands no alarm down, and `completedAt` set to the occurrence's own
    * moment, which is where the day it covers is read from.
    */
-  const skipOccurrence = async (entry: UpcomingEntry) => {
+  const skipOccurrence = async (
+    entry: UpcomingEntry,
+    method: Extract<EventMethod, 'tap' | 'scan'>,
+  ) => {
     const when = whenLabel(entry.at, now);
     const written = await settled(
       completeOccurrence({
         knowtId: entry.knowt.id,
         scheduleId: entry.schedule.id,
-        method: 'tap',
+        method,
         completedAt: entry.at.getTime(),
       }),
     );
@@ -513,11 +547,58 @@ export function HomeScreen() {
     setSkipNotice({
       tone: 'done',
       eventId: written.value,
-      text: `Skipped ${entry.knowt.name} for ${when}. Its other days are unchanged.`,
+      text: `Marked ${entry.knowt.name} done for ${when}. Its other days are unchanged.`,
     });
     await reloadUpcoming();
     await reload();
     await reloadMarks();
+  };
+
+  /**
+   * What the ring on an Upcoming row does, which depends on the Mode.
+   *
+   * Alarm Only records the completion outright. A scan Mode cannot: it opens
+   * the reader, and only a read of this Knowt's own tag records anything, so
+   * there is no way to mark one done from Upcoming without scanning. The UID
+   * goes down into the reader, so a wrong tag is refused inside the platform's
+   * own sheet and nothing is written.
+   *
+   * One scan at a time. The reader's sheet is modal, but the tap that opens it
+   * is not, and two scans racing would write two completions for one firing.
+   */
+  const completeUpcoming = async (entry: UpcomingEntry) => {
+    if (busy.current) return;
+    setSkipNotice(null);
+
+    if (!needsScan(entry.knowt)) {
+      await skipOccurrence(entry, 'tap');
+      return;
+    }
+
+    busy.current = true;
+    try {
+      const outcome = await scanKnowtTag(entry.knowt, {
+        scheduleId: entry.schedule.id,
+        completedAt: entry.at.getTime(),
+      });
+      // Backing out of the sheet is not a failure, and the copy for every
+      // reason that is one lives in `nfc/failureText.ts`.
+      if (outcome.kind === 'canceled') return;
+      if (outcome.kind === 'failed') {
+        setSkipNotice({ tone: 'danger', text: outcome.message });
+        return;
+      }
+      setSkipNotice({
+        tone: 'done',
+        eventId: outcome.eventId,
+        text: `Scanned ${entry.knowt.name} for ${whenLabel(entry.at, now)}. Its other days are unchanged.`,
+      });
+      await reloadUpcoming();
+      await reload();
+      await reloadMarks();
+    } finally {
+      busy.current = false;
+    }
   };
 
   /**
@@ -673,7 +754,7 @@ export function HomeScreen() {
               expanded={upcomingOpen}
               onToggle={() => setUpcomingOpen((open) => !open)}
               onOpen={openKnowt}
-              onSkip={(entry) => void skipOccurrence(entry)}
+              onComplete={(entry) => void completeUpcoming(entry)}
               notice={skipNotice}
               onUndo={() => void (skipNotice && undoSkip(skipNotice))}
               onDismiss={() => setSkipNotice(null)}
@@ -858,22 +939,9 @@ const styles = StyleSheet.create({
     color: theme.color.textSecondary,
     ...theme.font.tabular,
   },
-  // An outline rather than a fill: it is a quiet way out of one reminder, not
-  // the thing the section is for, and a filled control on a row at half
-  // strength would be the brightest thing on a page about today.
-  upcomingSkip: {
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: theme.radius.pill,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 5,
-  },
-  upcomingSkipPressed: { backgroundColor: theme.color.surfaceMuted },
-  upcomingSkipText: {
-    fontFamily: theme.font.face.medium,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
-  },
+  // The same as `check` on a Today card, so the ring sits where the eye
+  // already looks for it.
+  upcomingCheck: { alignItems: 'center', justifyContent: 'center' },
   skipNotice: {
     flexDirection: 'row',
     alignItems: 'center',
