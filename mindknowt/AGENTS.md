@@ -568,13 +568,51 @@ stays literal and a hairline of the category's own ink gives it an edge. The
 filter pills still draw their own ringless dot, so Daily's is the one that
 cannot be seen there; that is one line to change and has not been asked for.
 
-**Three of the filter pills' measurements are matched and one cannot be.** The
-dot size, the gap after it and the horizontal padding are the same. The
-vertical padding is not: these chips are 21.6 points tall and sit in a row with
-the Mode and tag chips, and a filter pill is a tappable control at 34.8. The
-dot sits in a wrapper with `alignSelf: 'center'`, because the row aligns on the
-baseline for the glyph's sake and a View with no text in it would otherwise
-stand on it.
+**The dot is `CategoryDot`, which is where the ring lives.** The lime measures
+1.19 against a white card, so a plain lime dot is not there at all, and dimming
+it to fix that is what made the palette read washed out once already. The fill
+stays literal and a hairline of the category's own ink gives it an edge.
+`ring` overrides that hairline for a dot on something dark, where the ink is
+the one color that cannot be seen.
+
+**One look, in `components/categoryPill.tsx`, because there were four.** The
+detail chip was white with a ringed dot, the Knowts filter row was white with a
+ringless dot that left Daily invisible, the Apply set chip was a pale tint of
+the category with no border, and each had its own dot size, gap and padding.
+Nothing was wrong with any one of them on its own screen, which is how four of
+them happened. `CATEGORY_PILL` holds the values, `categoryPillShell` is the
+fill, border, radius and horizontal padding, and `CategoryPillDot` draws the
+dot and the gap after it. Every pill spreads the shell and declares none of
+those properties itself, which is the only way one can drift while still
+looking like it shares.
+
+**Height is deliberately not shared.** A pill keeps the size its job needs: the
+detail chip is 21.6 points because it lines up with the Mode and tag chips, a
+filter pill carries a thumb's height, and the Apply set chip sits on a dense
+entry line. So vertical padding and font size are each pill's own and nothing
+else is. `categorypills.test.ts` reads all three style blocks and fails if any
+of them restates a shared property or stops spreading the shell.
+
+The dot sits in a wrapper with `alignSelf: 'center'`, because the detail chip's
+row aligns on the baseline for its glyph's sake and a View with no text in it
+would otherwise stand on that line rather than sit on it.
+
+**The selected filter pill is near black, not the brand lime.** It was
+`highlight` with `onHighlight` on it, which reads at a glance by hue and
+measures 1.19 to 1 against the white of an unselected pill: the one cue a
+filter row needs was carried by nothing a contrast check can see. `primary`
+against `surface` measures 18.88, and the white label on it measures the same.
+The dot stays rather than being hidden, which is also new: hiding it changed
+the pill's width on every tap and slid the whole horizontal strip sideways. On
+near black the category's own ink disappears and the darker swatches go with it,
+burgundy at 2.11, so the dot takes a white ring there.
+
+**Picking a category is not labeling one.** The pickers on Setup and Edit Knowt
+are left out of all of this on purpose. They choose a category over the whole
+set, where the color is the thing being chosen rather than a label on something
+already chosen, so selected is a tint or the solid swatch and turning them into
+white pills with a dot would take the cue off the control. Edit Knowt's is not
+even pill shaped, at `radius.lg`.
 
 ## A row's colors belong to the row
 

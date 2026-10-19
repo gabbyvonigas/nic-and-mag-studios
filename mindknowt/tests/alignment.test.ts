@@ -441,24 +441,28 @@ check('the chip glyph is cap height and a little, and no larger', () => {
 });
 
 check('one padding, one radius, one font size for all of them', () => {
-  // There is one chip component, so this is really a check that no screen
-  // grew its own.
-  const pill = ui.slice(ui.indexOf('  pill: {'), ui.indexOf('  pillText: {'));
-  assert.match(pill, /borderRadius: theme\.radius\.pill/);
+  // The fill, the border, the radius and the horizontal padding come from
+  // `categoryPillShell`, which is shared with the Knowts filter row and the
+  // Apply set chips; `categorypills.test.ts` checks that all three spread it.
+  // What is left here is this pill's own height.
+  const pill = ui.slice(ui.indexOf('  pill: {'), ui.indexOf('  pillGlyph: {'));
+  assert.match(pill, /\.\.\.categoryPillShell,/);
   assert.match(pill, /paddingVertical: 2/);
-  assert.match(pill, /paddingHorizontal: theme\.spacing\.md/);
-  // The category chip carries its swatch as a dot now, matching the filter
-  // pills on Knowts, so every chip in the row is white with the same border
-  // and one text color. The fill it had was the fix for drawing a swatch as
-  // text, which failed 4.5 to 1 for five of the seven and was invisible for
-  // Daily; the dot keeps that fixed without painting one chip in three.
+  const shell = read('src/components/categoryPill.tsx');
+  assert.match(shell, /borderRadius: theme\.radius\.pill,/);
+  assert.match(shell, /paddingHorizontal: CATEGORY_PILL\.paddingHorizontal,/);
+  assert.match(shell, /backgroundColor: theme\.color\.surface,/);
+  assert.match(shell, /borderWidth: CATEGORY_PILL\.borderWidth,/);
+  // The category chip carries its swatch as a dot, so every chip in the row is
+  // white with the same border and one text color. The fill it had was the fix
+  // for drawing a swatch as text, which failed 4.5 to 1 for five of the seven
+  // and was invisible for Daily; the dot keeps that fixed without painting one
+  // chip in three.
   assert.doesNotMatch(ui, /backgroundColor: color/);
-  assert.match(pill, /backgroundColor: theme\.color\.surface/);
-  assert.match(pill, /borderWidth: 1/);
-  // The two leading elements take their own gap, because the dot matches the
-  // filter pills at `sm` and the glyph keeps the `xs` it had.
+  // The dot's gap is the shared one and the glyph keeps the `xs` it had, so
+  // neither is a `gap` on the pill itself.
   assert.doesNotMatch(pill, /\n\s+gap: /);
-  assert.match(ui, /pillDot: \{\n\s+alignSelf: 'center',\n\s+marginRight: theme\.spacing\.sm,/);
+  assert.match(shell, /marginRight: CATEGORY_PILL\.gap/);
   assert.match(ui, /pillGlyph: \{ marginRight: theme\.spacing\.xs \},/);
   const detail = read('src/screens/KnowtDetailScreen.tsx');
   assert.ok(!/style=\{styles\.pill[^s]/.test(detail), 'a screen styles its own chip');

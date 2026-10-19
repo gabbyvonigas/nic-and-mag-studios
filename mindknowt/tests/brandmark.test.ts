@@ -161,10 +161,14 @@ check('the Tagged chip carries the mark too', () => {
 check('the chip can hold an icon at all, sized to its own word', () => {
   assert.match(
     ui,
-    /<Icon name=\{icon\} size=\{CHIP_GLYPH\} color=\{theme\.color\.textSecondary\} \/>/,
+    /<Icon name=\{icon\} size=\{CHIP_GLYPH\} color=\{CATEGORY_PILL\.labelColor\} \/>/,
   );
-  // Laid out as a row, or the glyph would sit above the label.
-  assert.match(ui, /pill: \{\n\s+flexDirection: 'row'/);
+  // Laid out as a row by the shared shell.
+  assert.match(ui, /pill: \{\n\s+\.\.\.categoryPillShell,/);
+  assert.match(
+    read('src/components/categoryPill.tsx'),
+    /categoryPillShell = \{\n\s+flexDirection: 'row',/,
+  );
 });
 
 check('the row keeps it centered on the name at any text size', () => {

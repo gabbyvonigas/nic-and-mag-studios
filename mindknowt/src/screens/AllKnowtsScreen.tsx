@@ -19,6 +19,11 @@ import { TAB_BAR_CLEARANCE } from '../navigation/CapsuleTabBar';
 
 import { CategoryDot } from '../components/KnowtCard';
 import {
+  CATEGORY_PILL,
+  CategoryPillDot,
+  categoryPillShell,
+} from '../components/categoryPill';
+import {
   isScanOnly,
   SCAN_ONLY_META,
   SCANNED_TODAY,
@@ -69,7 +74,23 @@ function emptyMessage(filter: KnowtFilter): string {
   return 'No Knowts yet.';
 }
 
-/** One category filter. Rendered in a horizontal strip, so it never wraps. */
+/**
+ * One category filter. Rendered in a horizontal strip, so it never wraps.
+ *
+ * The same look as the chip on a Knowt's detail screen and the chips on Apply
+ * set, out of `categoryPillShell`. What this one keeps for itself is its
+ * height: it is a control a thumb has to hit, so its vertical padding is `sm`
+ * rather than the detail chip's 2.
+ *
+ * **Selected is near black, not lime.** It was the brand lime with ink on it,
+ * which reads at a glance by hue and measures 1.19 to 1 against the white of
+ * an unselected pill, so the one cue a filter row needs was carried by
+ * nothing a contrast check can see. `primary` against `surface` measures
+ * 18.88. The dot stays rather than being hidden, which is also new: hiding it
+ * changed the pill's width on every tap and slid the whole strip sideways.
+ * On near black the category's own ink is the one color that cannot be seen,
+ * so the dot takes a white ring there instead.
+ */
 function FilterChip({
   label,
   active,
@@ -94,8 +115,11 @@ function FilterChip({
         quiet && styles.chipQuiet,
         pressed && styles.pressed,
       ]}>
-      {shades && !active ? (
-        <View style={[styles.chipDot, { backgroundColor: shades.color }]} />
+      {shades ? (
+        <CategoryPillDot
+          shades={shades}
+          ring={active ? theme.color.onPrimary : undefined}
+        />
       ) : null}
       <Text
         style={[
@@ -874,28 +898,24 @@ const styles = StyleSheet.create({
 
   filters: { flexDirection: 'row', gap: theme.spacing.sm, paddingVertical: 2 },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.color.surface,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: theme.radius.pill,
-    paddingHorizontal: theme.spacing.md,
+    ...categoryPillShell,
+    // This pill's own: a filter is tapped, so it carries a thumb's height
+    // rather than the detail chip's 21.6 points.
     paddingVertical: theme.spacing.sm,
   },
   chipOn: {
-    backgroundColor: theme.color.highlight,
-    borderColor: theme.color.highlight,
+    backgroundColor: theme.color.primary,
+    borderColor: theme.color.primary,
   },
+  // Manage, which is a way to the Categories screen rather than a category.
+  // No dot and never active, so it sits back from the pills it follows.
   chipQuiet: { backgroundColor: 'transparent' },
-  chipDot: { width: 7, height: 7, borderRadius: 3.5 },
   chipText: {
-    fontFamily: theme.font.face.medium,
+    fontFamily: CATEGORY_PILL.labelFont,
     fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
+    color: CATEGORY_PILL.labelColor,
   },
-  chipTextOn: { color: theme.color.onHighlight },
+  chipTextOn: { color: theme.color.onPrimary },
   chipTextQuiet: { color: theme.color.textMuted },
 
   // Compact and tinted, per the reference: the category carries the color and

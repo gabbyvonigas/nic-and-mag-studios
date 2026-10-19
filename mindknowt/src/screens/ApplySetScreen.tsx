@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Pill, ScreenHeader } from '../components/ui';
 import { Icon } from '../components/Icon';
+import { CATEGORY_PILL, CategoryPillDot, categoryPillShell } from '../components/categoryPill';
 import { startQueue } from '../knowts/scheduleQueue';
 import { categoryShades } from '../theme';
 import { describeRepeat, type RepeatType } from '../db';
@@ -241,28 +242,11 @@ export function ApplySetScreen() {
                     ) : null}
                     <View style={styles.entryTags}>
                       {entry.category ? (
-                        <View
-                          style={[
-                            styles.chip,
-                            {
-                              backgroundColor: categoryShades(entry.category)
-                                .fill,
-                            },
-                          ]}>
-                          <View
-                            style={[
-                              styles.chipDot,
-                              {
-                                backgroundColor: categoryShades(entry.category)
-                                  .color,
-                              },
-                            ]}
+                        <View style={styles.chip}>
+                          <CategoryPillDot
+                            shades={categoryShades(entry.category)}
                           />
-                          <Text
-                            style={[
-                              styles.chipText,
-                              { color: categoryShades(entry.category).ink },
-                            ]}>
+                          <Text style={styles.chipText}>
                             {entry.category.name}
                           </Text>
                         </View>
@@ -443,15 +427,15 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xs,
     marginTop: 2,
   },
+  // The same look as the detail chip and the filter pills. It used to be a
+  // pale tint of the category with no border, a 6 point dot and its own
+  // padding, which is three of the four ways these drifted apart.
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
+    ...categoryPillShell,
+    // This pill's own: it sits on a dense entry line under a Knowt's name,
+    // in a row that wraps, so it is the shortest of the three.
     paddingVertical: 3,
-    borderRadius: 999,
   },
-  chipDot: { width: 6, height: 6, borderRadius: 3 },
   addedChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -467,7 +451,8 @@ const styles = StyleSheet.create({
     color: theme.color.textSecondary,
   },
   chipText: {
-    fontFamily: theme.font.face.medium,
+    color: CATEGORY_PILL.labelColor,
+    fontFamily: CATEGORY_PILL.labelFont,
     fontSize: theme.font.size.xs,
   },
   // The brand lime, solid, with the ink text that goes on it. It was outlined

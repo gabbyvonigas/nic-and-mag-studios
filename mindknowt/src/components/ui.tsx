@@ -9,9 +9,7 @@ import {
 } from 'react-native';
 
 import { Icon, type IconName } from './Icon';
-// The one place a category dot is drawn, ring and all. Importing it here is
-// safe: KnowtCard draws cards and does not reach back into these primitives.
-import { CategoryDot } from './KnowtCard';
+import { CATEGORY_PILL, CategoryPillDot, categoryPillShell } from './categoryPill';
 import { BAND, iconSizeForText } from './iconMetrics';
 import { theme, type CategoryShades } from '../theme';
 
@@ -280,17 +278,11 @@ export function EmptyState({
  * were outlines. A dot puts the color where it only has to be seen and leaves
  * the label on the one text color every chip uses.
  *
- * `CategoryDot` draws it, rather than a second rounded View here, because the
- * lime needs the hairline ring that component carries and the app should not
- * have two answers to how a category dot is drawn.
- *
- * The three geometries the filter pills set are matched: the dot is 7, the gap
- * after it is `sm`, and the horizontal padding is `md`. Vertical padding is
- * not, and cannot be: these chips are 21.6 points tall and sit in a row with
- * the Mode and tag chips, and the filter pills are a tappable control at 34.8.
+ * The look is `categoryPillShell` and `CategoryPillDot`, shared with the
+ * Knowts filter row and the Apply set chips so the four cannot drift apart
+ * again. What this one keeps for itself is its height: 21.6 points, which is
+ * what lines it up with the Mode and tag chips beside it.
  */
-export const CHIP_DOT = 7;
-
 export function Pill({
   label,
   shades,
@@ -306,14 +298,10 @@ export function Pill({
           where the row's `baseline` alignment would otherwise put a View with
           no text in it. The glyph keeps the baseline, because that is what
           makes it sit on the same line as its word. */}
-      {shades ? (
-        <View style={styles.pillDot}>
-          <CategoryDot shades={shades} size={CHIP_DOT} />
-        </View>
-      ) : null}
+      {shades ? <CategoryPillDot shades={shades} /> : null}
       {icon ? (
         <View style={styles.pillGlyph}>
-          <Icon name={icon} size={CHIP_GLYPH} color={theme.color.textSecondary} />
+          <Icon name={icon} size={CHIP_GLYPH} color={CATEGORY_PILL.labelColor} />
         </View>
       ) : null}
       <Text style={styles.pillText}>{label}</Text>
@@ -441,33 +429,21 @@ const styles = StyleSheet.create({
     color: theme.color.textPrimary,
   },
   pill: {
-    flexDirection: 'row',
+    ...categoryPillShell,
     // The glyph stands on the word's baseline rather than floating on the
-    // middle of its line box.
+    // middle of its line box. The dot carries its own `alignSelf`.
     alignItems: 'baseline',
-    // No `gap`: the dot and the glyph want different ones. The dot matches the
-    // filter pills at `sm` and the glyph keeps the `xs` it had, which is what
-    // leaves the Tagged chip exactly as it was.
-    backgroundColor: theme.color.surface,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: theme.radius.pill,
-    paddingHorizontal: theme.spacing.md,
+    // This pill's own: 13 point text in a 1.2 line box plus 2 each side plus
+    // the border makes 21.6, which is the height the Mode and tag chips are.
     paddingVertical: 2,
     alignSelf: 'flex-start',
   },
-  // A wrapper, not `alignSelf` on the dot, because the dot is drawn by a
-  // shared component and its own styles are not this row's business. The
-  // wrapper is 7 points tall, so it cannot make the chip any taller than the
-  // 15.6 point line box already does.
-  pillDot: {
-    alignSelf: 'center',
-    marginRight: theme.spacing.sm,
-  },
+  // The glyph keeps the `xs` gap it had, which is what leaves the Tagged chip
+  // exactly as it was. The dot's gap comes from `CATEGORY_PILL`.
   pillGlyph: { marginRight: theme.spacing.xs },
   pillText: {
-    fontFamily: theme.font.body,
+    fontFamily: CATEGORY_PILL.labelFont,
     fontSize: theme.font.size.xs,
-    color: theme.color.textSecondary,
+    color: CATEGORY_PILL.labelColor,
   },
 });

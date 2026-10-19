@@ -40,13 +40,19 @@ export const KNOWT_CARD_HEIGHT = 76;
  * dot is not there at all, and dimming it to fix that is what made the palette
  * read washed out. The fill stays literal and a hairline of the same family
  * gives it an edge.
+ *
+ * `ring` overrides that hairline for a dot on something dark, where the
+ * category's own ink is the one color that cannot be seen. The default is the
+ * ink, which is right everywhere the app is light.
  */
 export function CategoryDot({
   shades,
   size = 8,
+  ring,
 }: {
   shades: CategoryShades;
   size?: number;
+  ring?: string;
 }) {
   return (
     <View
@@ -56,7 +62,7 @@ export function CategoryDot({
         borderRadius: size / 2,
         backgroundColor: shades.color,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: shades.ink,
+        borderColor: ring ?? shades.ink,
       }}
     />
   );
