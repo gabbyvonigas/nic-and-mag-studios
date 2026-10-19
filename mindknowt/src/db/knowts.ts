@@ -778,6 +778,11 @@ export async function archiveKnowt(id: string): Promise<void> {
 /**
  * Writes a history row. `scheduleId` is null for a spontaneous check-in with no
  * alarm pending. Spec section 3 treats that as a valid "I just did this".
+ *
+ * Returns the row's id, because taking it back needs it. `undoCompletion`
+ * deletes by id, and a caller that offers an Undo cannot go looking for the
+ * row it just wrote: two skips of the same schedule on two days differ only by
+ * `completed_at`.
  */
 export async function logCompletion(args: {
   knowtId: string;
@@ -793,19 +798,21 @@ export async function logCompletion(args: {
    * history is only worth keeping if it can be corrected.
    */
   completedAt?: number;
-}): Promise<void> {
+}): Promise<string> {
   const db = await getDatabase();
+  const id = newId();
   await db.runAsync(
     `INSERT INTO events
        (id, knowt_id, schedule_id, fired_at, completed_at, method, note, snooze_count)
      VALUES (?, ?, ?, NULL, ?, ?, ?, 0)`,
-    newId(),
+    id,
     args.knowtId,
     args.scheduleId ?? null,
     args.completedAt ?? Date.now(),
     args.method,
     args.note ?? null,
   );
+  return id;
 }
 
 export async function listEvents(knowtId: string, limit = 30): Promise<EventRow[]> {

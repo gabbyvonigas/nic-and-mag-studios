@@ -1,7 +1,9 @@
 import { getDatabase } from './database';
+import { completionWindowStart, listCompletionsSince } from './events';
 import { listKnowts } from './knowts';
 import { listPendingAlarms } from './pendingAlarms';
 import { isDueOn, minutesOf, nextOccurrence, toISODate } from './scheduling';
+import { completedOccurrences, isOccurrenceDone } from '../knowts/completions';
 import { buildSnoozed, type SnoozedEntry } from '../knowts/snoozed';
 
 export type { SnoozedEntry };
@@ -279,12 +281,20 @@ export type UpcomingEntry = {
  * say other than that there is nothing to do. One row per knowt, because this
  * is a glance: a knowt firing three times on Thursday is still one thing to
  * expect.
+ *
+ * An occurrence that has been skipped is not what is next. Skip this one on a
+ * row has to move the row on to the following firing, or the control reads as
+ * having done nothing, and the same read decides what the reconciler arms, so
+ * the two cannot disagree.
  */
 export async function listUpcoming(
   now = new Date(),
   limit = 8,
 ): Promise<UpcomingEntry[]> {
   const knowts = await listKnowts();
+  const done = completedOccurrences(
+    await listCompletionsSince(completionWindowStart(now)),
+  );
   const tomorrow = new Date(
     now.getFullYear(),
     now.getMonth(),
@@ -295,7 +305,9 @@ export async function listUpcoming(
   for (const knowt of knowts) {
     let soonest: UpcomingEntry | null = null;
     for (const schedule of knowt.schedules) {
-      const at = nextOccurrence(schedule, tomorrow);
+      const at = nextOccurrence(schedule, tomorrow, (day) =>
+        isOccurrenceDone(done, schedule.id, day),
+      );
       if (!at) continue;
       if (!soonest || at < soonest.at) soonest = { knowt, schedule, at };
     }

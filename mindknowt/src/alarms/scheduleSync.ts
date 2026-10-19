@@ -138,16 +138,16 @@ export function desiredFor(
 
     // AlarmKit works out every firing of a recurrence itself, from a time and a
     // set of weekdays, with no start date and no exclusion list. Handing it a
-    // week with today left out is the only way to make it skip today, and
-    // skipping today is the only way a knowt checked off at seven does not
-    // sound at nine.
+    // week with a day left out is the only way to make it skip that day, and
+    // that is the only way a knowt checked off at seven does not sound at
+    // nine, or one skipped from Upcoming does not sound tomorrow.
     //
-    // Nothing is stored to undo this. The day is left out only while the
-    // conditions below hold, so the first sync after the time has passed asks
+    // Nothing is stored to undo this. A day is left out only while the
+    // conditions below hold, so the first sync after its time has passed asks
     // the same question, gets a different answer, and puts the day back.
-    const armed = skipsToday(schedule, now, done)
-      ? weekdays.filter((day) => day !== weekdayOf(now))
-      : weekdays;
+    const armed = weekdays.filter(
+      (day) => !skipsWeekday(schedule, now, done, day),
+    );
 
     if (armed.length > 0) {
       return { mode: 'weekly', hour, minute, weekdays: armed, nextAt };
@@ -161,20 +161,50 @@ export function desiredFor(
 }
 
 /**
- * Whether today has to come out of a recurrence.
+ * Whether a weekday has to come out of a recurrence.
  *
- * Only when today's occurrence is done and its time has not come yet. Once the
- * time passes there is nothing left to suppress: the recurrence's next firing
- * is tomorrow's either way, and taking the day out would cost next week's.
+ * Only when that weekday's next firing is already done and has not happened
+ * yet. Once a firing's time has passed there is nothing left to suppress: the
+ * recurrence's next one is a week later either way, and taking the day out
+ * would cost that one instead of the one that was answered.
+ *
+ * This used to ask only about today, which was right while the only way to
+ * mark something done early was today's card. Skip this one on Upcoming marks
+ * a day further out, and a week with that day still in it rings on it.
  */
-function skipsToday(
+function skipsWeekday(
   schedule: ScheduleRow,
   now: Date,
   done: ReadonlySet<string>,
+  weekday: number,
 ): boolean {
-  if (!isDueOn(schedule, now)) return false;
-  if (!isOccurrenceDone(done, schedule.id, now)) return false;
-  return minutesOf(schedule.time) > now.getHours() * 60 + now.getMinutes();
+  const day = nextFiringOn(schedule, now, weekday);
+  return day !== null && isOccurrenceDone(done, schedule.id, day);
+}
+
+/**
+ * The next day this schedule fires on `weekday`, if that firing is still ahead.
+ *
+ * Null when the weekday's turn has already come and gone today, because the
+ * firing that is now next on it is seven days out and nobody has answered
+ * that one.
+ */
+function nextFiringOn(
+  schedule: ScheduleRow,
+  now: Date,
+  weekday: number,
+): Date | null {
+  const minutesNow = now.getHours() * 60 + now.getMinutes();
+  // A weekday comes round exactly once in seven days, so this finds it or the
+  // firing is behind us.
+  for (let ahead = 0; ahead < 7; ahead += 1) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + ahead);
+    if (weekdayOf(day) !== weekday) continue;
+    if (!isDueOn(schedule, day)) return null;
+    if (ahead === 0 && minutesOf(schedule.time) <= minutesNow) return null;
+    return day;
+  }
+  return null;
 }
 
 async function cancelRecord(row: PendingAlarmRow): Promise<void> {

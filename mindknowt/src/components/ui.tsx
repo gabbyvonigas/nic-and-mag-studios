@@ -9,8 +9,11 @@ import {
 } from 'react-native';
 
 import { Icon, type IconName } from './Icon';
+// The one place a category dot is drawn, ring and all. Importing it here is
+// safe: KnowtCard draws cards and does not reach back into these primitives.
+import { CategoryDot } from './KnowtCard';
 import { BAND, iconSizeForText } from './iconMetrics';
-import { onCategoryFill, theme } from '../theme';
+import { theme, type CategoryShades } from '../theme';
 
 /**
  * Glyphs are sized to the text they stand beside, never to a number of their
@@ -268,33 +271,52 @@ export function EmptyState({
  * half points above the chips next to it and looked looser inside. Every chip
  * is now exactly as tall as its text, which is the same text everywhere.
  *
- * `color` is a category's swatch, and the chip fills with it rather than
- * drawing it as an outline and as its text. Five of the seven shipped
- * swatches failed 4.5 to 1 as text on a light background, and Daily, which is
- * the brand lime, measured 1.09, which is not low contrast but none. The
- * border stays, in the fill's own color, so the chip keeps the height and the
- * width it had and the row stays aligned; there is nothing left to see of it.
+ * A category chip carries its swatch as a dot, the same way the filter pills
+ * on Knowts do, not as a fill. The fill was the fix for an earlier problem,
+ * which was real: five of the seven shipped swatches fail 4.5 to 1 as text on
+ * a light background and Daily, the brand lime, measures 1.09, which is not
+ * low contrast but none. Filling cleared that and cost something else, which
+ * is that one chip in a row of three was a block of paint and the other two
+ * were outlines. A dot puts the color where it only has to be seen and leaves
+ * the label on the one text color every chip uses.
+ *
+ * `CategoryDot` draws it, rather than a second rounded View here, because the
+ * lime needs the hairline ring that component carries and the app should not
+ * have two answers to how a category dot is drawn.
+ *
+ * The three geometries the filter pills set are matched: the dot is 7, the gap
+ * after it is `sm`, and the horizontal padding is `md`. Vertical padding is
+ * not, and cannot be: these chips are 21.6 points tall and sit in a row with
+ * the Mode and tag chips, and the filter pills are a tappable control at 34.8.
  */
+export const CHIP_DOT = 7;
+
 export function Pill({
   label,
-  color,
+  shades,
   icon,
 }: {
   label: string;
-  color?: string;
+  shades?: CategoryShades;
   icon?: IconName;
 }) {
-  // Ink or white on the swatch, whichever carries. With no color the chip is
-  // the plain outlined one and keeps the ordinary secondary gray.
-  const tint = color ? onCategoryFill(color) : theme.color.textSecondary;
   return (
-    <View
-      style={[
-        styles.pill,
-        color ? { backgroundColor: color, borderColor: color } : null,
-      ]}>
-      {icon ? <Icon name={icon} size={CHIP_GLYPH} color={tint} /> : null}
-      <Text style={[styles.pillText, { color: tint }]}>{label}</Text>
+    <View style={styles.pill}>
+      {/* Centered on the line rather than standing on the baseline, which is
+          where the row's `baseline` alignment would otherwise put a View with
+          no text in it. The glyph keeps the baseline, because that is what
+          makes it sit on the same line as its word. */}
+      {shades ? (
+        <View style={styles.pillDot}>
+          <CategoryDot shades={shades} size={CHIP_DOT} />
+        </View>
+      ) : null}
+      {icon ? (
+        <View style={styles.pillGlyph}>
+          <Icon name={icon} size={CHIP_GLYPH} color={theme.color.textSecondary} />
+        </View>
+      ) : null}
+      <Text style={styles.pillText}>{label}</Text>
     </View>
   );
 }
@@ -423,14 +445,26 @@ const styles = StyleSheet.create({
     // The glyph stands on the word's baseline rather than floating on the
     // middle of its line box.
     alignItems: 'baseline',
-    gap: theme.spacing.xs,
+    // No `gap`: the dot and the glyph want different ones. The dot matches the
+    // filter pills at `sm` and the glyph keeps the `xs` it had, which is what
+    // leaves the Tagged chip exactly as it was.
+    backgroundColor: theme.color.surface,
     borderWidth: 1,
     borderColor: theme.color.border,
     borderRadius: theme.radius.pill,
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
     paddingVertical: 2,
     alignSelf: 'flex-start',
   },
+  // A wrapper, not `alignSelf` on the dot, because the dot is drawn by a
+  // shared component and its own styles are not this row's business. The
+  // wrapper is 7 points tall, so it cannot make the chip any taller than the
+  // 15.6 point line box already does.
+  pillDot: {
+    alignSelf: 'center',
+    marginRight: theme.spacing.sm,
+  },
+  pillGlyph: { marginRight: theme.spacing.xs },
   pillText: {
     fontFamily: theme.font.body,
     fontSize: theme.font.size.xs,

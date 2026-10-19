@@ -71,7 +71,7 @@ import {
 import { askToReassign, askToUnassign } from '../knowts/tagConflict';
 import { nfcFailureMessage, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
-import { theme } from '../theme';
+import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -514,7 +514,10 @@ export function KnowtDetailScreen() {
 
         <View style={styles.pills}>
           {knowt.category ? (
-            <Pill label={knowt.category.name} color={knowt.category.color} />
+            <Pill
+              label={knowt.category.name}
+              shades={categoryShades(knowt.category)}
+            />
           ) : null}
           {/* Reads from the Knowt rather than from its mode alone, because the
               mode cannot tell Scan Knowt from Scan + Alarm: both store

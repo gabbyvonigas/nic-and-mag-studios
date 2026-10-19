@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { describeError, settled } from '../alarms';
+import { resyncAlarmsQuietly } from '../alarms/scheduleSync';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { Icon } from '../components/Icon';
 import { KnowtCard } from '../components/KnowtCard';
@@ -24,6 +26,7 @@ import {
   listUpcoming,
   listWeekMarks,
   toISODate,
+  undoCompletion,
   type DashboardCard,
   type DayMark,
   type SnoozedEntry,
@@ -85,6 +88,17 @@ function clock(at: number | Date): string {
 }
 
 /** When something later is due, said the way a person would. */
+/**
+ * What the Upcoming section has to say after a Skip this one.
+ *
+ * `eventId` is what makes the Undo possible, so it is on the shape rather than
+ * in a second piece of state that could get out of step with the message.
+ * A failure carries no id, because there is nothing to take back.
+ */
+type SkipNotice =
+  | { tone: 'done'; text: string; eventId: string }
+  | { tone: 'danger'; text: string };
+
 function whenLabel(at: Date, now: Date): string {
   const day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -251,15 +265,25 @@ function UpcomingSection({
   expanded,
   onToggle,
   onOpen,
+  onSkip,
+  notice,
+  onUndo,
+  onDismiss,
   now,
 }: {
   entries: UpcomingEntry[];
   expanded: boolean;
   onToggle: () => void;
   onOpen: (knowtId: string) => void;
+  onSkip: (entry: UpcomingEntry) => void;
+  notice: SkipNotice | null;
+  onUndo: () => void;
+  onDismiss: () => void;
   now: Date;
 }) {
-  if (entries.length === 0) return null;
+  // The notice belongs to this section, so it goes when the section does. It
+  // cannot outlive the rows it is about.
+  if (entries.length === 0 && !notice) return null;
 
   return (
     <View style={styles.upcoming}>
@@ -271,6 +295,37 @@ function UpcomingSection({
         <Text style={styles.upcomingTitle}>Upcoming</Text>
         <Icon name={expanded ? 'collapse' : 'expand'} size={14} color={theme.color.textSecondary} />
       </Pressable>
+
+      {/* Directly under the heading, above the rows that raise it. The section
+          renders last on the page, so a message anywhere else would be a
+          screen away from the finger that caused it. */}
+      {notice ? (
+        <View
+          style={[
+            styles.skipNotice,
+            notice.tone === 'danger' && styles.skipNoticeDanger,
+          ]}>
+          <Text
+            style={[
+              styles.skipNoticeText,
+              notice.tone === 'danger' && styles.skipNoticeDangerText,
+            ]}>
+            {notice.text}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={notice.tone === 'done' ? onUndo : onDismiss}
+            style={({ pressed }) => [
+              styles.skipNoticeAction,
+              pressed && styles.pressed,
+            ]}>
+            <Text style={styles.skipNoticeActionText}>
+              {notice.tone === 'done' ? 'Undo' : 'Dismiss'}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {expanded
         ? entries.map((entry) => {
@@ -289,12 +344,33 @@ function UpcomingSection({
                   shades={shades}
                   size={24}
                 />
-                <Text numberOfLines={1} style={styles.upcomingName}>
-                  {entry.knowt.name}
-                </Text>
-                <Text style={styles.upcomingWhen}>
-                  {whenLabel(entry.at, now)}
-                </Text>
+                {/* Two lines, so the control beside them has room. On one line
+                    the name was down to about 60 points at 390, which is three
+                    or four characters and an ellipsis. */}
+                <View style={styles.upcomingText}>
+                  <Text numberOfLines={1} style={styles.upcomingName}>
+                    {entry.knowt.name}
+                  </Text>
+                  <Text style={styles.upcomingWhen}>
+                    {whenLabel(entry.at, now)}
+                  </Text>
+                </View>
+
+                {/* Nested inside the row's Pressable, the same as the scan pill
+                    on the Knowts list: the inner one wins the touch, so this
+                    skips and the rest of the row still opens the Knowt. */}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Skip this one, ${entry.knowt.name} on ${whenLabel(entry.at, now)}`}
+                  accessibilityHint="The Knowt keeps its other days"
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  onPress={() => onSkip(entry)}
+                  style={({ pressed }) => [
+                    styles.upcomingSkip,
+                    pressed && styles.upcomingSkipPressed,
+                  ]}>
+                  <Text style={styles.upcomingSkipText}>Skip this one</Text>
+                </Pressable>
               </Pressable>
             );
           })
@@ -365,6 +441,7 @@ export function HomeScreen() {
     return () => clearInterval(timer);
   }, [live]);
   const [upcomingOpen, setUpcomingOpen] = useState(true);
+  const [skipNotice, setSkipNotice] = useState<SkipNotice | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -372,6 +449,10 @@ export function HomeScreen() {
       void reloadMarks();
       void reloadUpcoming();
       void reloadSnoozed();
+      // An Undo offered before leaving the screen is not an Undo on coming
+      // back to it: the rows have been read again and the message would be
+      // about a state nobody is looking at any more.
+      setSkipNotice(null);
     }, [reload, reloadMarks, reloadUpcoming, reloadSnoozed]),
   );
 
@@ -401,6 +482,66 @@ export function HomeScreen() {
     await reloadMarks();
     await reloadUpcoming();
     await reloadSnoozed();
+  };
+
+  /**
+   * Skipping one occurrence of a recurring Knowt.
+   *
+   * The same completion path as everything else, so the Log, the reconciler
+   * and Daily all read one row. Two things make it mean this occurrence and no
+   * other: the schedule id, without which a completion identifies no firing
+   * and stands no alarm down, and `completedAt` set to the occurrence's own
+   * moment, which is where the day it covers is read from.
+   */
+  const skipOccurrence = async (entry: UpcomingEntry) => {
+    const when = whenLabel(entry.at, now);
+    const written = await settled(
+      completeOccurrence({
+        knowtId: entry.knowt.id,
+        scheduleId: entry.schedule.id,
+        method: 'tap',
+        completedAt: entry.at.getTime(),
+      }),
+    );
+    if (!written.ok) {
+      setSkipNotice({
+        tone: 'danger',
+        text: `That could not be recorded. ${describeError(written.error)}`,
+      });
+      return;
+    }
+    setSkipNotice({
+      tone: 'done',
+      eventId: written.value,
+      text: `Skipped ${entry.knowt.name} for ${when}. Its other days are unchanged.`,
+    });
+    await reloadUpcoming();
+    await reload();
+    await reloadMarks();
+  };
+
+  /**
+   * Putting it back.
+   *
+   * Deleting the row is the whole of it: nothing is stored to say a day was
+   * skipped, so the sync that follows asks the same question of the same table
+   * and arms the occurrence again, as long as its time is still ahead.
+   */
+  const undoSkip = async (notice: SkipNotice) => {
+    if (notice.tone !== 'done') return;
+    setSkipNotice(null);
+    const undone = await settled(undoCompletion(notice.eventId));
+    if (!undone.ok) {
+      setSkipNotice({
+        tone: 'danger',
+        text: `That could not be undone. ${describeError(undone.error)}`,
+      });
+      return;
+    }
+    await resyncAlarmsQuietly();
+    await reloadUpcoming();
+    await reload();
+    await reloadMarks();
   };
 
   const openKnowt = (knowtId: string) =>
@@ -526,12 +667,16 @@ export function HomeScreen() {
             total,
             stance,
             upcomingCount: upcoming?.length ?? 0,
-          }) ? (
+          }) || skipNotice ? (
             <UpcomingSection
               entries={upcoming ?? []}
               expanded={upcomingOpen}
               onToggle={() => setUpcomingOpen((open) => !open)}
               onOpen={openKnowt}
+              onSkip={(entry) => void skipOccurrence(entry)}
+              notice={skipNotice}
+              onUndo={() => void (skipNotice && undoSkip(skipNotice))}
+              onDismiss={() => setSkipNotice(null)}
               now={now}
             />
           ) : null}
@@ -701,8 +846,8 @@ const styles = StyleSheet.create({
   // touched is the one row on the page at full opacity. Halving 0.5 again
   // would have made the feedback read as the row switching off.
   upcomingRowPressed: { opacity: 1 },
+  upcomingText: { flex: 1, gap: 1 },
   upcomingName: {
-    flex: 1,
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.md,
     color: theme.color.textPrimary,
@@ -712,5 +857,51 @@ const styles = StyleSheet.create({
     fontSize: theme.font.size.sm,
     color: theme.color.textSecondary,
     ...theme.font.tabular,
+  },
+  // An outline rather than a fill: it is a quiet way out of one reminder, not
+  // the thing the section is for, and a filled control on a row at half
+  // strength would be the brightest thing on a page about today.
+  upcomingSkip: {
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 5,
+  },
+  upcomingSkipPressed: { backgroundColor: theme.color.surfaceMuted },
+  upcomingSkipText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textSecondary,
+  },
+  skipNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.color.highlightPale,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  skipNoticeDanger: {
+    backgroundColor: theme.color.dangerSurface,
+    borderColor: theme.color.dangerBorder,
+  },
+  skipNoticeText: {
+    flex: 1,
+    fontFamily: theme.font.face.regular,
+    fontSize: theme.font.size.sm,
+    lineHeight: 19,
+    color: theme.color.textPrimary,
+  },
+  skipNoticeDangerText: { color: theme.color.dangerText },
+  skipNoticeAction: { paddingHorizontal: theme.spacing.xs, paddingVertical: 2 },
+  skipNoticeActionText: {
+    fontFamily: theme.font.face.medium,
+    fontSize: theme.font.size.sm,
+    color: theme.color.textPrimary,
   },
 });

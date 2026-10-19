@@ -1,6 +1,6 @@
 import { Platform, type TextStyle } from 'react-native';
 
-import { CATEGORY_COLORS, textOn } from './categoryColors';
+import { CATEGORY_COLORS } from './categoryColors';
 import { palette } from './palette';
 
 /**
@@ -202,13 +202,3 @@ export {
   type CategoryShades,
 } from './categoryColors';
 
-/**
- * The text color for a chip filled with a category's swatch.
- *
- * Ink or white, whichever carries, named here because this is where tokens
- * live. Every shipped swatch clears 4.5 to 1 with one of the two;
- * `categorychips.test.ts` measures all seven.
- */
-export function onCategoryFill(swatch: string): string {
-  return textOn(swatch, theme.color.textPrimary, theme.color.onPrimary);
-}

@@ -2,8 +2,9 @@
  * Runs every `tests/*.test.ts`, in its own process, and counts the checks.
  *
  * No framework. Each file is a script that asserts and prints, and the only
- * contract is its last line: "<n> checks passed". A file that throws, or that
- * does not print it, is a failure.
+ * contract is a line beginning "<n> checks passed". A file that throws, or
+ * that does not print one, is a failure. What follows the count is the file's
+ * own: the migration tests say which database shape they ran against.
  *
  * These are off-device tests of the pure modules: what an alarm reconciles to,
  * what a completion covers, what a migration does to an older database. NFC
@@ -33,7 +34,7 @@ for (const file of files) {
     { cwd: tests, encoding: 'utf8' },
   );
   const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
-  const counted = /^(\d+) checks passed$/m.exec(output);
+  const counted = /^(\d+) checks passed\b/m.exec(output);
   if (run.status !== 0 || !counted) {
     failed.push(file);
     console.log(`FAIL  ${file}`);

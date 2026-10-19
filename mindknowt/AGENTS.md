@@ -9,12 +9,18 @@ Run `npm run verify`, which is the spelling check, the off-device tests, a
 typecheck and a real iOS bundle. A change is not done until it passes.
 
 `npm test` runs `tests/*.test.ts` on its own. There is no framework: each file
-is a script that asserts and prints `<n> checks passed`, run by
-`scripts/run-tests.mjs` through `node --experimental-strip-types`, so the
+is a script that asserts and prints a line beginning `<n> checks passed`, run
+by `scripts/run-tests.mjs` through `node --experimental-strip-types`, so the
 project's own TypeScript is what gets exercised. `tests/ts-resolve.mjs` stubs
 `expo-sqlite` with `node:sqlite` and retries extensionless relative imports as
 `.ts`. A `.tsx` cannot be loaded this way, which is why anything worth
 asserting lives in a `.ts` beside the component rather than inside it.
+
+Two of them need the project installed, not just checked out:
+`alignment.test.ts` measures the real `Ionicons.ttf` out of `node_modules`, and
+`nfcconfig.test.ts` runs `npx expo config --type introspect`. In a bare clone
+those two fail and the other forty five pass, which is the one case where a red
+`npm test` means "run `npm install`" rather than "something broke".
 
 Config changes need `npx expo config --type introspect` as well. That is the
 only way to see the Info.plist and entitlements prebuild will actually
@@ -300,13 +306,37 @@ both be true at once.
 Taking a completion back (`undoCompletion`) puts an occurrence back in play and
 must resync, or "not done" also means "and it will not remind you".
 
+**Skip this one, on an Upcoming row.** Upcoming lists tomorrow onward, so the
+occurrence it offers is days out, and skipping it goes through
+`completeOccurrence` like everything else. Two things make it mean that firing
+and no other: the schedule id, and `completedAt` set to the occurrence's own
+moment, because which day a completion covers is read from
+`fired_at ?? completed_at`. Stamped at the moment the control was pressed it
+would cover today and leave the skipped firing armed.
+
+`listUpcoming` reads the same completions and passes the same predicate to
+`nextOccurrence`, so a skipped row moves on to the following firing rather than
+going on offering the one that was just skipped. The row and the reconciler ask
+one question of one table, which is why they cannot disagree.
+
+The Undo stores nothing. Deleting the event is the whole of it, so the next
+sync asks the same question of the same table and gets the other answer, which
+re-arms the occurrence as long as its time is still ahead.
+
 **A recurring alarm is skipped by taking the day out of the week.**
 `scheduleRepeatingAlarm` hands AlarmKit an `Alarm.Schedule.Relative` with a time
 and a set of weekdays. There is no start date and no exclusion list, so the
 system computes every firing itself and re-arming the same daily recurrence
-still produces today's 9:00 am. The only lever is the weekday set, so today's
-weekday comes out of it while today's occurrence is done and its time has not
-come yet (`skipsToday` in `scheduleSync.ts`).
+still produces today's 9:00 am. The only lever is the weekday set, so a
+weekday comes out of it while that weekday's next firing is done and has not
+happened yet (`skipsWeekday` in `scheduleSync.ts`).
+
+This asked only about today until Skip this one existed, which was right while
+the only way to mark something done early was today's card. A week with Friday
+still in it rings on Friday, so the question is now asked per weekday, against
+`nextFiringOn`: the next date this schedule fires on that weekday, or null once
+that weekday's turn has passed today, because the firing now next on it is
+seven days out and nobody has answered that one.
 
 Nothing is stored to undo that. The day is left out only while those conditions
 hold, so the first sync after the time has passed asks the same question, gets a
@@ -509,6 +539,42 @@ quoting them, so an icon-set upgrade or a swapped asset fails there.
   straightens the edge by taking those 15 points off every name instead, so
   the pin is a badge on the corner of the category icon: it costs nothing and
   it sits on the thing that is pinned.
+
+## A category's color is a dot, not a fill
+
+`Pill` draws a category by putting its swatch in a 7 point dot beside the
+label, the same way the category filter pills on Knowts do. The label is
+`textSecondary` whatever the category, which measures 11.37 to 1 on white.
+
+Both of the obvious alternatives have been tried and both are wrong. Drawing
+the swatch **as the text** fails: five of the seven shipped swatches are under
+4.5 to 1 on the page, and Daily is the brand lime at 1.09, which is not low
+contrast but none. **Filling the chip** with the swatch and putting ink or
+white over it clears the floor and costs the row: the detail screen shows three
+chips together, and one block of paint beside two outlines reads as a different
+component rather than the same one carrying more information.
+
+So the color goes where it only has to be seen, and `textOn` is gone rather
+than left unused. A helper nobody calls, with a test suite asserting what it
+returns, is a second account of a decision that has been reversed. `contrast`
+in `categoryColors.ts` stays: `shadesFromHex` steps a custom category's ink
+down until it clears 4.5, which is still how a color nobody picked shades for
+gets a readable one.
+
+**The dot is `CategoryDot`, which is where the ring lives.** The lime measures
+1.19 against a white card, so a plain lime dot is not there at all, and dimming
+it to fix that is what made the palette read washed out once already. The fill
+stays literal and a hairline of the category's own ink gives it an edge. The
+filter pills still draw their own ringless dot, so Daily's is the one that
+cannot be seen there; that is one line to change and has not been asked for.
+
+**Three of the filter pills' measurements are matched and one cannot be.** The
+dot size, the gap after it and the horizontal padding are the same. The
+vertical padding is not: these chips are 21.6 points tall and sit in a row with
+the Mode and tag chips, and a filter pill is a tappable control at 34.8. The
+dot sits in a wrapper with `alignSelf: 'center'`, because the row aligns on the
+baseline for the glyph's sake and a View with no text in it would otherwise
+stand on it.
 
 ## A row's colors belong to the row
 

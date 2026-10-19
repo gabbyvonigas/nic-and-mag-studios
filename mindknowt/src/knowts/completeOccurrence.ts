@@ -21,9 +21,16 @@ export async function completeOccurrence(args: {
   scheduleId?: string | null;
   method: EventMethod;
   note?: string | null;
+  /**
+   * When the occurrence is, if that is not now. Skipping one still ahead
+   * stamps the completion at the occurrence's own moment, because which day a
+   * completion covers is read from that: a skip of tomorrow's 9:00 pm recorded
+   * at this afternoon's clock would cover this afternoon and leave tomorrow
+   * armed.
+   */
   completedAt?: number;
-}): Promise<void> {
-  await logCompletion(args);
+}): Promise<string> {
+  const eventId = await logCompletion(args);
 
   // A re-fire, a snooze or a leftover test ring for this knowt has nothing left
   // to say. The recurring alarm is deliberately untouched: canceling it would
@@ -37,4 +44,7 @@ export async function completeOccurrence(args: {
   // Sync reads completions, so this stands down the alarm armed for the
   // occurrence just finished and arms the one after it.
   await resyncAlarmsQuietly();
+
+  // The caller may have to offer an Undo, which deletes this row by id.
+  return eventId;
 }
