@@ -30,7 +30,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "verify": "npm run check:spelling && tsc --noEmit && expo export --platform ios --output-dir .expo/verify-export",
+    "verify": "npm run check:spelling && npm test && tsc --noEmit && expo export --platform ios --output-dir .expo/verify-export",
+    "test": "node --experimental-strip-types --no-warnings scripts/run-tests.mjs",
     "check:spelling": "node scripts/check-spelling.mjs --self-test && node scripts/check-spelling.mjs",
     "hooks:install": "node scripts/install-hooks.mjs",
     "postinstall": "patch-package"

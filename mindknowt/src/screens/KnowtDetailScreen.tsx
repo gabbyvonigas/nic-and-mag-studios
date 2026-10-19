@@ -28,7 +28,7 @@ import {
 } from '../alarms';
 import { Icon } from '../components/Icon';
 import { completeOccurrence } from '../knowts/completeOccurrence';
-import { openOccurrence } from '../knowts/completions';
+import { checkInOccurrence } from '../knowts/completions';
 import {
   requiresScan,
   stopChoice,
@@ -432,14 +432,19 @@ export function KnowtDetailScreen() {
     // though, it has to be named. Recording every check-in against no schedule
     // meant Daily went on showing the knowt as not done and the alarm armed for
     // it went on ringing.
-    const open = openOccurrence({
+    //
+    // `checkInOccurrence` and not `openOccurrence`, because the occurrence being
+    // marked done is usually still ahead: this is the screen reached by tapping
+    // a row under Upcoming. An occurrence that has not come due is not "open",
+    // so naming it took a second question.
+    const covers = checkInOccurrence({
       schedules: knowt.schedules,
       events: events ?? [],
     });
     const done = await settled(
       completeOccurrence({
         knowtId: knowt.id,
-        scheduleId: open?.id ?? null,
+        scheduleId: covers?.id ?? null,
         method: 'tap',
       }),
     );

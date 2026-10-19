@@ -131,6 +131,54 @@ export function openOccurrence(args: {
   return open[0] ?? null;
 }
 
+/** Today's occurrences whose time has not come yet, soonest first. */
+function dueAhead(
+  schedules: readonly ScheduleRow[],
+  now: Date,
+): ScheduleRow[] {
+  const minutesNow = now.getHours() * 60 + now.getMinutes();
+  return schedules
+    .filter((s) => isDueOn(s, now) && minutesOf(s.time) > minutesNow)
+    .sort((a, b) => minutesOf(a.time) - minutesOf(b.time));
+}
+
+/**
+ * The occurrence a "mark done" right now covers, including one still ahead.
+ *
+ * `openOccurrence` answers for an occurrence that has already come due, which
+ * is the right question for whether the day is behind. It is the wrong question
+ * for standing an alarm down, and that was the bug: marking a knowt done before
+ * its time left nothing to name, the completion went in with a null
+ * `schedule_id`, and a completion that names no occurrence deliberately cancels
+ * no alarm. So the 9:00 pm alarm rang for something marked done at three.
+ *
+ * Today only, and one occurrence. Marking done now says nothing about tomorrow,
+ * so a recurring schedule keeps every firing after this one, and a knowt that
+ * rings at nine and at five has the five o'clock one still ahead of it.
+ */
+export function checkInOccurrence(args: {
+  schedules: readonly ScheduleRow[];
+  events: readonly EventRow[];
+  now?: Date;
+}): ScheduleRow | null {
+  const now = args.now ?? new Date();
+  const open = openOccurrence({ ...args, now });
+  if (open) return open;
+
+  // Anything already named today is covered. An unnamed completion is not
+  // counted here: it names nothing by definition, and `outstanding` has
+  // already spent it against the occurrences that have come due.
+  const covered = new Set(
+    completedToday(args.events, now)
+      .map((event) => event.schedule_id)
+      .filter((id): id is string => !!id),
+  );
+  for (const schedule of dueAhead(args.schedules, now)) {
+    if (!covered.has(schedule.id)) return schedule;
+  }
+  return null;
+}
+
 /**
  * The occurrence an alarm ringing right now is for.
  *

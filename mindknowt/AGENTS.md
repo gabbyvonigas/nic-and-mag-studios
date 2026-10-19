@@ -5,8 +5,16 @@ section 7. Steps 2 (NFC) and 4 (AlarmKit) are proven on hardware.
 
 ## Before claiming anything works
 
-Run `npm run verify`, which is a typecheck plus a real iOS bundle. A change is not done
-until it passes.
+Run `npm run verify`, which is the spelling check, the off-device tests, a
+typecheck and a real iOS bundle. A change is not done until it passes.
+
+`npm test` runs `tests/*.test.ts` on its own. There is no framework: each file
+is a script that asserts and prints `<n> checks passed`, run by
+`scripts/run-tests.mjs` through `node --experimental-strip-types`, so the
+project's own TypeScript is what gets exercised. `tests/ts-resolve.mjs` stubs
+`expo-sqlite` with `node:sqlite` and retries extensionless relative imports as
+`.ts`. A `.tsx` cannot be loaded this way, which is why anything worth
+asserting lives in a `.ts` beside the component rather than inside it.
 
 Config changes need `npx expo config --type introspect` as well. That is the
 only way to see the Info.plist and entitlements prebuild will actually
@@ -270,6 +278,24 @@ A completion has to name the occurrence it covers, or none of this works. A
 completion with no `schedule_id` is a person saying they did the thing, which is
 worth recording but does not identify a firing, so it never stands an alarm
 down.
+
+**Naming it takes two questions, not one.** `openOccurrence` answers for an
+occurrence that has already come due, which is the right question for whether
+the day is behind and the wrong one for standing an alarm down. Marking a knowt
+done before its time found nothing to name, so Detail's "Mark done" wrote a null
+`schedule_id`, the done set never matched, and `nextOccurrence` picked the same
+future occurrence straight back up: reported as marking a Knowt done and its
+alarm ringing anyway, which is the one thing this app must not do.
+`checkInOccurrence` asks the second question, today's soonest occurrence that is
+still ahead and not already covered, and it is what every manual check-in goes
+through. Today only and one occurrence: marking done now says nothing about
+tomorrow, and a knowt that rings at nine and at five still has five o'clock
+ahead of it.
+
+Daily's cards were never affected, because a card carries its own schedule and
+passes the id. The hole was only ever in the paths that had to work the
+occurrence out, which is why "it still rang" and "Daily showed it as done" could
+both be true at once.
 
 Taking a completion back (`undoCompletion`) puts an occurrence back in play and
 must resync, or "not done" also means "and it will not remind you".
