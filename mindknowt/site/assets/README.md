@@ -8,12 +8,12 @@ below.
 
 | File | What it is | Size | Format | Must keep |
 |---|---|---|---|---|
-| `knowt-tag.png` | The Knowt Tag disc, used eight times from this one file | **2000 x 2000** | PNG, transparent | The disc fills the middle **74 percent**, centered. Lighting and both shadows baked in. |
+| `knowt-tag.png` | The Knowt Tag disc, used eight times from this one file | **2000 x 2000** | PNG, transparent | The disc fills the middle **74 percent**, centered. Rim, lighting and both shadows baked in. |
 | `phone-hero.png` | The large hero phone, Daily screen | **852 x 1796** | PNG, transparent outside the body | The body touches all four edges. **No shadow baked in**, the page adds it. |
 | `phone-kit.png` | The large kit panel phone, Knowts screen | **852 x 1796** | PNG, transparent outside the body | Same as above. |
-| `step-stick.png` | Step 01, a plant in a pot on a pale lime wash | **800 x 800** | PNG, transparent | Square. The wash is part of the image, the tag is not. Keep the lower right clear. |
-| `step-set.png` | Step 02, a tilted phone with the colored checklist and the lime strokes | **800 x 800** | PNG, transparent | Square. |
-| `step-tap.png` | Step 03, a tilted phone and the lime strokes | **800 x 800** | PNG, transparent | Square. Keep the lower left clear, the tag sits there. |
+| `step-stick.png` | Step 01, a pill bottle on a pale lime wash | **800 x 800** | PNG, transparent | Square. The wash is part of the image, the tag is not. Keep the lower right clear. |
+| `step-set.png` | Step 02, a Knowt card with its category dot, name and time | **800 x 800** | PNG, transparent | Square. |
+| `step-tap.png` | Step 03, the same card done, with the signal arcs | **800 x 800** | PNG, transparent | Square. Keep the lower right clear, the tag sits there. |
 | `screens/daily.png` | The Daily capture, for the small system row phone | 804 x 1748 | PNG | A plain capture. That frame is CSS. |
 | `screens/knowts.png` | The Knowts capture | 804 x 1748 | PNG | Same. |
 | `screens/log.png` | The Log capture | 804 x 1748 | PNG | Same. |
@@ -68,11 +68,51 @@ captures from `screens/` in a CSS frame, because at 150 points wide that
 frame is four lines of CSS and a second set of files is not worth keeping in
 sync.
 
+## knowt-tag.png, and the real sticker
+
+The product is a 25mm round sticker 0.8mm thick: flat matte white, a crisp
+thin rim all the way round, and almost no thickness to speak of. The file
+carries all three. It used to swell along the bottom, which read as a puck a
+few millimeters thick, and it had no rim at all, which is the one feature the
+product photographs make unmistakable. 0.8 on 25 is three percent, so the
+thickness is a hairline and nothing more.
+
 ## The step illustrations
 
 Square, transparent, with the pale lime wash included. The Knowt Tag is not
 in them: it is `knowt-tag.png` laid over the top by the stylesheet, so one
 file still changes every tag on the page.
+
+Three things are shared deliberately, and a replacement should keep them or
+the three tiles stop reading as a set:
+
+- **One stroke weight.** 20 units on the 800 box, 2.5 percent, on every line
+  in all three. They used to be drawn at three different weights.
+- **One wash.** The same ellipse, 250 of radius centered in the box.
+- **One clear corner.** The lower right, because the stylesheet lays the tag
+  badge there on Stick and on Tap at one size and one position. It used to
+  hang off two different edges at two different sizes.
+
+What is in them is the app, not an invention. Step 02 is a Knowt card drawn
+the way the app draws one: the category's bar down the left edge, its dot, the
+name and the time. Step 03 is the same card in its done state, the category's
+pale tint with a solid check, which is how a completed Knowt actually looks.
+They used to be a tilted phone holding four gray bars and an empty rectangle.
+
+The lime slashes beside them are gone. They were a comic book motion line,
+which is not a language the rest of the page speaks. Step 03 carries three
+arcs instead, struck in the tag mark's own idiom at the mark's own weight, in
+the gap the signal actually crosses between the tag and the card. Steps 01 and
+02 carry none: nothing is being tapped in either, and a motion cue with
+nothing moving is decoration.
+
+## Regenerating these
+
+`illustrations.py` draws the three step files and `tag-disc.py` draws the
+disc. Both need Pillow, and `illustrations.py` needs Quicksand as a TTF, which
+`fontTools` will make from the woff2 beside it. Neither runs as part of
+serving the site, which still has no build step: they are here so the next
+change to a drawing is an edit rather than a redraw.
 
 ## fonts/Quicksand-variable.woff2
 

@@ -642,6 +642,10 @@ img {
   padding: 0;
   display: grid;
   gap: clamp(11px, 1.1vw, 14px);
+  /* Equal rows, so the three cards are one height whatever their copy does.
+     Stick wraps to two lines and the other two do not, which left the first
+     card taller than the pair under it. */
+  grid-auto-rows: 1fr;
 }
 
 .step {
@@ -702,20 +706,21 @@ img {
   place-items: center;
 }
 
-/* Big enough to read as the product, small enough that the drawing behind
-   it still shows. At 86 it covered the pot and most of the phone. */
+/*
+ * The badge over a step illustration. One size and one position for both of
+ * the tiles that carry one.
+ *
+ * It used to be 62 percent hung off the lower right on Stick and 66 percent
+ * hung off the lower left on Tap, so the two tiles disagreed about how big a
+ * tag is and about where one goes, and both overhung the card. Inside the box
+ * on both, in the lower right, which on Stick lands it on the bottle's face
+ * and on Tap in the gap the arcs run through.
+ */
 .tag-step {
   position: absolute;
-  right: -16%;
-  bottom: -12%;
-  width: 62%;
-}
-
-.tag-step-tap {
-  right: auto;
-  left: -18%;
-  bottom: 6%;
-  width: 66%;
+  right: 1%;
+  bottom: 1%;
+  width: 54%;
 }
 
 /* ---------- A simple system, a better you ---------- */
@@ -864,21 +869,28 @@ img {
 
 .tag-cluster .tag-disc {
   position: absolute;
-  width: 23%;
+  width: 17.5%;
 }
 
 /*
+ * One object, not five.
+ *
+ * They were 23 percent each, spread from 3 to 36 percent, which is a group
+ * about 56 percent of the box wide with daylight between every pair: five
+ * separate circles that happened to be near each other. These are packed at
+ * about 0.62 of a disc width apart, so each one overlaps its neighbours and
+ * the group reads as a handful of tags set down together. The span is about
+ * 30 percent of the box, a little over half what it was.
+ *
  * Placed and turned by hand, because five tags on an even grid at one angle
- * read as a diagram. They overlap, and each is a few degrees off, so the
- * group reads as tags set down rather than laid out. The rotation is small
- * enough that the light baked into the file still comes from the same side
- * on all five.
+ * read as a diagram. The rotation stays small, or the light baked into the
+ * file starts coming from a different direction on each one.
  */
-.tag-cluster .tag-disc:nth-child(1) { right: 9%; top: 9%; transform: rotate(-9deg); }
-.tag-cluster .tag-disc:nth-child(2) { right: 3%; top: 29%; transform: rotate(6deg); }
-.tag-cluster .tag-disc:nth-child(3) { right: 22%; top: 24%; transform: rotate(-3deg); }
-.tag-cluster .tag-disc:nth-child(4) { right: 14%; top: 47%; transform: rotate(11deg); }
-.tag-cluster .tag-disc:nth-child(5) { right: 36%; top: 41%; transform: rotate(-6deg); }
+.tag-cluster .tag-disc:nth-child(1) { right: 15.75%; top: 26%; transform: rotate(-8deg); }
+.tag-cluster .tag-disc:nth-child(2) { right: 4.75%; top: 29%; transform: rotate(5deg); }
+.tag-cluster .tag-disc:nth-child(3) { right: 10.25%; top: 36%; transform: rotate(-3deg); z-index: 1; }
+.tag-cluster .tag-disc:nth-child(4) { right: 16.75%; top: 46%; transform: rotate(9deg); }
+.tag-cluster .tag-disc:nth-child(5) { right: 4.25%; top: 47%; transform: rotate(-6deg); }
 
 /* ---------- More space for what matters ---------- */
 
@@ -1175,15 +1187,18 @@ img {
     margin-left: 0;
   }
 
+  /* A touch larger on a narrower panel, and shifted in off the edge so the
+     group stays whole. Nothing is allowed outside the box: the overhang that
+     used to sit at -5 percent clipped on a phone. */
   .tag-cluster .tag-disc {
-    width: 27%;
+    width: 20.5%;
   }
 
-  .tag-cluster .tag-disc:nth-child(1) { right: 0%; top: 8%; }
-  .tag-cluster .tag-disc:nth-child(2) { right: -5%; top: 30%; }
-  .tag-cluster .tag-disc:nth-child(3) { right: 13%; top: 24%; }
-  .tag-cluster .tag-disc:nth-child(4) { right: 5%; top: 50%; }
-  .tag-cluster .tag-disc:nth-child(5) { right: 22%; top: 43%; }
+  .tag-cluster .tag-disc:nth-child(1) { right: 15%; top: 24%; }
+  .tag-cluster .tag-disc:nth-child(2) { right: 2.5%; top: 27.5%; }
+  .tag-cluster .tag-disc:nth-child(3) { right: 8.5%; top: 35.5%; }
+  .tag-cluster .tag-disc:nth-child(4) { right: 16%; top: 47%; }
+  .tag-cluster .tag-disc:nth-child(5) { right: 2%; top: 48.5%; }
 }
 
 @media (max-width: 768px) {
