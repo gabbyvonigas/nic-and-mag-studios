@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     ...theme.shadow.card,
   },
   button: {
-    backgroundColor: theme.color.primary,
+    backgroundColor: theme.color.fillStrong,
     borderRadius: theme.radius.md,
     height: 52,
     alignItems: 'center',

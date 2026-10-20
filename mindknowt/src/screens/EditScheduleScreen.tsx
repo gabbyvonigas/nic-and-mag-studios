@@ -466,7 +466,12 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     backgroundColor: theme.color.surface,
   },
-  chipOn: { backgroundColor: theme.color.accent, borderColor: theme.color.accent },
+  // Border with the fill, for the same reason as the filter pill: it holds the
+  // chip's size rather than drawing an outline.
+  chipOn: {
+    backgroundColor: theme.color.fillStrong,
+    borderColor: theme.color.fillStrong,
+  },
   chipText: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.sm,
@@ -483,7 +488,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.color.surface,
   },
-  dayOn: { backgroundColor: theme.color.accent, borderColor: theme.color.accent },
+  dayOn: {
+    backgroundColor: theme.color.fillStrong,
+    borderColor: theme.color.fillStrong,
+  },
   dayText: {
     fontFamily: theme.font.face.regular,
     fontSize: theme.font.size.xs,

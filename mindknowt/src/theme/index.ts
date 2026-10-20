@@ -25,6 +25,16 @@ export const theme = {
     onPrimary: palette.card,
     primaryDisabled: palette.lightGray,
 
+    /**
+     * The fill under `onPrimary`, for every solid dark shape in the app.
+     *
+     * Separate from `primary` because `primary` is also a text color, and the
+     * two want different values: a button filled with near black reads as a
+     * hole punched in the page, and a word set in anything lighter reads as
+     * less than certain. `fills.test.ts` fails if a fill goes back to `ink`.
+     */
+    fillStrong: palette.fillStrong,
+
     /** The neon. Fill only, with `onHighlight` text over it. */
     highlight: palette.neon,
     onHighlight: palette.ink,

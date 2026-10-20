@@ -17,8 +17,22 @@ export const palette = {
   page: '#F4F5F6',
   card: '#FFFFFF',
 
-  /** Near black. Primary buttons, icons, headings, body. */
+  /** Near black. Icons, headings, body. Text, now, and not fills. */
   ink: '#111111',
+  /**
+   * What a solid dark shape is filled with: a primary button, the round plus,
+   * a selected pill, a checked box.
+   *
+   * `ink` did both jobs and only one of them well. At the size of a button or
+   * a capsule, near black reads as a hole in the page rather than as something
+   * drawn on it, which is the same reason no chart fill uses it. Two points
+   * lighter is still unmistakably the primary action and white on it measures
+   * 12.44 to 1, so nothing is given up for it.
+   *
+   * Text stays on `ink`. A letterform is thin enough that the extra weight is
+   * what makes it read.
+   */
+  fillStrong: '#343434',
   /** Secondary text, where ink would be too heavy. */
   charcoal: '#3A3A3A',
   /** Dividers, borders, disabled. Distinct from the page. Never text. */

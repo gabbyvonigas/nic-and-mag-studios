@@ -904,8 +904,12 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
   },
   chipOn: {
-    backgroundColor: theme.color.primary,
-    borderColor: theme.color.primary,
+    // The border moves with the fill rather than staying on `primary`. It is
+    // not an outline here: it is what keeps a selected pill exactly the width
+    // and height of an unselected one, so a near black hairline around a
+    // lighter fill would be a ring nobody asked for.
+    backgroundColor: theme.color.fillStrong,
+    borderColor: theme.color.fillStrong,
   },
   // Manage, which is a way to the Categories screen rather than a category.
   // No dot and never active, so it sits back from the pills it follows.
@@ -1073,7 +1077,7 @@ const styles = StyleSheet.create({
   // Inverted so it still reads as the way in, but sized as a control rather
   // than as the conclusion of the screen.
   presets: {
-    backgroundColor: theme.color.primary,
+    backgroundColor: theme.color.fillStrong,
     borderRadius: theme.radius.pill,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,

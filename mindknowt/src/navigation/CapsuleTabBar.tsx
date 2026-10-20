@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     borderRadius: BAR_HEIGHT / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.color.primary,
+    backgroundColor: theme.color.fillStrong,
     shadowColor: '#111111',
     shadowOpacity: 0.18,
     shadowRadius: 20,

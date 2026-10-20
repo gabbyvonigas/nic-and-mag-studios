@@ -194,15 +194,18 @@ check('the Daily lime dot is visible, which is what the ring is for', () => {
 
 // --- Selected, on the filter row. ---------------------------------------
 
-check('selected is near black, and it clears 3 to 1 against unselected', () => {
+check('selected is the dark fill, and it clears 3 to 1 against unselected', () => {
+  // `fillStrong`, not `primary`. `primary` is near black and is also the text
+  // color; a pill filled with it read as a hole in the row. `fills.test.ts`
+  // owns that rule for the whole app.
   const chipOn = block(knowts, '  chipOn: {');
-  assert.match(chipOn, /backgroundColor: theme\.color\.primary,/);
-  assert.match(chipOn, /borderColor: theme\.color\.primary,/);
+  assert.match(chipOn, /backgroundColor: theme\.color\.fillStrong,/);
+  assert.match(chipOn, /borderColor: theme\.color\.fillStrong,/);
   assert.match(knowts, /chipTextOn: \{ color: theme\.color\.onPrimary \},/);
 
-  const fills = contrast(palette.ink, palette.card);
+  const fills = contrast(palette.fillStrong, palette.card);
   assert.ok(fills >= 3, `selected against unselected measured ${fills.toFixed(2)}`);
-  const label = contrast(palette.card, palette.ink);
+  const label = contrast(palette.card, palette.fillStrong);
   assert.ok(label >= 4.5, `selected label measured ${label.toFixed(2)}`);
 });
 
@@ -223,13 +226,16 @@ check('the dot survives selection, with a ring that can be seen on black', () =>
     /ring=\{active \? theme\.color\.onPrimary : undefined\}/,
   );
   assert.doesNotMatch(knowts, /shades && !active/);
-  const ring = contrast(palette.card, palette.ink);
-  assert.ok(ring >= 3, `white ring on ink measured ${ring.toFixed(2)}`);
+  const ring = contrast(palette.card, palette.fillStrong);
+  assert.ok(ring >= 3, `white ring on the fill measured ${ring.toFixed(2)}`);
   // The swatch it rings is the worst case, and the ring is what carries it.
+  // Two points lighter does not rescue burgundy: it is 2.63 on the fill.
   const worst = Math.min(
-    ...Object.values(CATEGORY_COLORS).map((hex) => contrast(hex as string, palette.ink)),
+    ...Object.values(CATEGORY_COLORS).map((hex) =>
+      contrast(hex as string, palette.fillStrong),
+    ),
   );
-  assert.ok(worst < 3, `every swatch already reads on ink: worst ${worst.toFixed(2)}`);
+  assert.ok(worst < 3, `every swatch already reads on the fill: worst ${worst.toFixed(2)}`);
 });
 
 check('Manage is still the quiet one, and still reads', () => {

@@ -364,8 +364,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   boxChecked: {
-    backgroundColor: theme.color.accent,
-    borderColor: theme.color.accent,
+    backgroundColor: theme.color.fillStrong,
+    borderColor: theme.color.fillStrong,
   },
   tick: { color: theme.color.onAccent, fontSize: 14 },
   entryMain: { flex: 1, gap: 4 },

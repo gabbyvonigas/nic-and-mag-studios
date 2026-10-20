@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     color: theme.color.textMuted,
   },
   presets: {
-    backgroundColor: theme.color.primary,
+    backgroundColor: theme.color.fillStrong,
     borderRadius: theme.radius.pill,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,

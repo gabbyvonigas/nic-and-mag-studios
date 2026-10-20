@@ -200,8 +200,8 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: 'transparent',
   },
-  markOn: { backgroundColor: theme.color.textPrimary },
+  markOn: { backgroundColor: theme.color.fillStrong },
   // On the lime disc a dark dot below still reads; this keeps it distinct from
   // the unselected ones without inventing a third color.
-  markOnSelected: { backgroundColor: theme.color.textPrimary },
+  markOnSelected: { backgroundColor: theme.color.fillStrong },
 });

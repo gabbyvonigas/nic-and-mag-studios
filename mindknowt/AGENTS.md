@@ -208,6 +208,43 @@ The rest of the voice rules are spec section 8: sentence case, no exclamation
 marks, no emoji, no praise. Errors state what happened and what to do. Empty
 screens invite action rather than explain absence.
 
+## A fill is not a text color
+
+`palette.ink` (`#111111`) did both jobs and only one of them well. It was the
+fill on every primary button, the round plus, the selected filter pill, the
+Browse presets capsule, both selected states on the schedule editor, the
+checked box on Apply set, the Alarm and Scan screens' buttons and the
+calendar's ring marks, as well as being the color of every heading and every
+line of body text.
+
+At the size of a button or a capsule, near black reads as a hole punched in
+the page rather than as something drawn on it, which is the same reason no
+chart fill uses it. So fills take `theme.color.fillStrong` (`#343434`) and
+text keeps `ink`: a letterform is thin enough that the extra weight is what
+makes it read.
+
+White on the fill measures 12.45 to 1, against 18.88 on near black, and the
+fill against the white of an unselected pill is the same 12.45, so nothing is
+given up. `primary`, `accent`, `textPrimary` and `onHighlight` are all still
+`ink` and none of them moved.
+
+**Where the border moves with the fill.** A selected filter pill, a selected
+chip or day on the schedule editor and the checked box on Apply set each set
+`borderColor` to the same value as the fill. That border is not an outline: it
+is what keeps the selected shape exactly the size of the unselected one, so it
+takes `fillStrong` too. A near black hairline around a lighter fill would be a
+ring nobody asked for.
+
+**What is deliberately still near black.** Shadows, because a shadow is near
+black at low opacity everywhere and lightening it only makes it weaker. Every
+text and icon color. The category swatches, none of which was ever near black.
+`graph` (`#2E3236`) was already not near black for the reason below.
+
+`fills.test.ts` walks every file under `src/` and fails if any
+`backgroundColor` resolves to near black or pure black, judging a hex literal
+by its luminance rather than its spelling, and fails if a text token stops
+pointing at `ink`.
+
 ## Graph fills are never black
 
 No bar, arc, sparkline or chart fill uses black, and none uses the near black

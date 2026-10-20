@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     color: theme.color.textMuted,
   },
   button: {
-    backgroundColor: theme.color.accent,
+    backgroundColor: theme.color.fillStrong,
     borderRadius: theme.radius.md,
     height: 54,
     alignItems: 'center',
