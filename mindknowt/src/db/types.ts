@@ -119,6 +119,13 @@ export type EventRow = {
   method: EventMethod | null;
   note: string | null;
   snooze_count: number;
+  /**
+   * The moment of the occurrence this completion answers, when it is known.
+   *
+   * Null on a row written before schema 18, which is read as covering its
+   * whole day the way it always was.
+   */
+  occurrence_at: number | null;
 };
 
 /** A knowt joined with its category and schedules, for list and detail screens. */

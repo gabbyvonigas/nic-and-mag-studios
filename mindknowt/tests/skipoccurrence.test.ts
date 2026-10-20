@@ -232,7 +232,7 @@ check('a scan Mode cannot be completed from Daily without a scan', () => {
   // The only thing a scan Mode's tap does is open the reader, and the
   // completion is written by the scan module after a successful read.
   assert.match(after, /const outcome = await scanKnowtTag\(\n\s+target\.knowt,/);
-  assert.match(after, /\? \{ scheduleId: target\.scheduleId, completedAt: target\.completedAt \}/);
+  assert.match(after, /\? \{\n\s+scheduleId: target\.scheduleId,\n\s+completedAt: target\.completedAt,\n\s+occurrenceAt: target\.occurrenceAt,/);
   // A cancel writes nothing and says nothing; a failure says what happened.
   assert.match(after, /if \(outcome\.kind === 'canceled'\) return;/);
   assert.match(after, /if \(outcome\.kind === 'failed'\) \{/);

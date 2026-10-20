@@ -52,6 +52,7 @@ export {
   isDueOn,
   minutesOf,
   nextOccurrence,
+  occurrenceMoment,
   parseTimeInput,
   TIME_PATTERN,
   toISODate,

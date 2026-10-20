@@ -13,6 +13,7 @@ import {
   isDueOn,
   minutesOf,
   nextOccurrence,
+  occurrenceMoment,
   weekdayOf,
   weeklyDaysFor,
 } from '../db/scheduling';
@@ -178,13 +179,14 @@ function skipsWeekday(
   done: ReadonlySet<string>,
   weekday: number,
 ): boolean {
-  const day = nextFiringOn(schedule, now, weekday);
-  return day !== null && isOccurrenceDone(done, schedule.id, day);
+  const at = nextFiringOn(schedule, now, weekday);
+  return at !== null && isOccurrenceDone(done, schedule.id, at);
 }
 
 /**
- * The next day this schedule fires on `weekday`, if that firing is still ahead.
+ * The next firing this schedule has on `weekday`, if it is still ahead.
  *
+ * Its own moment, not its day, because that is what identifies an occurrence.
  * Null when the weekday's turn has already come and gone today, because the
  * firing that is now next on it is seven days out and nobody has answered
  * that one.
@@ -202,7 +204,7 @@ function nextFiringOn(
     if (weekdayOf(day) !== weekday) continue;
     if (!isDueOn(schedule, day)) return null;
     if (ahead === 0 && minutesOf(schedule.time) <= minutesNow) return null;
-    return day;
+    return occurrenceMoment(schedule, day);
   }
   return null;
 }

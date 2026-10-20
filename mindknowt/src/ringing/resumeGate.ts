@@ -24,7 +24,11 @@
  * Pure, so every one of those can be asserted.
  */
 import { isDueOn, minutesOf } from '../db/scheduling';
-import { occurrenceKey } from '../knowts/completions';
+// The day, not the moment. This gate asks whether anything at all has happened
+// against a schedule today, completed or merely opened by pressing Stop, and
+// `fired_at` is the moment the screen was reached rather than the minute the
+// alarm was set for, so a minute-grained key here would miss its own records.
+import { occurrenceDayKey } from '../knowts/completions';
 import type { EventRow, PendingAlarmRow, ScheduleRow } from '../db/types';
 
 /** How long after a firing the app will still offer to open it. */
@@ -78,7 +82,7 @@ export function pickUnansweredFiring(args: {
     if (!event.schedule_id) continue;
     const at = event.fired_at ?? event.completed_at;
     if (at === null) continue;
-    touched.add(occurrenceKey(event.schedule_id, new Date(at)));
+    touched.add(occurrenceDayKey(event.schedule_id, new Date(at)));
   }
 
   let best: ResumeTarget | null = null;
@@ -102,7 +106,7 @@ export function pickUnansweredFiring(args: {
       ).getTime();
       if (nowMs - firedAt > windowMs) continue;
 
-      const key = occurrenceKey(schedule.id, now);
+      const key = occurrenceDayKey(schedule.id, now);
       if (touched.has(key) || offered.has(key)) continue;
 
       // The most recent firing wins: if two came due inside the window, the one

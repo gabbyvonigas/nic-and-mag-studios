@@ -42,6 +42,8 @@ import {
   listCategories,
   listEvents,
   ModeUnavailableError,
+  nextOccurrence,
+  undoCompletion,
   TagInUseError,
   PRIORITY_HIGH,
   PRIORITY_LOW,
@@ -55,10 +57,16 @@ import { askToDropSchedules } from '../knowts/deletePrompt';
 import { askToReassign, askToUnassign } from '../knowts/tagConflict';
 import { nfcFailureMessage, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
-import { completedOccurrences } from '../knowts/completions';
+import {
+  completedOccurrences,
+  finishedBy,
+  isOccurrenceDone,
+} from '../knowts/completions';
+import { askFinishedSchedule } from '../knowts/finishedSchedule';
 import { scheduleLine } from '../knowts/scheduleLine';
 import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
+import type { ScheduleRow } from '../db/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -76,13 +84,47 @@ export function EditKnowtScreen() {
   const { data: categories } = useQuery(() => listCategories(), []);
   // For the dates on the schedule rows: a day already completed or skipped is
   // not the next firing, and naming it would be a date that never arrives.
-  const { data: events } = useQuery(
+  const { data: events, reload: reloadEvents } = useQuery(
     () => listEvents(params.knowtId),
     [params.knowtId],
   );
   // Read once per render, so every row answers for one moment.
   const nowForRows = new Date();
   const doneOccurrences = completedOccurrences(events ?? []);
+
+  /** The schedule's own editor, which is where Reschedule goes. */
+  const openSchedule = (scheduleId: string) =>
+    navigation.navigate('EditSchedule', { knowtId: params.knowtId, scheduleId });
+
+  /**
+   * A schedule row with nothing ahead of it.
+   *
+   * Reschedule opens the schedule's own editor and touches no history: the
+   * thing was done, and moving the next firing does not unmake that. Mark not
+   * done deletes the completion and resyncs, which puts the occurrence back in
+   * play, and if its time has already gone there is nothing to put back, so it
+   * carries on into the editor to pick a new one.
+   *
+   * Neither completes anything, so the Mode does not come into it.
+   */
+  const handleFinished = async (schedule: ScheduleRow) => {
+    const choice = await askFinishedSchedule();
+    if (choice === 'cancel') return;
+
+    if (choice === 'reschedule') {
+      openSchedule(schedule.id);
+      return;
+    }
+
+    const completion = finishedBy(schedule, events ?? []);
+    if (completion) await undoCompletion(completion.id);
+    await resyncAlarmsQuietly();
+    await reloadEvents();
+    await reload();
+    // Live again only if it still has a firing ahead. Otherwise the undo on its
+    // own leaves the same dead end it was tapped to get out of.
+    if (!nextOccurrence(schedule, new Date())) openSchedule(schedule.id);
+  };
 
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -365,11 +407,14 @@ export function EditKnowtScreen() {
                 key={schedule.id}
                 accessibilityRole="button"
                 accessibilityLabel={`Edit the ${formatTime(schedule.time)} schedule`}
-                onPress={() =>
-                  navigation.navigate('EditSchedule', {
-                    knowtId: knowt.id,
-                    scheduleId: schedule.id,
-                  })
+                // A finished row asks first. The editor alone cannot put a
+                // completion back, and that is half of what the tap is for.
+                onPress={
+                  nextOccurrence(schedule, nowForRows, (at) =>
+                    isOccurrenceDone(doneOccurrences, schedule.id, at),
+                  )
+                    ? () => openSchedule(schedule.id)
+                    : () => void handleFinished(schedule)
                 }
                 style={({ pressed }) => [
                   styles.scheduleRow,

@@ -29,6 +29,11 @@ export async function completeOccurrence(args: {
    * armed.
    */
   completedAt?: number;
+  /**
+   * The moment of the occurrence being answered, which is what stands that one
+   * firing's alarm down and leaves every other firing that day armed.
+   */
+  occurrenceAt?: number;
 }): Promise<string> {
   const eventId = await logCompletion(args);
 

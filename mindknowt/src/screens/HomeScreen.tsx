@@ -25,6 +25,7 @@ import {
   listSnoozed,
   listUpcoming,
   listWeekMarks,
+  occurrenceMoment,
   toISODate,
   undoCompletion,
   type DashboardCard,
@@ -126,6 +127,11 @@ type Target = {
   scheduleId: string | null;
   /** The occurrence's own moment, for one whose time has not come. */
   completedAt?: number;
+  /**
+   * The firing this answers, which is what stands that one alarm down and
+   * leaves every other firing the same day armed.
+   */
+  occurrenceAt?: number;
   /** How a message names the day. */
   when: string;
   where: NoticeWhere;
@@ -536,19 +542,29 @@ export function HomeScreen() {
     }, [navigation]),
   );
 
-  /** Today's card. Its occurrence is now, so it needs no `completedAt`. */
-  const cardTarget = (card: DashboardCard): Target => ({
-    knowt: card.knowt,
-    scheduleId: card.schedule?.id ?? null,
-    when: 'today',
-    where: 'board',
-  });
+  /**
+   * Today's card. It is recorded now, so it needs no `completedAt`, but it
+   * still has to say which of the day's firings it answered.
+   */
+  const cardTarget = (card: DashboardCard): Target => {
+    const firing = card.schedule
+      ? occurrenceMoment(card.schedule, now)
+      : null;
+    return {
+      knowt: card.knowt,
+      scheduleId: card.schedule?.id ?? null,
+      occurrenceAt: firing?.getTime(),
+      when: 'today',
+      where: 'board',
+    };
+  };
 
   /** An Upcoming row. Its occurrence is days out and has to be stamped. */
   const upcomingTarget = (entry: UpcomingEntry): Target => ({
     knowt: entry.knowt,
     scheduleId: entry.schedule.id,
     completedAt: entry.at.getTime(),
+    occurrenceAt: entry.at.getTime(),
     when: whenLabel(entry.at, now),
     where: 'upcoming',
   });
@@ -572,6 +588,7 @@ export function HomeScreen() {
         scheduleId: target.scheduleId,
         method,
         completedAt: target.completedAt,
+        occurrenceAt: target.occurrenceAt,
       }),
     );
     if (!written.ok) {
@@ -619,7 +636,11 @@ export function HomeScreen() {
       const outcome = await scanKnowtTag(
         target.knowt,
         target.scheduleId
-          ? { scheduleId: target.scheduleId, completedAt: target.completedAt }
+          ? {
+              scheduleId: target.scheduleId,
+              completedAt: target.completedAt,
+              occurrenceAt: target.occurrenceAt,
+            }
           : undefined,
       );
       // Backing out of the sheet is not a failure, and the copy for every

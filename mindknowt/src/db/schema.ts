@@ -5,7 +5,7 @@ import { CATEGORY_COLORS } from '../theme/categoryColors';
  * this changes; `PRAGMA user_version` is the on-device record of which version
  * a given install is at.
  */
-export const SCHEMA_VERSION = 17;
+export const SCHEMA_VERSION = 18;
 
 export const TABLES_SQL = `
 PRAGMA journal_mode = WAL;
@@ -86,7 +86,9 @@ CREATE TABLE IF NOT EXISTS events (
   completed_at INTEGER,
   method       TEXT CHECK (method IN ('scan', 'tap', 'override', 'missed')),
   note         TEXT,
-  snooze_count INTEGER NOT NULL DEFAULT 0
+  snooze_count INTEGER NOT NULL DEFAULT 0,
+  -- The moment of the occurrence this answers. See the migration note.
+  occurrence_at INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS pending_alarms (
@@ -191,6 +193,28 @@ export const ADDED_COLUMNS: { to: number; table: string; column: string; type: s
     // without this flag the next repaint would silently undo their choice.
     column: 'color_locked',
     type: 'INTEGER NOT NULL DEFAULT 0',
+  },
+  {
+    to: 18,
+    table: 'events',
+    /**
+     * Which occurrence this completion was for, as that occurrence's own
+     * moment.
+     *
+     * The alarm reconciler used to work it out from `fired_at ?? completed_at`
+     * by calendar day, which is one occurrence too coarse: finishing the 8:17
+     * pm one marked the whole day done, so rescheduling the same schedule to
+     * 10:00 pm that evening armed nothing and the row went on reading
+     * "finished". A completion answers one firing, and this is which.
+     *
+     * Nullable with no back-fill. A row written before this column existed
+     * cannot say which firing it answered, so it keeps the old day-wide
+     * meaning; guessing one from `completed_at` would silence a real alarm or
+     * raise one for something already done, and both are worse than leaving
+     * old history exactly as coarse as it was.
+     */
+    column: 'occurrence_at',
+    type: 'INTEGER',
   }
 ];
 

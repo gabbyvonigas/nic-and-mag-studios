@@ -107,7 +107,7 @@ check('the fixture really is older, with no scan_only', () => {
   assert.equal(row.user_version, 16);
 });
 
-check('migrating adds the column and stamps 17', () => {
+check('migrating adds the column and stamps the version', () => {
   const db = seeded();
   migrate(db);
   assert.equal(columnExists(db, 'knowts', 'scan_only'), true);
@@ -115,7 +115,7 @@ check('migrating adds the column and stamps 17', () => {
     user_version: number;
   };
   assert.equal(row.user_version, SCHEMA_VERSION);
-  assert.equal(SCHEMA_VERSION, 17);
+  assert.equal(SCHEMA_VERSION, 18);
 });
 
 check('no existing Knowt becomes a Scan Knowt', () => {

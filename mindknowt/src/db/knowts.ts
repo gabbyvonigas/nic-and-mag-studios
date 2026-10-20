@@ -798,19 +798,30 @@ export async function logCompletion(args: {
    * history is only worth keeping if it can be corrected.
    */
   completedAt?: number;
+  /**
+   * The moment of the occurrence this answers.
+   *
+   * Without it the completion covers its whole calendar day, which is one
+   * occurrence too coarse: finishing the 8:17 pm one marked 10:00 pm that
+   * evening done as well. Every caller that names a schedule can work this
+   * out, so every caller that names a schedule passes it.
+   */
+  occurrenceAt?: number;
 }): Promise<string> {
   const db = await getDatabase();
   const id = newId();
   await db.runAsync(
     `INSERT INTO events
-       (id, knowt_id, schedule_id, fired_at, completed_at, method, note, snooze_count)
-     VALUES (?, ?, ?, NULL, ?, ?, ?, 0)`,
+       (id, knowt_id, schedule_id, fired_at, completed_at, method, note,
+        snooze_count, occurrence_at)
+     VALUES (?, ?, ?, NULL, ?, ?, ?, 0, ?)`,
     id,
     args.knowtId,
     args.scheduleId ?? null,
     args.completedAt ?? Date.now(),
     args.method,
     args.note ?? null,
+    args.occurrenceAt ?? null,
   );
   return id;
 }

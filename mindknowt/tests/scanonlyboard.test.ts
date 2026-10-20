@@ -100,7 +100,7 @@ await check('the column arrived and defaults to not a Scan Knowt', async () => {
   const column = info.find((row) => row.name === 'scan_only');
   assert.ok(column, 'scan_only is missing');
   assert.equal(Number(column.dflt_value), 0, 'the default is not 0');
-  assert.equal(SCHEMA_VERSION, 17);
+  assert.equal(SCHEMA_VERSION, 18);
 });
 
 await check('only the one that asked for it is a Scan Knowt', async () => {

@@ -322,6 +322,27 @@ completion with no `schedule_id` is a person saying they did the thing, which is
 worth recording but does not identify a firing, so it never stands an alarm
 down.
 
+**An occurrence is a schedule at a moment, not a schedule on a day.** It was a
+day, and a day holds more than one firing: finishing the 8:17 pm one marked the
+whole day done, so rescheduling the same schedule to 10:00 pm that evening armed
+nothing and the row went on reading "finished". `events.occurrence_at` at schema
+18 records which firing a completion answered, and `occurrenceKey` is that
+moment. Every path that names a schedule passes `occurrenceAt`, including
+`startRinging`, which takes it from the schedule's own time on the firing day
+rather than from `fired_at`: the two are minutes apart whenever the screen is
+reached late, and a minute out is a key that matches nothing.
+
+No back-fill, and that is deliberate. A row written before the column cannot
+say which firing it answered, so `completedOccurrences` gives it the old
+`occurrenceDayKey` and it goes on covering its whole day. Guessing a moment
+from `completed_at` would either silence a real alarm or raise one for
+something already done. `isOccurrenceDone` therefore asks both keys.
+
+`resumeGate` keeps the day key on purpose. It asks whether anything at all has
+happened against a schedule today, completed or merely opened by pressing Stop,
+and it builds that set from `fired_at`, which is when the screen was reached.
+A minute-grained key there would miss its own records.
+
 **Naming it takes two questions, not one.** `openOccurrence` answers for an
 occurrence that has already come due, which is the right question for whether
 the day is behind and the wrong one for standing an alarm down. Marking a knowt
@@ -1161,6 +1182,37 @@ Dev tools in Settings lists every attached tag by Knowt, selectable, because
 reading one out to someone debugging is the one real use for it.
 `tagprivacy.test.ts` walks every `.tsx` under `src/` and fails if the number is
 rendered anywhere else.
+
+## A finished schedule is not a dead end
+
+A row reading "Once, finished" could not be revised, and nothing was disabled
+or blocked: the row was a `Pressable`, the editor opened, and Save worked. Two
+other things made it look that way. On the detail screen the row went to the
+Knowt's **Edit** screen rather than to the schedule, so the editor was one more
+tap away than it looked (`openEditor` navigates to `EditKnowt`). And once the
+time was changed the alarm stayed down, because a completion covered its whole
+calendar day; see the occurrence key above.
+
+Tapping a finished row now asks, with `askFinishedSchedule` in
+`knowts/finishedSchedule.ts`, the same way `deletePrompt.ts` asks. Two answers,
+because the person means one of two things:
+
+- **Reschedule** opens the schedule's own editor and touches no history. The
+  thing was done, and moving the next firing does not unmake that.
+- **Mark not done** deletes the completion `finishedBy` names, which is the
+  most recent one against that schedule, then resyncs. If the occurrence's time
+  has already gone there is nothing to put back, so it carries straight on into
+  the editor rather than leaving the same dead end it was tapped to escape.
+
+Neither completes anything, so no Mode comes into it and nothing here lets a
+scan Knowt be finished without a scan.
+
+`finishedBy` lives in `completions.ts` rather than beside the sheet, because
+that file imports `Alert` and cannot be loaded off-device, and which row an
+undo takes back is the part worth asserting.
+
+The row decides which way to go by asking the question its own second line
+asks, so a row that reads finished is exactly the row that opens the sheet.
 
 ## Upcoming was gated, not removed
 

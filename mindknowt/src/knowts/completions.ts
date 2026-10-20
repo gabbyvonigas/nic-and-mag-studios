@@ -14,9 +14,30 @@
 import { isDueOn, minutesOf, toISODate } from '../db/scheduling';
 import type { EventRow, PendingAlarmRow, ScheduleRow } from '../db/types';
 
-/** Identifies one firing: a schedule, on a day. */
-export function occurrenceKey(scheduleId: string, day: Date): string {
-  return `${scheduleId}@${toISODate(day)}`;
+/**
+ * Identifies one firing: a schedule, at a moment.
+ *
+ * It used to be a schedule on a day, which is one occurrence too coarse. A day
+ * holds more than one firing, and finishing the 8:17 pm one marked the whole
+ * day done: rescheduling the same schedule to 10:00 pm that evening armed
+ * nothing, and the row went on reading "finished".
+ */
+export function occurrenceKey(scheduleId: string, at: Date): string {
+  const minutes = `${`${at.getHours()}`.padStart(2, '0')}:${`${at.getMinutes()}`.padStart(2, '0')}`;
+  return `${scheduleId}@${toISODate(at)}T${minutes}`;
+}
+
+/**
+ * A schedule and a calendar day, which is what the key used to be.
+ *
+ * Two things still use it. A completion written before schema 18 cannot say
+ * which firing it answered, so it keeps covering its whole day exactly as it
+ * did: guessing a moment from `completed_at` would silence a real alarm or
+ * raise one for something already done. And the resume gate asks a day-wide
+ * question of its own, which is why it imports this rather than the moment.
+ */
+export function occurrenceDayKey(scheduleId: string, at: Date): string {
+  return `${scheduleId}@${toISODate(at)}`;
 }
 
 /**
@@ -45,8 +66,18 @@ export function completedOccurrences(
   const done = new Set<string>();
   for (const event of events) {
     if (event.completed_at === null || !event.schedule_id) continue;
+    // The firing it answered, when the row knows. Then it covers that one and
+    // nothing else, so a later time the same day is still armed.
+    //
+    // A number, not merely "not null": a row read before schema 18 carries no
+    // such property at all, and `undefined !== null` would have sent it down
+    // this branch and keyed it off an invalid date.
+    if (typeof event.occurrence_at === 'number') {
+      done.add(occurrenceKey(event.schedule_id, new Date(event.occurrence_at)));
+      continue;
+    }
     const day = dayOf(event);
-    if (day) done.add(occurrenceKey(event.schedule_id, day));
+    if (day) done.add(occurrenceDayKey(event.schedule_id, day));
   }
   return done;
 }
@@ -54,9 +85,35 @@ export function completedOccurrences(
 export function isOccurrenceDone(
   done: ReadonlySet<string>,
   scheduleId: string,
-  day: Date,
+  at: Date,
 ): boolean {
-  return done.has(occurrenceKey(scheduleId, day));
+  return (
+    done.has(occurrenceKey(scheduleId, at)) ||
+    done.has(occurrenceDayKey(scheduleId, at))
+  );
+}
+
+/**
+ * The completion that finished this schedule, or null.
+ *
+ * The most recent one naming it, which is the one an undo should take back: a
+ * schedule that has been completed and rescheduled before has older rows that
+ * answered firings nobody is looking at.
+ *
+ * Here rather than beside the sheet that asks the question, because that file
+ * imports `Alert` and this is the part worth asserting.
+ */
+export function finishedBy(
+  schedule: ScheduleRow,
+  events: readonly EventRow[],
+): EventRow | null {
+  const mine = events.filter(
+    (event) => event.schedule_id === schedule.id && event.completed_at !== null,
+  );
+  if (mine.length === 0) return null;
+  return mine.reduce((latest, event) =>
+    (event.completed_at ?? 0) > (latest.completed_at ?? 0) ? event : latest,
+  );
 }
 
 /** The schedules that have come due today and not yet gone past, soonest first. */

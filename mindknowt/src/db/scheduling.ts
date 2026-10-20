@@ -215,16 +215,34 @@ function hoursMinutes(time: string): { hour: number; minute: number } | null {
  * wall-clock time, so an 8:00 am alarm stays at 8:00 am across a DST change
  * rather than sliding by an hour.
  */
+export function occurrenceMoment(schedule: ScheduleRow, day: Date): Date | null {
+  const hm = hoursMinutes(schedule.time);
+  if (!hm) return null;
+  return new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    hm.hour,
+    hm.minute,
+    0,
+    0,
+  );
+}
+
 export function nextOccurrence(
   schedule: ScheduleRow,
   now = new Date(),
   /**
-   * Whether a day's occurrence has already been accounted for and must not be
+   * Whether an occurrence has already been accounted for and must not be
    * armed. Without it, completing today's 9:00 am at seven re-armed the same
    * 9:00 am: the occurrence is still in the future, so the walk below picked it
    * straight back up and the alarm rang for something already done.
+   *
+   * It is handed the occurrence's own moment rather than its day, because a day
+   * holds more than one: finishing the 8:17 pm one must not mark 10:00 pm that
+   * evening done as well.
    */
-  isDone?: (day: Date) => boolean,
+  isDone?: (at: Date) => boolean,
 ): Date | null {
   if (!schedule.enabled) return null;
   const hm = hoursMinutes(schedule.time);
@@ -237,18 +255,12 @@ export function nextOccurrence(
       now.getDate() + offset,
     );
     if (!isDueOn(schedule, day)) continue;
-    if (isDone?.(day)) continue;
 
-    const at = new Date(
-      day.getFullYear(),
-      day.getMonth(),
-      day.getDate(),
-      hm.hour,
-      hm.minute,
-      0,
-      0,
-    );
-    if (at.getTime() > now.getTime()) return at;
+    const at = occurrenceMoment(schedule, day);
+    if (!at) return null;
+    if (at.getTime() <= now.getTime()) continue;
+    if (isDone?.(at)) continue;
+    return at;
   }
 
   return null;

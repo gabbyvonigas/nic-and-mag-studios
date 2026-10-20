@@ -14,6 +14,7 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const {
   completedOccurrences,
   isOccurrenceDone,
+  occurrenceDayKey,
   occurrenceKey,
   firingOccurrence,
   openOccurrence,
@@ -114,9 +115,15 @@ check('the firing decides the day, not the moment the scan landed', () => {
   assert.ok(!isOccurrenceDone(done, 'sched-9am', new Date(2026, 9, 13)));
 });
 
-check('an occurrence key is a schedule and a calendar day', () => {
-  assert.equal(occurrenceKey('s', new Date(2026, 9, 12, 23, 59)), 's@2026-10-12');
-  assert.equal(occurrenceKey('s', new Date(2026, 9, 12, 0, 0)), 's@2026-10-12');
+check('an occurrence key is a schedule and a moment', () => {
+  // It was a schedule and a calendar day, which is one occurrence too coarse:
+  // a day holds more than one firing, and finishing the 8:17 pm one marked
+  // 10:00 pm that evening done as well.
+  assert.equal(occurrenceKey('s', new Date(2026, 9, 12, 23, 59)), 's@2026-10-12T23:59');
+  assert.equal(occurrenceKey('s', new Date(2026, 9, 12, 0, 0)), 's@2026-10-12T00:00');
+  // The day key still exists, for a row written before schema 18 and for the
+  // resume gate, which asks a day-wide question of its own.
+  assert.equal(occurrenceDayKey('s', new Date(2026, 9, 12, 23, 59)), 's@2026-10-12');
 });
 
 // Whether a firing still needs answering.

@@ -28,7 +28,13 @@ import {
 } from '../alarms';
 import { Icon } from '../components/Icon';
 import { completeOccurrence } from '../knowts/completeOccurrence';
-import { checkInOccurrence, completedOccurrences } from '../knowts/completions';
+import {
+  checkInOccurrence,
+  completedOccurrences,
+  finishedBy,
+  isOccurrenceDone,
+} from '../knowts/completions';
+import { askFinishedSchedule } from '../knowts/finishedSchedule';
 import { scheduleLine } from '../knowts/scheduleLine';
 import {
   requiresScan,
@@ -54,6 +60,9 @@ import {
   finishDraft,
   restoreKnowt,
   formatTime,
+  nextOccurrence,
+  occurrenceMoment,
+  undoCompletion,
   getKnowt,
   isDueOn,
   listEvents,
@@ -74,6 +83,7 @@ import { nfcFailureMessage, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
 import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
+import type { ScheduleRow } from '../db/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -324,6 +334,41 @@ export function KnowtDetailScreen() {
   const openEditor = () =>
     navigation.navigate('EditKnowt', { knowtId: knowt.id });
 
+  /** The schedule's own editor, which is where Reschedule goes. */
+  const openSchedule = (scheduleId: string) =>
+    navigation.navigate('EditSchedule', { knowtId: knowt.id, scheduleId });
+
+  /**
+   * A schedule row with nothing ahead of it.
+   *
+   * Reschedule opens the schedule's own editor and touches no history: the
+   * thing was done, and moving the next firing does not unmake that. Mark not
+   * done deletes the completion and resyncs, which puts the occurrence back in
+   * play, and if its time has already gone there is nothing to put back, so it
+   * carries on into the editor to pick a new one.
+   *
+   * Neither completes anything, so the Mode does not come into it.
+   */
+  const handleFinished = async (schedule: ScheduleRow) => {
+    const choice = await askFinishedSchedule();
+    if (choice === 'cancel') return;
+
+    if (choice === 'reschedule') {
+      openSchedule(schedule.id);
+      return;
+    }
+
+    const completion = finishedBy(schedule, events ?? []);
+    if (completion) await undoCompletion(completion.id);
+    await resyncAlarmsQuietly();
+    await reloadEvents();
+    await reload();
+    // Live again only if it still has a firing ahead. Otherwise the undo on its
+    // own leaves the same dead end it was tapped to get out of.
+    if (!nextOccurrence(schedule, new Date())) openSchedule(schedule.id);
+  };
+
+
   const scanOnly = isScanOnly(knowt);
 
   /**
@@ -460,7 +505,12 @@ export function KnowtDetailScreen() {
       try {
         const scanned = await scanKnowtTag(
           knowt,
-          covers ? { scheduleId: covers.id } : undefined,
+          covers
+            ? {
+                scheduleId: covers.id,
+                occurrenceAt: occurrenceMoment(covers, new Date())?.getTime(),
+              }
+            : undefined,
         );
         // Backing out of the sheet is not a failure and says nothing.
         if (scanned.kind === 'canceled') return;
@@ -481,6 +531,9 @@ export function KnowtDetailScreen() {
         knowtId: knowt.id,
         scheduleId: covers?.id ?? null,
         method: 'tap',
+        occurrenceAt: covers
+          ? occurrenceMoment(covers, new Date())?.getTime()
+          : undefined,
       }),
     );
     if (!done.ok) {
@@ -768,7 +821,16 @@ export function KnowtDetailScreen() {
               key={schedule.id}
               accessibilityRole="button"
               accessibilityLabel={`Edit the ${formatTime(schedule.time)} schedule`}
-              onPress={openEditor}
+              // A finished row asks what to do instead of going where an
+              // unfinished one goes, because the editor alone cannot put a
+              // completion back and that is half of what the tap is for.
+              onPress={
+                nextOccurrence(schedule, nowForRows, (at) =>
+                  isOccurrenceDone(doneOccurrences, schedule.id, at),
+                )
+                  ? openEditor
+                  : () => void handleFinished(schedule)
+              }
               style={({ pressed }) => [pressed && styles.pressed]}>
               <Card>
                 <View style={styles.scheduleRow}>

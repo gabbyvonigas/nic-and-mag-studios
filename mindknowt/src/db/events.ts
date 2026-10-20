@@ -2,7 +2,8 @@ import { getAppMeta, getDatabase, setAppMeta } from './database';
 import { newId } from './ids';
 import { listKnowts } from './knowts';
 import { isDueOn, minutesOf, toISODate } from './scheduling';
-import type { EventMethod, EventRow } from './types';
+import { occurrenceMoment } from './scheduling';
+import type { EventMethod, EventRow, ScheduleRow } from './types';
 
 const MISSED_SWEEP_KEY = 'last_missed_sweep';
 
@@ -23,6 +24,11 @@ function addDays(date: Date, days: number): Date {
  * Opens a ringing session. The event exists from the moment the alarm fires,
  * not from the moment it is completed, so an alarm that is snoozed or
  * abandoned still leaves a record.
+ *
+ * `occurrence_at` is the schedule's own moment on the firing day, not
+ * `fired_at`. The two are minutes apart whenever the screen is reached late,
+ * and the occurrence is identified by the time it was set for: taking it from
+ * `fired_at` would leave an answered firing looking unanswered.
  */
 export async function startRinging(
   knowtId: string,
@@ -30,14 +36,26 @@ export async function startRinging(
 ): Promise<string> {
   const db = await getDatabase();
   const id = newId();
+  const firedAt = Date.now();
+  const schedule = scheduleId
+    ? await db.getFirstAsync<ScheduleRow>(
+        'SELECT * FROM schedules WHERE id = ?',
+        scheduleId,
+      )
+    : null;
+  const occurrence = schedule
+    ? occurrenceMoment(schedule, new Date(firedAt))
+    : null;
   await db.runAsync(
     `INSERT INTO events
-       (id, knowt_id, schedule_id, fired_at, completed_at, method, note, snooze_count)
-     VALUES (?, ?, ?, ?, NULL, NULL, NULL, 0)`,
+       (id, knowt_id, schedule_id, fired_at, completed_at, method, note,
+        snooze_count, occurrence_at)
+     VALUES (?, ?, ?, ?, NULL, NULL, NULL, 0, ?)`,
     id,
     knowtId,
     scheduleId,
-    Date.now(),
+    firedAt,
+    occurrence ? occurrence.getTime() : null,
   );
   return id;
 }
