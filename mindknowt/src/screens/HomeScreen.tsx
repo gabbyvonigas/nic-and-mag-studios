@@ -36,7 +36,7 @@ import {
 } from '../db';
 import { useQuery } from '../db/useQuery';
 import { completeOccurrence } from '../knowts/completeOccurrence';
-import { stopChoiceOf } from '../knowts/modes';
+import { needsScan } from '../knowts/modes';
 import { scanKnowtTag } from '../knowts/scanKnowt';
 import {
   progressCount,
@@ -93,28 +93,43 @@ function clock(at: number | Date): string {
 
 /** When something later is due, said the way a person would. */
 /**
- * Whether this Knowt's occurrence can only be completed by scanning its tag.
+ * Which half of the page a message belongs to.
  *
- * `stopChoiceOf` and not the mode column, because `strict` no longer names one
- * thing: Scan Knowt and Scan + Alarm both store it and what separates them is
- * having no schedule. A Scan Knowt therefore never reaches Upcoming at all,
- * since the list walks schedules, but the question is asked of the Knowt so
- * that stays true however the flag moves.
+ * The board is at the top and Upcoming is at the bottom, and a failure has to
+ * render within a screenful of the finger that caused it. One piece of state
+ * rather than two, so two messages cannot be up at once saying different
+ * things about the same tap.
  */
-function needsScan(knowt: KnowtWithDetail): boolean {
-  return stopChoiceOf(knowt) !== 'alarm';
-}
+type NoticeWhere = 'board' | 'upcoming';
 
 /**
- * What the Upcoming section has to say after completing one from here.
+ * What the screen has to say after completing one occurrence.
  *
  * `eventId` is what makes the Undo possible, so it is on the shape rather than
  * in a second piece of state that could get out of step with the message.
  * A failure carries no id, because there is nothing to take back.
  */
-type SkipNotice =
-  | { tone: 'done'; text: string; eventId: string }
-  | { tone: 'danger'; text: string };
+type CompletionNotice =
+  | { where: NoticeWhere; tone: 'done'; text: string; eventId: string }
+  | { where: NoticeWhere; tone: 'danger'; text: string };
+
+/**
+ * One occurrence this screen can finish, from a Today card or an Upcoming row.
+ *
+ * Both halves used to call their own completion, and only one of them asked
+ * what Mode the Knowt was: a Scan + Alarm Knowt was finished by tapping the
+ * ring on its Today card, with no scan and nothing said. One shape, one
+ * dispatcher, so a new entry point cannot forget.
+ */
+type Target = {
+  knowt: KnowtWithDetail;
+  scheduleId: string | null;
+  /** The occurrence's own moment, for one whose time has not come. */
+  completedAt?: number;
+  /** How a message names the day. */
+  when: string;
+  where: NoticeWhere;
+};
 
 function whenLabel(at: Date, now: Date): string {
   const day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
@@ -271,6 +286,50 @@ function SnoozedSection({
 }
 
 /**
+ * A confirmation with an Undo, or a failure with a Dismiss.
+ *
+ * Rendered twice, once beside each set of controls, and only ever filled in
+ * one of them.
+ */
+function NoticeBanner({
+  notice,
+  onUndo,
+  onDismiss,
+}: {
+  notice: CompletionNotice;
+  onUndo: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <View
+      style={[
+        styles.skipNotice,
+        notice.tone === 'danger' && styles.skipNoticeDanger,
+      ]}>
+      <Text
+        style={[
+          styles.skipNoticeText,
+          notice.tone === 'danger' && styles.skipNoticeDangerText,
+        ]}>
+        {notice.text}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        onPress={notice.tone === 'done' ? onUndo : onDismiss}
+        style={({ pressed }) => [
+          styles.skipNoticeAction,
+          pressed && styles.pressed,
+        ]}>
+        <Text style={styles.skipNoticeActionText}>
+          {notice.tone === 'done' ? 'Undo' : 'Dismiss'}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/**
  * What is next, once today is finished.
  *
  * Only appears when there is nothing left to do, so the screen has something
@@ -293,7 +352,7 @@ function UpcomingSection({
   onToggle: () => void;
   onOpen: (knowtId: string) => void;
   onComplete: (entry: UpcomingEntry) => void;
-  notice: SkipNotice | null;
+  notice: CompletionNotice | null;
   onUndo: () => void;
   onDismiss: () => void;
   now: Date;
@@ -317,31 +376,7 @@ function UpcomingSection({
           renders last on the page, so a message anywhere else would be a
           screen away from the finger that caused it. */}
       {notice ? (
-        <View
-          style={[
-            styles.skipNotice,
-            notice.tone === 'danger' && styles.skipNoticeDanger,
-          ]}>
-          <Text
-            style={[
-              styles.skipNoticeText,
-              notice.tone === 'danger' && styles.skipNoticeDangerText,
-            ]}>
-            {notice.text}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            onPress={notice.tone === 'done' ? onUndo : onDismiss}
-            style={({ pressed }) => [
-              styles.skipNoticeAction,
-              pressed && styles.pressed,
-            ]}>
-            <Text style={styles.skipNoticeActionText}>
-              {notice.tone === 'done' ? 'Undo' : 'Dismiss'}
-            </Text>
-          </Pressable>
-        </View>
+        <NoticeBanner notice={notice} onUndo={onUndo} onDismiss={onDismiss} />
       ) : null}
 
       {expanded
@@ -470,7 +505,7 @@ export function HomeScreen() {
     return () => clearInterval(timer);
   }, [live]);
   const [upcomingOpen, setUpcomingOpen] = useState(true);
-  const [skipNotice, setSkipNotice] = useState<SkipNotice | null>(null);
+  const [notice, setNotice] = useState<CompletionNotice | null>(null);
   // A ref rather than state: it guards the next tap, and nothing renders it.
   const busy = useRef(false);
 
@@ -483,7 +518,7 @@ export function HomeScreen() {
       // An Undo offered before leaving the screen is not an Undo on coming
       // back to it: the rows have been read again and the message would be
       // about a state nobody is looking at any more.
-      setSkipNotice(null);
+      setNotice(null);
     }, [reload, reloadMarks, reloadUpcoming, reloadSnoozed]),
   );
 
@@ -501,19 +536,22 @@ export function HomeScreen() {
     }, [navigation]),
   );
 
-  const complete = async (card: DashboardCard) => {
-    // Naming the schedule is what stands the alarm down. Without it the 9:00 am
-    // alarm went on ringing for a card checked off at seven.
-    await completeOccurrence({
-      knowtId: card.knowt.id,
-      scheduleId: card.schedule?.id ?? null,
-      method: 'tap',
-    });
-    await reload();
-    await reloadMarks();
-    await reloadUpcoming();
-    await reloadSnoozed();
-  };
+  /** Today's card. Its occurrence is now, so it needs no `completedAt`. */
+  const cardTarget = (card: DashboardCard): Target => ({
+    knowt: card.knowt,
+    scheduleId: card.schedule?.id ?? null,
+    when: 'today',
+    where: 'board',
+  });
+
+  /** An Upcoming row. Its occurrence is days out and has to be stamped. */
+  const upcomingTarget = (entry: UpcomingEntry): Target => ({
+    knowt: entry.knowt,
+    scheduleId: entry.schedule.id,
+    completedAt: entry.at.getTime(),
+    when: whenLabel(entry.at, now),
+    where: 'upcoming',
+  });
 
   /**
    * Skipping one occurrence of a recurring Knowt.
@@ -525,33 +563,34 @@ export function HomeScreen() {
    * moment, which is where the day it covers is read from.
    */
   const skipOccurrence = async (
-    entry: UpcomingEntry,
+    target: Target,
     method: Extract<EventMethod, 'tap' | 'scan'>,
   ) => {
-    const when = whenLabel(entry.at, now);
     const written = await settled(
       completeOccurrence({
-        knowtId: entry.knowt.id,
-        scheduleId: entry.schedule.id,
+        knowtId: target.knowt.id,
+        scheduleId: target.scheduleId,
         method,
-        completedAt: entry.at.getTime(),
+        completedAt: target.completedAt,
       }),
     );
     if (!written.ok) {
-      setSkipNotice({
+      setNotice({
+        where: target.where,
         tone: 'danger',
         text: `That could not be recorded. ${describeError(written.error)}`,
       });
       return;
     }
-    setSkipNotice({
+    setNotice({
+      where: target.where,
       tone: 'done',
       eventId: written.value,
-      text: `Marked ${entry.knowt.name} done for ${when}. Its other days are unchanged.`,
+      text: `${method === 'scan' ? 'Scanned' : 'Marked'} ${target.knowt.name} ${
+        method === 'scan' ? 'for' : 'done for'
+      } ${target.when}. Its other days are unchanged.`,
     });
-    await reloadUpcoming();
-    await reload();
-    await reloadMarks();
+    await refreshBoard();
   };
 
   /**
@@ -566,36 +605,37 @@ export function HomeScreen() {
    * One scan at a time. The reader's sheet is modal, but the tap that opens it
    * is not, and two scans racing would write two completions for one firing.
    */
-  const completeUpcoming = async (entry: UpcomingEntry) => {
+  const completeTarget = async (target: Target) => {
     if (busy.current) return;
-    setSkipNotice(null);
+    setNotice(null);
 
-    if (!needsScan(entry.knowt)) {
-      await skipOccurrence(entry, 'tap');
+    if (!needsScan(target.knowt)) {
+      await skipOccurrence(target, 'tap');
       return;
     }
 
     busy.current = true;
     try {
-      const outcome = await scanKnowtTag(entry.knowt, {
-        scheduleId: entry.schedule.id,
-        completedAt: entry.at.getTime(),
-      });
+      const outcome = await scanKnowtTag(
+        target.knowt,
+        target.scheduleId
+          ? { scheduleId: target.scheduleId, completedAt: target.completedAt }
+          : undefined,
+      );
       // Backing out of the sheet is not a failure, and the copy for every
       // reason that is one lives in `nfc/failureText.ts`.
       if (outcome.kind === 'canceled') return;
       if (outcome.kind === 'failed') {
-        setSkipNotice({ tone: 'danger', text: outcome.message });
+        setNotice({ where: target.where, tone: 'danger', text: outcome.message });
         return;
       }
-      setSkipNotice({
+      setNotice({
+        where: target.where,
         tone: 'done',
         eventId: outcome.eventId,
-        text: `Scanned ${entry.knowt.name} for ${whenLabel(entry.at, now)}. Its other days are unchanged.`,
+        text: `Scanned ${target.knowt.name} for ${target.when}. Its other days are unchanged.`,
       });
-      await reloadUpcoming();
-      await reload();
-      await reloadMarks();
+      await refreshBoard();
     } finally {
       busy.current = false;
     }
@@ -608,21 +648,28 @@ export function HomeScreen() {
    * skipped, so the sync that follows asks the same question of the same table
    * and arms the occurrence again, as long as its time is still ahead.
    */
-  const undoSkip = async (notice: SkipNotice) => {
-    if (notice.tone !== 'done') return;
-    setSkipNotice(null);
-    const undone = await settled(undoCompletion(notice.eventId));
+  const undoSkip = async (taken: CompletionNotice) => {
+    if (taken.tone !== 'done') return;
+    setNotice(null);
+    const undone = await settled(undoCompletion(taken.eventId));
     if (!undone.ok) {
-      setSkipNotice({
+      setNotice({
+        where: taken.where,
         tone: 'danger',
         text: `That could not be undone. ${describeError(undone.error)}`,
       });
       return;
     }
     await resyncAlarmsQuietly();
-    await reloadUpcoming();
+    await refreshBoard();
+  };
+
+  /** Everything a completion or an undo changes on this screen. */
+  const refreshBoard = async () => {
     await reload();
     await reloadMarks();
+    await reloadUpcoming();
+    await reloadSnoozed();
   };
 
   const openKnowt = (knowtId: string) =>
@@ -654,7 +701,9 @@ export function HomeScreen() {
         // would write the completion at the moment of the tap, which is a
         // different day and a lie in the log.
         onComplete={
-          stance === 'today' ? () => void complete(card) : undefined
+          stance === 'today'
+            ? () => void completeTarget(cardTarget(card))
+            : undefined
         }
       />
     );
@@ -723,6 +772,17 @@ export function HomeScreen() {
             </View>
           </View>
 
+          {/* Above the cards, which is where the rings that raise it are. The
+              board is at the top of the page and Upcoming is at the bottom, so
+              one banner between them would be a screen away from one of them. */}
+          {notice?.where === 'board' ? (
+            <NoticeBanner
+              notice={notice}
+              onUndo={() => void undoSkip(notice)}
+              onDismiss={() => setNotice(null)}
+            />
+          ) : null}
+
           {/* A finished day says nothing. The ring already shows a check and
               Upcoming is sitting right below this, so a line explaining that
               the day is done was the third thing on screen saying it. A day
@@ -748,16 +808,16 @@ export function HomeScreen() {
             total,
             stance,
             upcomingCount: upcoming?.length ?? 0,
-          }) || skipNotice ? (
+          }) || notice?.where === 'upcoming' ? (
             <UpcomingSection
               entries={upcoming ?? []}
               expanded={upcomingOpen}
               onToggle={() => setUpcomingOpen((open) => !open)}
               onOpen={openKnowt}
-              onComplete={(entry) => void completeUpcoming(entry)}
-              notice={skipNotice}
-              onUndo={() => void (skipNotice && undoSkip(skipNotice))}
-              onDismiss={() => setSkipNotice(null)}
+              onComplete={(entry) => void completeTarget(upcomingTarget(entry))}
+              notice={notice?.where === 'upcoming' ? notice : null}
+              onUndo={() => void (notice && undoSkip(notice))}
+              onDismiss={() => setNotice(null)}
               now={now}
             />
           ) : null}

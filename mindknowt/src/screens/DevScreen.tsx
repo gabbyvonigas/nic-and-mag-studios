@@ -160,6 +160,30 @@ export function DevScreen() {
           overwritten. Reseeding leaves it alone; only a full reset clears it.
         </Text>
 
+        {/* The only place a tag's number is shown.
+            It used to sit on the Knowt detail and Edit screens under the tag
+            buttons, where it was the one thing on the screen nobody could act
+            on: a hardware UID means nothing to the person holding the sticker,
+            and seeing it did not tell them whether the tag worked. It is still
+            worth reading out to someone debugging, which is here. */}
+        <Text style={styles.sectionTitle}>Knowt tags</Text>
+        <Card>
+          {(knowts ?? []).filter((knowt) => knowt.tag_uid).length === 0 ? (
+            <Text style={styles.body}>No tags attached.</Text>
+          ) : (
+            (knowts ?? [])
+              .filter((knowt) => knowt.tag_uid)
+              .map((knowt) => (
+                <View key={knowt.id} style={styles.metaRow}>
+                  <Text style={styles.metaKey}>{knowt.name}</Text>
+                  <Text style={styles.metaValue} selectable>
+                    {knowt.tag_uid}
+                  </Text>
+                </View>
+              ))
+          )}
+        </Card>
+
         <Text style={styles.sectionTitle}>Pending alarms</Text>
         <Card>
           {(pending ?? []).length === 0 ? (

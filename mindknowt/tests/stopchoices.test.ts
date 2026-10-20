@@ -334,8 +334,10 @@ check('the detail screen leads with the scan, not the ringing screen', () => {
   assert.match(detail, /'Add a Knowt Tag to scan'/);
   assert.match(detail, /'Done today'/);
   assert.match(detail, /scanKnowtTag/);
-  // Mark done stays as the quieter fallback.
-  assert.match(detail, /label="Mark done"\n\s+variant="secondary"/);
+  // The quieter fallback stays, and it scans too: a Scan Knowt cannot be
+  // finished by a tap any more, so the label says what the button does.
+  assert.match(detail, /label="Scan the tag"\n\s+variant="secondary"/);
+  assert.ok(!detail.includes('label="Mark done"'));
   // And nothing routes a Knowt to the ringing screen any more.
   assert.ok(!home.includes("navigate('Ringing'"), 'Daily still opens Ringing');
 });

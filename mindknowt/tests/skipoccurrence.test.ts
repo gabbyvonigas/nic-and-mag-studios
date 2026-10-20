@@ -209,40 +209,45 @@ check('the same control is on both halves of the row, by Mode', () => {
 });
 
 check('an Alarm Only Knowt completes through completeOccurrence', () => {
-  const at = home.indexOf('const completeUpcoming');
+  const at = home.indexOf('const completeTarget');
   const after = home.slice(at, at + 1400);
-  assert.match(after, /if \(!needsScan\(entry\.knowt\)\) \{\n\s+await skipOccurrence\(entry, 'tap'\);/);
+  assert.match(after, /if \(!needsScan\(target\.knowt\)\) \{\n\s+await skipOccurrence\(target, 'tap'\);/);
   // Through the shared primitive, which is the one that names the occurrence.
   const prim = home.indexOf('const skipOccurrence');
   const body = home.slice(prim, prim + 900);
   assert.match(body, /completeOccurrence\(\{/);
-  assert.match(body, /scheduleId: entry\.schedule\.id,/);
-  assert.match(body, /completedAt: entry\.at\.getTime\(\),/);
+  assert.match(body, /scheduleId: target\.scheduleId,/);
+  assert.match(body, /completedAt: target\.completedAt,/);
   assert.ok(!body.includes('logCompletion'), 'it bypasses the completion path');
+  // And the Upcoming row's target is the one that stamps the occurrence.
+  assert.match(home, /completedAt: entry\.at\.getTime\(\),/);
 });
 
-check('a scan Mode cannot be completed from Upcoming without a scan', () => {
-  const at = home.indexOf('const completeUpcoming');
+check('a scan Mode cannot be completed from Daily without a scan', () => {
+  const at = home.indexOf('const completeTarget');
   const after = home.slice(at, at + 1400);
   // The direct path is gated on the negation and nothing else, so there is no
   // value of the Mode that takes a scan Knowt down it.
-  assert.match(after, /if \(!needsScan\(entry\.knowt\)\) \{/);
+  assert.match(after, /if \(!needsScan\(target\.knowt\)\) \{/);
   // The only thing a scan Mode's tap does is open the reader, and the
   // completion is written by the scan module after a successful read.
-  assert.match(after, /const outcome = await scanKnowtTag\(entry\.knowt, \{/);
-  assert.match(after, /scheduleId: entry\.schedule\.id,/);
-  assert.match(after, /completedAt: entry\.at\.getTime\(\),/);
+  assert.match(after, /const outcome = await scanKnowtTag\(\n\s+target\.knowt,/);
+  assert.match(after, /\? \{ scheduleId: target\.scheduleId, completedAt: target\.completedAt \}/);
   // A cancel writes nothing and says nothing; a failure says what happened.
   assert.match(after, /if \(outcome\.kind === 'canceled'\) return;/);
   assert.match(after, /if \(outcome\.kind === 'failed'\) \{/);
-  assert.match(after, /setSkipNotice\(\{ tone: 'danger', text: outcome\.message \}\);/);
+  assert.match(after, /setNotice\(\{ where: target\.where, tone: 'danger', text: outcome\.message \}\);/);
   // And there is no branch that completes a scan Mode any other way: the only
   // `skipOccurrence` call in this function is behind `!needsScan`.
   assert.equal(after.match(/skipOccurrence\(/g)?.length, 1);
   assert.equal(after.match(/'tap'/g)?.length, 1);
+  // Both rings on this screen go through it, which is the whole fix: the
+  // Today card used to call a completion of its own with no Mode check.
+  assert.match(home, /\? \(\) => void completeTarget\(cardTarget\(card\)\)/);
+  assert.match(home, /onComplete=\{\(entry\) => void completeTarget\(upcomingTarget\(entry\)\)\}/);
+  assert.equal(home.match(/completeOccurrence\(\{/g)?.length, 1, 'a second completion is written here');
   // Nowhere on this screen offers a mark done without scanning.
-  assert.ok(!home.includes('Mark done without'), 'an override is offered here');
-  assert.ok(!home.includes("method: 'override'"), 'Upcoming records overrides');
+  assert.ok(!home.includes("method: 'override'"), 'Daily records overrides');
 });
 
 check('a wrong tag is refused by the reader, not by the screen', () => {
@@ -259,19 +264,22 @@ check('the skip primitive is still here, for the override flow to reuse', () => 
   // The pill that called it is gone and the circle calls it instead; the
   // function itself is deliberately untouched, because the override on the
   // ringing alarm will want exactly this.
-  assert.match(home, /const skipOccurrence = async \(\n\s+entry: UpcomingEntry,\n\s+method: Extract<EventMethod, 'tap' \| 'scan'>,\n\s+\) => \{/);
-  assert.match(home, /const undoSkip = async \(notice: SkipNotice\) => \{/);
+  assert.match(home, /const skipOccurrence = async \(\n\s+target: Target,\n\s+method: Extract<EventMethod, 'tap' \| 'scan'>,\n\s+\) => \{/);
+  assert.match(home, /const undoSkip = async \(taken: CompletionNotice\) => \{/);
 });
 
 check('the confirmation and the Undo are there, and the Undo resyncs', () => {
-  assert.match(home, /text: `Marked \$\{entry\.knowt\.name\} done for \$\{when\}\. Its other days are unchanged\.`,/);
-  assert.match(home, /text: `Scanned \$\{entry\.knowt\.name\} for \$\{whenLabel\(entry\.at, now\)\}\. Its other days are unchanged\.`,/);
+  assert.match(home, /\$\{method === 'scan' \? 'Scanned' : 'Marked'\} \$\{target\.knowt\.name\}/);
+  assert.match(home, /text: `Scanned \$\{target\.knowt\.name\} for \$\{target\.when\}\. Its other days are unchanged\.`,/);
+  // One banner, rendered beside whichever set of rings raised it.
+  assert.match(home, /notice\?\.where === 'board' \? \(/);
+  assert.match(home, /notice=\{notice\?\.where === 'upcoming' \? notice : null\}/);
   // A scan's Undo deletes the row the scan module wrote, by its id.
   assert.match(scan, /return \{ kind: 'done', eventId: written\.value \};/);
   assert.match(home, /\{notice\.tone === 'done' \? 'Undo' : 'Dismiss'\}/);
   const at = home.indexOf('const undoSkip');
   const after = home.slice(at, at + 900);
-  assert.match(after, /settled\(undoCompletion\(notice\.eventId\)\)/);
+  assert.match(after, /settled\(undoCompletion\(taken\.eventId\)\)/);
   assert.match(after, /await resyncAlarmsQuietly\(\);/);
 });
 

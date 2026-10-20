@@ -152,6 +152,26 @@ export function stopChoiceOf(knowt: {
   return requiresScan(knowt.mode) ? 'both' : 'alarm';
 }
 
+/**
+ * Whether only a scan of this Knowt's own tag can complete it.
+ *
+ * The one question every completion path has to ask, so it lives here rather
+ * than beside each of them. Both Scan Knowt and Scan + Alarm say yes, and both
+ * store `strict`, which is why it asks `stopChoiceOf` and not the mode column:
+ * what separates them is having no schedule, and neither can be finished by a
+ * tap.
+ *
+ * The only exception in the app is the Override on the ringing alarm, which is
+ * a hold rather than a tap, says in its own copy that it is recorded as an
+ * override, and writes `method: 'override'` so the Log can tell.
+ */
+export function needsScan(knowt: {
+  mode: KnowtMode;
+  scan_only?: number;
+}): boolean {
+  return stopChoiceOf(knowt) !== 'alarm';
+}
+
 /** The label for a stored Knowt, which is what every chip and row shows. */
 export function stopLabelOf(knowt: {
   mode: KnowtMode;

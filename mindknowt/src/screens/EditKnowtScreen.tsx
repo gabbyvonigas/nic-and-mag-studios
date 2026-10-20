@@ -37,10 +37,10 @@ import {
   detachTag,
   findKnowtByTagUid,
   reassignTag,
-  describeRepeat,
   formatTime,
   getKnowt,
   listCategories,
+  listEvents,
   ModeUnavailableError,
   TagInUseError,
   PRIORITY_HIGH,
@@ -55,6 +55,8 @@ import { askToDropSchedules } from '../knowts/deletePrompt';
 import { askToReassign, askToUnassign } from '../knowts/tagConflict';
 import { nfcFailureMessage, nfcReader } from '../nfc';
 import { useQuery } from '../db/useQuery';
+import { completedOccurrences } from '../knowts/completions';
+import { scheduleLine } from '../knowts/scheduleLine';
 import { categoryShades, theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -72,6 +74,15 @@ export function EditKnowtScreen() {
     [params.knowtId],
   );
   const { data: categories } = useQuery(() => listCategories(), []);
+  // For the dates on the schedule rows: a day already completed or skipped is
+  // not the next firing, and naming it would be a date that never arrives.
+  const { data: events } = useQuery(
+    () => listEvents(params.knowtId),
+    [params.knowtId],
+  );
+  // Read once per render, so every row answers for one moment.
+  const nowForRows = new Date();
+  const doneOccurrences = completedOccurrences(events ?? []);
 
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -341,11 +352,6 @@ export function EditKnowtScreen() {
             disabled={scanning || saving}
             onPress={() => void scanToAttach()}
           />
-          {tagged ? (
-            <Text style={styles.tagUid} selectable>
-              {knowt.tag_uid}
-            </Text>
-          ) : null}
 
           <Text style={styles.label}>When it happens</Text>
           {scanOnly ? (
@@ -375,8 +381,7 @@ export function EditKnowtScreen() {
                     {schedule.label ? `, ${schedule.label}` : ''}
                   </Text>
                   <Text style={styles.scheduleRepeat}>
-                    {describeRepeat(schedule)}
-                    {schedule.enabled ? '' : ', paused'}
+                    {scheduleLine(schedule, nowForRows, doneOccurrences)}
                   </Text>
                 </View>
                 <Icon name="forward" color={theme.color.textMuted} />
@@ -576,12 +581,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.face.medium,
     fontSize: theme.font.size.md,
     color: theme.color.accent,
-  },
-  tagUid: {
-    fontFamily: theme.font.mono,
-    fontSize: theme.font.size.xs,
-    color: theme.color.textMuted,
-    textAlign: 'center',
   },
   scheduleRow: {
     flexDirection: 'row',

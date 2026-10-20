@@ -61,14 +61,17 @@ check('the scan leads the detail screen, above Notes', () => {
   assert.ok(button > chips, 'it is above the chips row');
   assert.ok(button < notes, 'it is still below Notes');
   assert.ok(notes < mode, 'Notes and Mode swapped places');
-  // And only that button moved. Mark done stayed in the actions.
+  // And only that button moved. The quieter one stayed in the actions, and
+  // it is labeled for what it does now: a scan Mode cannot be finished by a
+  // tap, so "Mark done" was a promise the button could not keep.
   const actions = detail.indexOf('<View style={styles.actions}>');
   assert.ok(actions > mode, 'the actions block moved');
   assert.match(
     detail.slice(actions),
-    /label="Mark done"\n\s+variant="secondary"/,
-    'Mark done did not stay in the actions',
+    /label="Scan the tag"\n\s+variant="secondary"/,
+    'the quieter scan button left the actions',
   );
+  assert.ok(!detail.includes('label="Mark done"'), 'a tap still claims to finish one');
 });
 
 check('the button wears the mark rather than a bracket', () => {

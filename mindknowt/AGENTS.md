@@ -726,11 +726,12 @@ Consequences worth not rediscovering:
   column, and never put the word in a sentence: the tag-attached notice used to
   read "is now strict".
 - **Only Scan + Alarm needs a tag.** Scan Knowt is choosable without one on
-  purpose, because it carries a manual "Mark done" and a way to attach one, so
-  it works before the tags arrive. An alarm that only a tag stops, with no tag,
-  is an alarm nothing stops. `setMode` refuses `strict` without a tag, so a
-  tagless Scan Knowt stores `open`, and the flag is what makes it one either
-  way: the mode only decides the glyph there.
+  purpose, because it carries a way to attach one, so it can be set up before
+  the tags arrive. An alarm that only a tag stops, with no tag, is an alarm
+  nothing stops. `setMode` refuses `strict` without a tag, so a tagless Scan
+  Knowt stores `open`, and the flag is what makes it one either way: the mode
+  only decides the glyph there. What it no longer carries is a manual "Mark
+  done": see "A tap cannot finish a scan Knowt".
 - **The choice is applied immediately, not on Save.** One of the three deletes
   schedules, which is not a draft edit that can sit in local state. Attaching a
   tag already worked this way for the same reason, and the Edit screen's
@@ -1096,6 +1097,70 @@ needs an `ActivityConfiguration` over the same `AlarmAttributes<Meta>` the alarm
 was scheduled with. `Meta` is declared `struct Meta: AlarmMetadata {}` inline
 inside each scheduling function, so no other target can name it. The alerting UI
 is drawn by the system.
+
+## A tap cannot finish a scan Knowt
+
+`needsScan` in `knowts/modes.ts` is the one question, asked once. For Scan
+Knowt and Scan + Alarm it is yes, and a tap on any completion control opens the
+reader instead of recording anything. Only a read of that Knowt's own tag
+writes the completion, and the expected UID goes down into the reader so a
+wrong tag is refused inside the platform's own sheet.
+
+**It was asked next to one control instead of once, and that was the bug.** The
+Upcoming ring was gated and the Today card was not, because each half of Daily
+wrote its own completion. Reported as a Scan + Alarm Knowt with a tag and one
+"Once" schedule being marked done by tapping the ring on its card, with no
+reader and nothing said. Both rings go through `completeTarget` now, over one
+`Target` shape, and there is exactly one `completeOccurrence` call on the
+screen. The detail screen's two buttons go through `finishNow`, which gates
+before it records.
+
+The gate asks the Knowt, never the schedule. A one-off is not a special case
+and cannot slip past by being one.
+
+**The labels name the scan.** "Done" and "Mark done" both promised something a
+scan Mode's button cannot do, so they read "Scan the tag" there, which is the
+wording the ringing screen already used.
+
+**The exception is the Override on the ringing alarm, and only there.** It is
+gated to a scan Mode, it is a three second hold rather than a tap, its own copy
+says it is recorded as an override and not as a scan, and it writes
+`method: 'override'` so the Log and the insights can tell. A Knowt with no tag
+gets one message from one place, in `scanKnowt.ts`, for all four entry points.
+
+`scangate.test.ts` names every completion path and counts the call sites of all
+three writers, so a new entry point has to be added there.
+
+## The date is on the schedule row
+
+A schedule row showed the time and the word "Once", which answers how often and
+leaves out which day. `knowts/scheduleLine.ts` is the second line for both the
+detail screen and Edit: a one-off names its day outright ("Once, Today"),
+because for it how often and when are the same fact, and a repeat names the
+next firing ("Every day, next Tomorrow").
+
+The next firing is `nextOccurrence` with the same done predicate the reconciler
+uses, so a day already completed or skipped is passed over and the row cannot
+name a firing that will not happen. Edit had to start reading events for that.
+A paused schedule says "paused" and a schedule with nothing ahead says
+"finished", because naming a date either one will not keep is worse than not
+naming one. The wording of the date itself is `dayLabel`, which is what the
+Upcoming rows use.
+
+## The tag's number is not shown
+
+`tag_uid` is a hardware UID the tag was born with. It was printed under the tag
+buttons on the Knowt detail screen and on Edit, and it was the one thing on
+either screen nobody could act on: it does not say whether the tag works, it
+does not identify the sticker on the fridge, and nothing is done with it.
+Nothing replaces it. The Tagged chip, "Replace the Knowt tag" and "Free this
+tag for something else" all stay, and both screens still read `tag_uid` to
+decide what to draw.
+
+Dev tools in Settings lists every attached tag by Knowt, selectable, because
+reading one out to someone debugging is the one real use for it.
+`tagprivacy.test.ts` walks every `.tsx` under `src/` and fails if the number is
+rendered anywhere else.
 
 ## Upcoming was gated, not removed
 

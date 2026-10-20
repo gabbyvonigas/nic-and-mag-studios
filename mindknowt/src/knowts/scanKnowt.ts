@@ -44,7 +44,7 @@ export async function scanKnowtTag(
    * occurrence's own moment, because which day a completion covers is read
    * from it.
    */
-  occurrence?: { scheduleId: string; completedAt: number },
+  occurrence?: { scheduleId: string; completedAt?: number },
 ): Promise<ScanOutcome> {
   if (!knowt.tag_uid) {
     return {

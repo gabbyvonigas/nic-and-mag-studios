@@ -28,13 +28,15 @@ import {
 } from '../alarms';
 import { Icon } from '../components/Icon';
 import { completeOccurrence } from '../knowts/completeOccurrence';
-import { checkInOccurrence } from '../knowts/completions';
+import { checkInOccurrence, completedOccurrences } from '../knowts/completions';
+import { scheduleLine } from '../knowts/scheduleLine';
 import {
   requiresScan,
   stopChoice,
   stopChoiceOf,
   stopLabelOf,
   type StopChoice,
+  needsScan,
 } from '../knowts/modes';
 import { StopChoiceRow } from '../components/StopChoiceRow';
 import { PinToggle } from '../components/PinToggle';
@@ -51,7 +53,6 @@ import {
   reassignTag,
   finishDraft,
   restoreKnowt,
-  describeRepeat,
   formatTime,
   getKnowt,
   isDueOn,
@@ -107,6 +108,10 @@ export function KnowtDetailScreen() {
     () => pendingForKnowt(params.knowtId),
     [params.knowtId],
   );
+
+  // Read once per render, so every row on the screen answers for one moment.
+  const nowForRows = new Date();
+  const doneOccurrences = completedOccurrences(events ?? []);
 
   const [draftNotes, setDraftNotes] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -441,6 +446,36 @@ export function KnowtDetailScreen() {
       schedules: knowt.schedules,
       events: events ?? [],
     });
+
+    // Scan and Scan + Alarm cannot be finished by a tap. Both buttons that
+    // lead here ran the completion outright, so a Scan + Alarm Knowt was done
+    // by pressing Done with its tag in another room, which is the one thing
+    // the Mode exists to prevent. The scan names the same occurrence, and the
+    // expected UID goes down into the reader so a wrong tag is refused inside
+    // the platform's own sheet. The Override on the ringing alarm stays the
+    // only way to finish one of these without a scan.
+    if (needsScan(knowt)) {
+      setActionNotice(null);
+      setBusy(true);
+      try {
+        const scanned = await scanKnowtTag(
+          knowt,
+          covers ? { scheduleId: covers.id } : undefined,
+        );
+        // Backing out of the sheet is not a failure and says nothing.
+        if (scanned.kind === 'canceled') return;
+        if (scanned.kind === 'failed') {
+          setActionNotice(scanned.message);
+          await reloadEvents();
+          return;
+        }
+        navigation.navigate('Tabs', { screen: 'Daily' });
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     const done = await settled(
       completeOccurrence({
         knowtId: knowt.id,
@@ -689,9 +724,11 @@ export function KnowtDetailScreen() {
         />
         {knowt.tag_uid ? (
           <>
-            <Text style={styles.tagUid} selectable>
-              {knowt.tag_uid}
-            </Text>
+            {/* The number the tag carries is not shown. It is a hardware UID,
+                it means nothing to the person holding the sticker, and it was
+                the only thing on this screen nobody could act on. Dev tools in
+                Settings still lists it, which is where a number you would read
+                out to someone debugging belongs. */}
             {/* The tags are rewritable hardware, so one stuck on the wrong
                 thing is a label to peel off, not a permanent pairing. */}
             <Button
@@ -740,7 +777,9 @@ export function KnowtDetailScreen() {
                       {formatTime(schedule.time)}
                       {schedule.label ? ` · ${schedule.label}` : ''}
                     </Text>
-                    <Text style={styles.body}>{describeRepeat(schedule)}</Text>
+                    <Text style={styles.body}>
+                      {scheduleLine(schedule, nowForRows, doneOccurrences)}
+                    </Text>
                   </View>
                   <Icon name="forward" size={18} />
                 </View>
@@ -789,16 +828,36 @@ export function KnowtDetailScreen() {
           {/* Mark done stays here, where it has always been. The scan itself
               leads the screen from the top now; this is the quieter fallback
               for a day the tag is out of reach. */}
+          {/* Whatever the buttons below did, said next to them. The lead scan
+              reports in its own block, and a Knowt that has no lead block had
+              nowhere to put a failed scan at all. */}
+          {actionNotice && !scanOnly ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss"
+              onPress={() => setActionNotice(null)}
+              style={styles.notice}>
+              <Text style={styles.noticeText}>{actionNotice}</Text>
+            </Pressable>
+          ) : null}
+
+          {/* The label names what the button does. A scan Mode opens the
+              reader, so calling it Done promised something it cannot do. */}
           {scanOnly ? (
             doneToday ? null : (
               <Button
-                label="Mark done"
+                label="Scan the tag"
                 variant="secondary"
+                disabled={busy}
                 onPress={() => void finishNow()}
               />
             )
           ) : dueYet ? (
-            <Button label="Done" onPress={() => void finishNow()} />
+            <Button
+              label={needsScan(knowt) ? 'Scan the tag' : 'Done'}
+              disabled={busy}
+              onPress={() => void finishNow()}
+            />
           ) : null}
           {snoozed ? (
             <>
@@ -1002,10 +1061,5 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.body,
     fontSize: theme.font.size.sm,
     color: theme.color.textMuted,
-  },
-  tagUid: {
-    fontFamily: theme.font.mono,
-    fontSize: theme.font.size.sm,
-    color: theme.color.textSecondary,
   },
 });
