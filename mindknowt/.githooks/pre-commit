@@ -22,9 +22,17 @@ else
 fi
 
 # Added, copied or modified, with paths relative to the app directory.
+#
+# There is deliberately no extension filter here. The checker has one,
+# EXTENSIONS in scripts/check-spelling.mjs, and keeping a second copy of it in
+# shell is what let a British spelling through: this line listed
+# ts|tsx|js|jsx|mjs|cjs|json|md|txt while the checker's list also covered html
+# and css, so "neighbours" sat in site/css/style.css through every commit and
+# only the workflow, which reads the whole tree, ever saw it. One list, in the
+# checker. It skips anything it does not handle, so handing it everything is
+# safe and a new extension needs adding in one place.
 staged=$(git diff --cached --name-only --diff-filter=ACM \
-  | sed "s|^mindknowt/||" \
-  | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|json|md|txt)$' || true)
+  | sed "s|^mindknowt/||" || true)
 
 [ -z "$staged" ] && exit 0
 

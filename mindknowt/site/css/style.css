@@ -896,7 +896,7 @@ img {
  * One object, not five. Percentages of the cluster's own square box, so the
  * arrangement holds its shape at every width.
  *
- * Packed at about 0.62 of a disc width apart, so each overlaps its neighbours
+ * Packed at about 0.62 of a disc width apart, so each overlaps its neighbors
  * and the group reads as a handful of tags set down together rather than five
  * circles that happen to be near each other. The rotation stays small, or the
  * light baked into the file starts coming from a different direction on each.
