@@ -28,11 +28,24 @@ const SWEEP_TO = 2560;
 const SWEEP_STEP = 20;
 /* Everything else is checked at the widths a person is most likely on. */
 const SPOT_WIDTHS = [1440, 1024, 768, 390];
+/*
+ * Widths the step misses. A sweep in 20px steps never lands on an odd window
+ * size, and 957 is a real one: a Chrome window on a Mac, reported as the width
+ * where the kit phone looked far too big. Anything checked only on a round
+ * number is checked on a width nobody actually has.
+ */
+const ODD_WIDTHS = [957, 1023, 1279, 1365, 1439];
 
 /* The phone may not grow with the window. See `.phone-kit` in the stylesheet. */
 const PHONE_MAX_W = 300;
 const PHONE_MAX_H = 640;
-const PHONE_CHECK_WIDTHS = [1440, 1920, 2000, 2560];
+const PHONE_CHECK_WIDTHS = (() => {
+  const w = [957, 1440, 1920, 2000, 2560];
+  /* 900 to 1100 is where the panel is narrowest while still side by side,
+     so it is where the phone has least room to be too big in. */
+  for (let x = 900; x <= 1100; x += 20) w.push(x);
+  return [...new Set(w)].sort((a, b) => a - b);
+})();
 
 /* The disc fills the middle 74 percent of its square file, so the visible
    circle is inset this much from the image box. Comparing the boxes instead
@@ -80,6 +93,14 @@ window.__widow = function (el) {
   }
   return null;
 };`;
+
+/* The sweep, plus the odd widths the step would skip. */
+function sweepWidths() {
+  const w = [];
+  for (let x = SWEEP_FROM; x <= SWEEP_TO; x += SWEEP_STEP) w.push(x);
+  for (const x of ODD_WIDTHS) if (x >= SWEEP_FROM && x <= SWEEP_TO) w.push(x);
+  return [...new Set(w)].sort((a, b) => a - b);
+}
 
 const failures = [];
 const fail = (msg) => failures.push(msg);
@@ -133,7 +154,7 @@ async function main() {
 async function checkWidowSweep(page) {
   await page.goto(ORIGIN + '/', { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
-  for (let w = SWEEP_FROM; w <= SWEEP_TO; w += SWEEP_STEP) {
+  for (const w of sweepWidths()) {
     await page.setViewportSize({ width: w, height: 1000 });
     await page.waitForTimeout(8);
     const bad = await page.evaluate((lib) => {
@@ -189,7 +210,7 @@ async function checkWidowsEverywhere(page) {
 async function checkNoOverlap(page) {
   await page.goto(ORIGIN + '/', { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
-  for (let w = SWEEP_FROM; w <= SWEEP_TO; w += SWEEP_STEP) {
+  for (const w of sweepWidths()) {
     await page.setViewportSize({ width: w, height: 1000 });
     await page.waitForTimeout(8);
     const hit = await page.evaluate((inset) => {
@@ -231,6 +252,9 @@ async function checkPhoneCap(page) {
     if (!m) { fail(`no kit panel found at ${w}px`); continue; }
     if (m.pw > PHONE_MAX_W) fail(`the phone is ${m.pw}px wide at ${w}px, over the ${PHONE_MAX_W}px cap`);
     if (m.ph > PHONE_MAX_H) fail(`the phone is ${m.ph}px tall at ${w}px, over the ${PHONE_MAX_H}px cap`);
+    if (process.env.LAYOUT_VERBOSE) {
+      console.log(`  ${String(w).padStart(4)}px: phone ${m.pw} x ${m.ph}, panel height ${m.panelH}`);
+    }
   }
 }
 

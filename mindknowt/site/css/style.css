@@ -989,6 +989,21 @@ img {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--charcoal);
+  /*
+   * Opt these back out of the grayscale smoothing `body` turns on.
+   *
+   * `-webkit-font-smoothing: antialiased` is a macOS-only switch that renders
+   * text lighter than it was drawn. It costs least on large type and most on
+   * small type with thin features, which is this: 11px capitals whose
+   * thinnest stroke is the A's crossbar, and the A is the letter that was
+   * reported as looking wrong. `auto` leaves the system to render them at the
+   * weight Quicksand actually carries.
+   *
+   * Scoped here rather than removed from `body`, so body copy is untouched
+   * until there is a reason to move it. It cannot be judged on Linux, where
+   * the property does nothing at all.
+   */
+  -webkit-font-smoothing: auto;
 }
 
 .cat-icon {
