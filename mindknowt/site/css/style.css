@@ -848,49 +848,64 @@ img {
 }
 
 /* The phone, with five discs loose around it. */
+/*
+ * The phone and the tags are two columns, not a picture with things laid over
+ * it.
+ *
+ * The cluster used to be `position: absolute; inset: 0` over the whole art
+ * box, with each tag placed by a percentage of it. That works until the
+ * column changes shape, and then it does not: the tags crossed onto the
+ * Knowts list, which is the one thing a product shot must not do. Columns
+ * cannot overlap, so no width, no zoom and no future tweak to the offsets can
+ * put a tag on the screenshot again.
+ */
 .kit-art {
   position: relative;
   padding: 2% 0 6%;
+  display: grid;
+  grid-template-columns: 46% minmax(0, 1fr);
+  gap: clamp(6px, 0.8vw, 14px);
+  align-items: center;
 }
 
-/* Measured off the mockup, where the phone inside the panel is about 205
-   points wide against 1188 of panel, with the tags crowding its right edge
-   rather than sitting in a group beside it. */
+/* 82 percent of a 46 percent column is 38 of the box, which is where this
+   sat before and is the mockup's proportion: about 205 points of phone
+   against 1188 of panel. */
 .phone-kit {
-  width: 38%;
-  margin-left: 10%;
+  width: 82%;
+  margin: 0 auto;
 }
 
+/*
+ * The cluster's own box. Square, so the group's shape does not stretch with
+ * the column, and `relative` so the five are placed inside it rather than
+ * over the panel.
+ */
 .tag-cluster {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  aspect-ratio: 1 / 1;
   pointer-events: none;
 }
 
 .tag-cluster .tag-disc {
   position: absolute;
-  width: 17.5%;
+  width: 44%;
 }
 
 /*
- * One object, not five.
+ * One object, not five. Percentages of the cluster's own square box, so the
+ * arrangement holds its shape at every width.
  *
- * They were 23 percent each, spread from 3 to 36 percent, which is a group
- * about 56 percent of the box wide with daylight between every pair: five
- * separate circles that happened to be near each other. These are packed at
- * about 0.62 of a disc width apart, so each one overlaps its neighbours and
- * the group reads as a handful of tags set down together. The span is about
- * 30 percent of the box, a little over half what it was.
- *
- * Placed and turned by hand, because five tags on an even grid at one angle
- * read as a diagram. The rotation stays small, or the light baked into the
- * file starts coming from a different direction on each one.
+ * Packed at about 0.62 of a disc width apart, so each overlaps its neighbours
+ * and the group reads as a handful of tags set down together rather than five
+ * circles that happen to be near each other. The rotation stays small, or the
+ * light baked into the file starts coming from a different direction on each.
  */
-.tag-cluster .tag-disc:nth-child(1) { right: 15.75%; top: 26%; transform: rotate(-8deg); }
-.tag-cluster .tag-disc:nth-child(2) { right: 4.75%; top: 29%; transform: rotate(5deg); }
-.tag-cluster .tag-disc:nth-child(3) { right: 10.25%; top: 36%; transform: rotate(-3deg); z-index: 1; }
-.tag-cluster .tag-disc:nth-child(4) { right: 16.75%; top: 46%; transform: rotate(9deg); }
-.tag-cluster .tag-disc:nth-child(5) { right: 4.25%; top: 47%; transform: rotate(-6deg); }
+.tag-cluster .tag-disc:nth-child(1) { left: 6%; top: 8%; transform: rotate(-8deg); }
+.tag-cluster .tag-disc:nth-child(2) { left: 40%; top: 2%; transform: rotate(5deg); }
+.tag-cluster .tag-disc:nth-child(3) { left: 25%; top: 29%; transform: rotate(-3deg); z-index: 1; }
+.tag-cluster .tag-disc:nth-child(4) { left: 2%; top: 50%; transform: rotate(9deg); }
+.tag-cluster .tag-disc:nth-child(5) { left: 36%; top: 52%; transform: rotate(-6deg); }
 
 /* ---------- More space for what matters ---------- */
 
@@ -1174,31 +1189,16 @@ img {
   }
 
   /* The phone and its tags stop being a side panel and become a picture
-     under the copy, held to a width the cluster still fits beside. */
+     under the copy. Still two columns, so the tags still cannot reach the
+     screenshot. */
   .kit-art {
-    max-width: 440px;
+    max-width: 460px;
     margin: 0 auto;
   }
 
-  /* Narrower, and the cluster moves off the screen it was covering: at this
-     width the same offsets put two tags over the Knowts list. */
   .phone-kit {
-    width: 50%;
-    margin-left: 0;
+    width: 88%;
   }
-
-  /* A touch larger on a narrower panel, and shifted in off the edge so the
-     group stays whole. Nothing is allowed outside the box: the overhang that
-     used to sit at -5 percent clipped on a phone. */
-  .tag-cluster .tag-disc {
-    width: 20.5%;
-  }
-
-  .tag-cluster .tag-disc:nth-child(1) { right: 15%; top: 24%; }
-  .tag-cluster .tag-disc:nth-child(2) { right: 2.5%; top: 27.5%; }
-  .tag-cluster .tag-disc:nth-child(3) { right: 8.5%; top: 35.5%; }
-  .tag-cluster .tag-disc:nth-child(4) { right: 16%; top: 47%; }
-  .tag-cluster .tag-disc:nth-child(5) { right: 2%; top: 48.5%; }
 }
 
 @media (max-width: 768px) {

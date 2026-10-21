@@ -11,9 +11,9 @@ below.
 | `knowt-tag.png` | The Knowt Tag disc, used eight times from this one file | **2000 x 2000** | PNG, transparent | The disc fills the middle **74 percent**, centered. Rim, lighting and both shadows baked in. |
 | `phone-hero.png` | The large hero phone, Daily screen | **852 x 1796** | PNG, transparent outside the body | The body touches all four edges. **No shadow baked in**, the page adds it. |
 | `phone-kit.png` | The large kit panel phone, Knowts screen | **852 x 1796** | PNG, transparent outside the body | Same as above. |
-| `step-stick.png` | Step 01, a pill bottle on a pale lime wash | **800 x 800** | PNG, transparent | Square. The wash is part of the image, the tag is not. Keep the lower right clear. |
-| `step-set.png` | Step 02, a Knowt card with its category dot, name and time | **800 x 800** | PNG, transparent | Square. |
-| `step-tap.png` | Step 03, the same card done, with the signal arcs | **800 x 800** | PNG, transparent | Square. Keep the lower right clear, the tag sits there. |
+| `step-stick.png` | Step 01, a plant in a pot on a pale lime wash | **800 x 800** | PNG, transparent | Square. The wash is part of the image, the tag is not. Keep the lower right clear. |
+| `step-set.png` | Step 02, an upright phone with four category rows | **800 x 800** | PNG, transparent | Square. |
+| `step-tap.png` | Step 03, an upright phone with one Knowt row done, and the signal arcs | **800 x 800** | PNG, transparent | Square. Keep the lower right clear, the tag sits there. |
 | `screens/daily.png` | The Daily capture, for the small system row phone | 804 x 1748 | PNG | A plain capture. That frame is CSS. |
 | `screens/knowts.png` | The Knowts capture | 804 x 1748 | PNG | Same. |
 | `screens/log.png` | The Log capture | 804 x 1748 | PNG | Same. |
@@ -86,23 +86,28 @@ file still changes every tag on the page.
 Three things are shared deliberately, and a replacement should keep them or
 the three tiles stop reading as a set:
 
-- **One stroke weight.** 20 units on the 800 box, 2.5 percent, on every line
-  in all three. They used to be drawn at three different weights.
-- **One wash.** The same ellipse, 250 of radius centered in the box.
+- **One stroke weight.** 16 units on the 800 box, which is what all three were
+  already drawn at and what a replacement should keep.
+- **One wash.** `#DDF495`, an ellipse of 324 by 300, centered on whatever the
+  tile's subject is.
 - **One clear corner.** The lower right, because the stylesheet lays the tag
   badge there on Stick and on Tap at one size and one position. It used to
   hang off two different edges at two different sizes.
 
-What is in them is the app, not an invention. Step 02 is a Knowt card drawn
-the way the app draws one: the category's bar down the left edge, its dot, the
-name and the time. Step 03 is the same card in its done state, the category's
-pale tint with a solid check, which is how a completed Knowt actually looks.
-They used to be a tilted phone holding four gray bars and an empty rectangle.
+**The phones are upright.** They were tilted, and a tilted phone at this size
+reads as a phone lying on its side. Step 01 is untouched: the subject is the
+plant pot it has always been.
+
+Step 03's screen carries one Knowt row in its done state, the category's pale
+tint with a solid check, which is how a completed Knowt actually looks. It used
+to be empty. The name on that row is two bars rather than type, because at the
+104 to 130 points the page draws this tile, lettering is smaller than a pixel
+and reads as grit.
 
 The lime slashes beside them are gone. They were a comic book motion line,
 which is not a language the rest of the page speaks. Step 03 carries three
 arcs instead, struck in the tag mark's own idiom at the mark's own weight, in
-the gap the signal actually crosses between the tag and the card. Steps 01 and
+the gap the signal actually crosses between the tag and the phone. Steps 01 and
 02 carry none: nothing is being tapped in either, and a motion cue with
 nothing moving is decoration.
 
