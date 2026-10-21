@@ -747,11 +747,23 @@ img {
   font-size: clamp(21px, 2.2vw, 27px);
 }
 
+/*
+ * No widows.
+ *
+ * `text-wrap: balance` evens the lines out so a short block does not leave one
+ * word alone at the end, and every one of these also carries a non-breaking
+ * space between its last two words in the markup. The two are not redundant:
+ * balance is advisory and browsers that do not implement it ignore it outright,
+ * while the bound pair cannot be broken by any of them. Balance is also capped
+ * at a handful of lines by implementations, so on the longer prose paragraphs
+ * the bound pair is the whole of the fix and the property is left off.
+ */
 .system-copy p {
   margin-top: 8px;
   font-size: 16px;
   line-height: 1.5;
   color: var(--charcoal);
+  text-wrap: balance;
 }
 
 /* ---------- The MindKnowt Kit ---------- */
@@ -766,6 +778,10 @@ img {
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
   gap: clamp(24px, 3vw, 40px);
   align-items: center;
+  /* Vertical padding is held under 64px so the lime hugs its contents. The
+     panel's height is set by the copy column, which is the taller of the two:
+     462 of copy against 451 of art at 1440 and above, so there is no empty
+     lime to trim. */
   padding: clamp(24px, 2.8vw, 38px);
   border-radius: 34px;
   background: var(--pale-lime);
@@ -801,6 +817,7 @@ img {
   font-size: 13px;
   line-height: 1.35;
   color: var(--charcoal);
+  text-wrap: balance;
 }
 
 .kit-features li + li {
@@ -873,6 +890,17 @@ img {
    against 1188 of panel. */
 .phone-kit {
   width: 82%;
+  /*
+   * The cap is the point. Everything above is a percentage, so without a
+   * ceiling the phone would grow with the window forever, and the panel with
+   * it. `--measure` already holds the wrap at 1240, which is why this never
+   * actually bites today: the phone measures 194 by 410 at every width from
+   * 1440 to 2560. The ceiling is here so that stays true if the wrap, the
+   * column split or the panel padding is ever widened.
+   */
+  max-width: 300px;
+  max-height: 640px;
+  object-fit: contain;
   margin: 0 auto;
 }
 
@@ -932,6 +960,7 @@ img {
   font-size: 14px;
   line-height: 1.5;
   color: var(--charcoal);
+  text-wrap: balance;
 }
 
 /* Every label breaks onto exactly two lines in the markup, and the row
@@ -992,6 +1021,7 @@ img {
   font-size: clamp(21px, 3vw, 26px);
   margin-top: 44px;
   margin-bottom: 12px;
+  text-wrap: balance;
 }
 
 .prose h3 {

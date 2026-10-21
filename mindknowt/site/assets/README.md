@@ -166,3 +166,48 @@ and PLANT looked like a different typeface: every letter except the A was.
 
 Do not go back to per-weight files. A variable font cannot have a weight
 missing and cannot disagree with its own name.
+
+### The capital A, audited again
+
+The A was reported as looking wrong a second time, after the per-weight files
+were gone. It was audited against the six usual causes and none of them is
+responsible. Recorded here so the same ground is not covered a third time.
+
+The glyph is correct. Our `A` is geometrically identical to the one Google
+Fonts serves: the same 644 advance, the same two contours of 27 and 4 points,
+the same coordinates to the half unit. The 4 point contour is the crossbar,
+wound the same direction as the body, so nothing cancels it. It renders: at
+11px the A is 6 by 8 pixels and the crossbar is a solid row of them.
+
+What was ruled out, each by measurement rather than by reading the stylesheet:
+
+- **A fallback font.** `CSS.getPlatformFontsForNode` reports one font for the
+  whole label, Quicksand. This is the old bug and it is not back.
+- **Synthesis.** Advance widths change with weight and are identical under
+  `font-synthesis: none`, so the browser is interpolating the axis rather than
+  smearing one master.
+- **Weight interpolation.** Same evidence: 300 through 700 each measure
+  differently and correctly.
+- **text-transform with letter-spacing.** The A has the same shape typed as
+  uppercase with no transform, and with letter-spacing removed.
+- **font-feature-settings.** Computed `normal`, so nothing is applied.
+- **A wrong subset.** Our file covers the same 228 codepoints as the upstream
+  latin subset, with nothing missing and nothing extra.
+
+One real difference from upstream was found and fixed: the `prep` table had
+been stripped. It is the standard seven byte dropout control program,
+`SCANCTRL 511` and `SCANTYPE 4`, which keeps thin strokes from dropping out at
+small sizes, and `gasp` asks for grid-fitting at every size while nothing was
+there to run. It is restored, which makes every table match upstream.
+
+**It is not what anyone is looking at.** Chromium does not run the bytecode:
+rendering at 11px is identical with the table and without it, byte for byte.
+It is restored because a stripped hinting program is a regression from
+upstream that costs nothing to carry, not because it changed a pixel.
+
+The one candidate that could not be tested here is
+`-webkit-font-smoothing: antialiased` on `body`. It is a no-op on Linux, which
+is where this was measured, and on macOS it switches text to grayscale
+antialiasing and renders it thinner than the designer drew it. That is the
+only thing left in this stylesheet that measurably changes how small text
+looks, and it can only be judged on a Mac.
