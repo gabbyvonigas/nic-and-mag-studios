@@ -680,9 +680,11 @@ img {
  * edge and a little over a millimeter below its bottom, so it rests on the
  * corner with most of itself off the phone. That position is not free: the
  * tab bar row, the Daily / Knowts / Log pill and the plus button, occupies
- * x 0.095 to 0.931 and y 0.884 to 0.947 of the frame, measured off
- * phone-hero.png, and the disc clears its nearest corner by about 2.6 percent
- * of the phone's width. `layout.test.mjs` asserts that it still does.
+ * x 0.093 to 0.931 and y 0.837 to 0.903 of the frame, measured off
+ * phone-hero.png. It sat lower before the screenshots were replaced; the new
+ * captures carry more of the app's own background under the bar, which moves
+ * it up and leaves the tag more room, not less. `layout.test.mjs` asserts the
+ * clearance rather than trusting it.
  */
 .tag-hero {
   position: absolute;
@@ -798,19 +800,20 @@ img {
 }
 
 /*
- * The badge on Tap, which does have a phone to measure against.
+ * The badge on Tap is NOT at life size, deliberately.
  *
- * At life size this is a ninth of the tile, so it only reads as a tag if it
- * is resting on the phone it is scaled against. The drawn phone occupies
- * x 232 to 510 and y 92 to 646 of the 800 square, so its bottom right corner
- * is at 63.8 and 80.8 percent, and the disc is centered just past it.
+ * It was, briefly. Scaled against the phone drawn inside step-tap.png it came
+ * out a ninth of the tile, about 12px, which is a speck. This is an icon in a
+ * row of three tiles saying what the step is, not a size comparison, so it
+ * keeps the size it reads at. The hero tag and the kit cluster are the places
+ * where a tag sits beside a photographed phone and the scale means something.
  */
 .tag-step-phone {
-  width: calc(var(--tag-mm) * var(--mm) / var(--disc-in-box));
-  left: 59.3%;
-  top: 76.8%;
-  right: auto;
-  bottom: auto;
+  width: 54%;
+  right: 1%;
+  bottom: 1%;
+  left: auto;
+  top: auto;
 }
 
 /* ---------- A simple system, a better you ---------- */

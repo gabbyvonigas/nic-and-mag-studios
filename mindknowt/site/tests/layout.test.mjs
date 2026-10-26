@@ -256,8 +256,11 @@ async function checkTagScale(page) {
   const places = [
     ['hero', '.phone-hero', '.tag-hero', 1],
     ['kit', '.phone-kit', '.tag-cluster .tag-disc', 1],
-    /* The phone drawn inside step-tap.png is 279 of its 800 square. */
-    ['step Tap', '.step-img', '.tag-step-phone', 0.349],
+    /*
+     * The Tap badge is deliberately not in this list. It is an icon in a row
+     * of tiles, not a tag beside a phone, and at life size against the drawn
+     * phone it was a 12px speck.
+     */
   ];
   for (const [name, psel, tsel, frac] of places) {
     for (const w of TAG_SCALE_WIDTHS) {
@@ -290,12 +293,14 @@ async function checkTagScale(page) {
 /*
  * Rule 5: the hero tag never covers the tab bar.
  *
- * The Daily / Knowts / Log pill and the plus button occupy x 0.0951 to 0.9308
- * and y 0.8842 to 0.9465 of phone-hero.png, measured off the file. The disc
- * rests on the corner below and to the right of that.
+ * The Daily / Knowts / Log pill and the plus button occupy x 0.0927 to 0.9308
+ * and y 0.8374 to 0.9031 of phone-hero.png, measured off the file. The disc
+ * rests on the corner below and to the right of that. Re-measure these if the
+ * screenshot is replaced: how much app background sits under the bar decides
+ * where the bar lands in the frame.
  */
 async function checkTagClearsTabBar(page) {
-  const K = { x0: 0.0951, x1: 0.9308, y0: 0.8842, y1: 0.9465 };
+  const K = { x0: 0.0927, x1: 0.9308, y0: 0.8374, y1: 0.9031 };
   for (const w of TAG_SCALE_WIDTHS) {
     await page.setViewportSize({ width: w, height: 1000 });
     await page.goto(ORIGIN + '/', { waitUntil: 'networkidle' });
