@@ -27,7 +27,7 @@ const SWEEP_FROM = 320;
 const SWEEP_TO = 2560;
 const SWEEP_STEP = 20;
 /* Everything else is checked at the widths a person is most likely on. */
-const SPOT_WIDTHS = [1440, 1024, 768, 390];
+const SPOT_WIDTHS = [1440, 1280, 1024, 957, 768, 390];
 /*
  * Widths the step misses. A sweep in 20px steps never lands on an odd window
  * size, and 957 is a real one: a Chrome window on a Mac, reported as the width
@@ -39,6 +39,11 @@ const ODD_WIDTHS = [957, 1023, 1279, 1365, 1439];
 /* The phone may not grow with the window. See `.phone-kit` in the stylesheet. */
 const PHONE_MAX_W = 300;
 const PHONE_MAX_H = 640;
+/* 19.05mm of tag against 71.9mm of phone. */
+const TAG_RATIO = 19.05 / 71.9;
+const TAG_RATIO_TOLERANCE_PCT = 2;
+const TAG_SCALE_WIDTHS = [1440, 1280, 957, 768, 390];
+
 const PHONE_CHECK_WIDTHS = (() => {
   const w = [957, 1440, 1920, 2000, 2560];
   /* 900 to 1100 is where the panel is narrowest while still side by side,
@@ -137,6 +142,8 @@ async function main() {
   await checkWidowsEverywhere(page);
   await checkNoOverlap(page);
   await checkPhoneCap(page);
+  await checkTagScale(page);
+  await checkTagClearsTabBar(page);
 
   await browser.close();
   stop();
@@ -175,7 +182,7 @@ async function checkWidowSweep(page) {
 
 /* Rule 1b: every other block of text, at the spot widths. */
 async function checkWidowsEverywhere(page) {
-  const SEL = 'p, h1, h2, h3, h4, li, .btn, figcaption, blockquote';
+  const SEL = 'p, h1, h2, h3, h4, li, .btn, figcaption, blockquote, .kit-platform, .eyebrow';
   for (const pagePath of PAGES) {
     for (const w of SPOT_WIDTHS) {
       await page.setViewportSize({ width: w, height: 1000 });
@@ -230,6 +237,88 @@ async function checkNoOverlap(page) {
     }, DISC_INSET);
     checks += 1;
     if (hit) for (const x of hit) fail(`tag ${x.i} overlaps the phone by ${x.overlapX}px at ${w}px wide`);
+  }
+}
+
+/*
+ * Rule 4: every tag drawn beside a phone is life size against it.
+ *
+ * 19.05mm of tag against 71.9mm of phone is 0.2650, and that ratio has to
+ * hold at every width, because the whole point of driving it from `--mm` is
+ * that it cannot drift when a column or a breakpoint is touched.
+ *
+ * The used width is read from getComputedStyle, not from a client rect: the
+ * cluster discs carry rotate(), and a rect is the rotated bounding box, which
+ * is wider than the element by cos(a) + sin(a). offsetWidth avoids that but
+ * rounds to a whole pixel, which on the 12px badge is an 8 percent error.
+ */
+async function checkTagScale(page) {
+  const places = [
+    ['hero', '.phone-hero', '.tag-hero', 1],
+    ['kit', '.phone-kit', '.tag-cluster .tag-disc', 1],
+    /* The phone drawn inside step-tap.png is 279 of its 800 square. */
+    ['step Tap', '.step-img', '.tag-step-phone', 0.349],
+  ];
+  for (const [name, psel, tsel, frac] of places) {
+    for (const w of TAG_SCALE_WIDTHS) {
+      await page.setViewportSize({ width: w, height: 1000 });
+      await page.goto(ORIGIN + '/', { waitUntil: 'networkidle' });
+      await page.evaluate(() => document.fonts.ready);
+      await page.waitForTimeout(40);
+      const m = await page.evaluate(({ psel, tsel, inset, frac }) => {
+        const p = document.querySelector(psel), t = document.querySelector(tsel);
+        if (!p || !t) return null;
+        const used = (e) => parseFloat(getComputedStyle(e).width);
+        return { pw: used(p) * frac, disc: used(t) * (1 - 2 * inset) };
+      }, { psel, tsel, inset: DISC_INSET, frac });
+      checks += 1;
+      if (!m || !m.pw) { fail(`${name}: nothing to measure at ${w}px`); continue; }
+      const ratio = m.disc / m.pw;
+      const off = Math.abs(ratio - TAG_RATIO) / TAG_RATIO * 100;
+      if (off > TAG_RATIO_TOLERANCE_PCT) {
+        fail(`${name} at ${w}px: tag is ${ratio.toFixed(4)} of the phone, `
+          + `wanted ${TAG_RATIO.toFixed(4)}, off by ${off.toFixed(1)} percent`);
+      }
+      if (process.env.LAYOUT_VERBOSE) {
+        console.log(`  ${name.padEnd(9)} ${String(w).padStart(5)}px: phone `
+          + `${m.pw.toFixed(1)} disc ${m.disc.toFixed(1)} ratio ${ratio.toFixed(4)}`);
+      }
+    }
+  }
+}
+
+/*
+ * Rule 5: the hero tag never covers the tab bar.
+ *
+ * The Daily / Knowts / Log pill and the plus button occupy x 0.0951 to 0.9308
+ * and y 0.8842 to 0.9465 of phone-hero.png, measured off the file. The disc
+ * rests on the corner below and to the right of that.
+ */
+async function checkTagClearsTabBar(page) {
+  const K = { x0: 0.0951, x1: 0.9308, y0: 0.8842, y1: 0.9465 };
+  for (const w of TAG_SCALE_WIDTHS) {
+    await page.setViewportSize({ width: w, height: 1000 });
+    await page.goto(ORIGIN + '/', { waitUntil: 'networkidle' });
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(40);
+    const m = await page.evaluate(({ inset, K }) => {
+      const ph = document.querySelector('.phone-hero');
+      const tg = document.querySelector('.tag-hero');
+      if (!ph || !tg) return null;
+      const p = ph.getBoundingClientRect(), t = tg.getBoundingClientRect();
+      const r = parseFloat(getComputedStyle(tg).width) * (1 - 2 * inset) / 2;
+      const cx = t.left + t.width / 2, cy = t.top + t.height / 2;
+      const l = p.left + K.x0 * p.width, rr = p.left + K.x1 * p.width;
+      const tp = p.top + K.y0 * p.height, b = p.top + K.y1 * p.height;
+      const dx = Math.max(l - cx, 0, cx - rr);
+      const dy = Math.max(tp - cy, 0, cy - b);
+      return { clear: Math.hypot(dx, dy) - r };
+    }, { inset: DISC_INSET, K });
+    checks += 1;
+    if (!m) { fail(`no hero tag at ${w}px`); continue; }
+    if (m.clear <= 0) {
+      fail(`the hero tag covers the tab bar by ${(-m.clear).toFixed(1)}px at ${w}px`);
+    }
   }
 }
 

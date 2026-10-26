@@ -518,6 +518,26 @@ img {
  */
 :root {
   --disc-in-box: 0.74;
+
+  /*
+   * Real-world scale, in millimeters.
+   *
+   * Every tag drawn beside a phone is sized from these and from the phone
+   * frame's own rendered width, never from a percentage picked to look right
+   * at one window size. `--mm` is defined per context, because it is the
+   * rendered phone that sets it, and it is the only thing any of these get
+   * multiplied by.
+   *
+   * To change the product's size, change `--tag-mm` and nothing else: the
+   * disc, the overhang and the test all read it. The icon's printed height
+   * does not move with it, which is why the two are separate numbers, and
+   * why the ratio between them lives in `assets/tag-disc.py` rather than
+   * here. The mark is painted into the file, so the stylesheet scales the
+   * disc and the file carries the icon at the right fraction of it.
+   */
+  --phone-mm: 71.9;    /* iPhone 17 Pro, across. The frame is the reference. */
+  --tag-mm: 19.05;     /* the Knowt Tag, three quarters of an inch across */
+  --icon-rect-mm: 8.89; /* the mark's rectangle, 0.35 inch, baked into the file */
 }
 
 /*
@@ -617,23 +637,61 @@ img {
  * space on a wide screen and the edge of the page on a narrow one, and it
  * put a scrollbar under the whole site at 1024 and at 390.
  */
+/*
+ * The phone frame is exactly the content box of this element, because
+ * `.phone-hero` is `width: 100%` of it and the image's body touches all four
+ * of its edges. Making it an inline-size query container therefore gives its
+ * children a unit that IS the phone's rendered width: 100cqw. That is what
+ * `--mm` is built from, so the tag is scaled by the phone rather than by the
+ * window, at every width, with no pixel value anywhere.
+ *
+ * `--mm` is set on the children rather than here, because an element cannot
+ * query its own size: `cqw` written on `.hero-art` would resolve against
+ * whatever container is above it.
+ */
 .hero-art {
   position: relative;
   padding: 0 10% 10% 0;
+  container-type: inline-size;
+  /*
+   * Required, not tidying. `container-type: inline-size` applies inline size
+   * containment, so the element stops taking its width from its contents. The
+   * narrow layouts center it with `justify-self`, which asks it for exactly
+   * that contribution, and without a width of its own it collapsed to 38px
+   * and took the phone and the tag down to nothing with it.
+   */
+  width: 100%;
+}
+
+.hero-art > * {
+  --mm: calc(100cqw / var(--phone-mm));
 }
 
 .phone-hero {
   width: 100%;
 }
 
+/*
+ * 19.05mm across, which is 26.5 percent of the phone frame. The file is wider
+ * than the disc by `--disc-in-box`, so the image is divided back up by it and
+ * the visible circle lands on the real measurement.
+ *
+ * Placed by its center, one and a half millimeters past the phone's right
+ * edge and a little over a millimeter below its bottom, so it rests on the
+ * corner with most of itself off the phone. That position is not free: the
+ * tab bar row, the Daily / Knowts / Log pill and the plus button, occupies
+ * x 0.095 to 0.931 and y 0.884 to 0.947 of the frame, measured off
+ * phone-hero.png, and the disc clears its nearest corner by about 2.6 percent
+ * of the phone's width. `layout.test.mjs` asserts that it still does.
+ */
 .tag-hero {
   position: absolute;
-  right: -6%;
-  bottom: -6%;
-  /* 72 of the box is a disc of 53, which against a 232 point phone is what
-     the mockup shows. The overhang lands in the grid gap on a wide screen
-     and in the page gutter on a narrow one. */
-  width: 72%;
+  width: calc(var(--tag-mm) * var(--mm) / var(--disc-in-box));
+  /* center at 73.4mm across, 152.8mm down, less half the file's width */
+  left: calc(60.53 * var(--mm));
+  top: calc(139.93 * var(--mm));
+  right: auto;
+  bottom: auto;
 }
 
 .steps {
@@ -694,6 +752,7 @@ img {
   font-size: 15.5px;
   line-height: 1.5;
   color: var(--charcoal);
+  text-wrap: balance;
 }
 
 /* The illustration, and on two of the three a Knowt Tag over it. The wash
@@ -704,6 +763,17 @@ img {
   aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
+  container-type: inline-size;
+}
+
+/*
+ * The phone drawn inside step-set.png and step-tap.png measures 279 of the
+ * 800 square, so it is 34.9 percent of this box. That is the reference the
+ * Tap badge is scaled against, the same way the hero tag is scaled against
+ * the photographed frame.
+ */
+.step-art > * {
+  --mm: calc(34.9cqw / var(--phone-mm));
 }
 
 /*
@@ -716,11 +786,31 @@ img {
  * on both, in the lower right, which on Stick lands it on the bottle's face
  * and on Tap in the gap the arcs run through.
  */
+/*
+ * The badge on Stick. That tile draws a plant pot, not a phone, so there is
+ * nothing in it to be life size against and it keeps the size it had.
+ */
 .tag-step {
   position: absolute;
   right: 1%;
   bottom: 1%;
   width: 54%;
+}
+
+/*
+ * The badge on Tap, which does have a phone to measure against.
+ *
+ * At life size this is a ninth of the tile, so it only reads as a tag if it
+ * is resting on the phone it is scaled against. The drawn phone occupies
+ * x 232 to 510 and y 92 to 646 of the 800 square, so its bottom right corner
+ * is at 63.8 and 80.8 percent, and the disc is centered just past it.
+ */
+.tag-step-phone {
+  width: calc(var(--tag-mm) * var(--mm) / var(--disc-in-box));
+  left: 59.3%;
+  top: 76.8%;
+  right: auto;
+  bottom: auto;
 }
 
 /* ---------- A simple system, a better you ---------- */
@@ -876,20 +966,43 @@ img {
  * cannot overlap, so no width, no zoom and no future tweak to the offsets can
  * put a tag on the screenshot again.
  */
+/*
+ * Real-world scale here too. The art box is 190.6mm across in product terms,
+ * which is the number that keeps the phone exactly the size it already was:
+ * 71.9 of 190.6 is 37.7 percent of the box, and 37.7 percent is what 82
+ * percent of a 46 percent column came to. Stating it this way means the phone
+ * and the five tags are both expressed in millimeters, so the ratio between
+ * them cannot drift when the column split or the gap is touched.
+ */
 .kit-art {
   position: relative;
   padding: 2% 0 6%;
   display: grid;
-  grid-template-columns: 46% minmax(0, 1fr);
-  gap: clamp(6px, 0.8vw, 14px);
+  /*
+   * The tag column is sized to the tags, not given a share of the box. At
+   * life size the cluster is 58.5mm against a 190.6mm box, so a 1fr column
+   * left it floating in the middle of a wide empty strip. `auto` lets the
+   * column be the width of what is in it and `justify-content: center` sits
+   * the pair together in the middle of the panel.
+   */
+  grid-template-columns: 46% auto;
+  justify-content: center;
+  gap: clamp(10px, 1.6vw, 28px);
   align-items: center;
+  container-type: inline-size;
+  /* see `.hero-art`: inline size containment stops it sizing from contents */
+  width: 100%;
 }
 
 /* 82 percent of a 46 percent column is 38 of the box, which is where this
    sat before and is the mockup's proportion: about 205 points of phone
    against 1188 of panel. */
+.kit-art > * {
+  --mm: calc(100cqw / 190.6);
+}
+
 .phone-kit {
-  width: 82%;
+  width: calc(var(--phone-mm) * var(--mm));
   /*
    * The cap is the point. Everything above is a percentage, so without a
    * ceiling the phone would grow with the window forever, and the panel with
@@ -909,8 +1022,18 @@ img {
  * the column, and `relative` so the five are placed inside it rather than
  * over the panel.
  */
+/*
+ * The box is sized from the disc rather than from the column. A disc is 44
+ * percent of it, and a disc has to come out at 19.05mm, so the box is
+ * 19.05 / 0.74 / 0.44 = 58.5mm. Keeping the 44 percent is what preserves the
+ * arrangement: every position below is a percentage of this box, so the five
+ * hold their shape while the whole group shrinks to life size.
+ */
 .tag-cluster {
   position: relative;
+  width: calc(58.5 * var(--mm));
+  max-width: 100%;
+  justify-self: center;
   aspect-ratio: 1 / 1;
   pointer-events: none;
 }
@@ -1019,6 +1142,7 @@ img {
 
 .page-head h1 {
   font-size: clamp(32px, 5.6vw, 52px);
+  text-wrap: balance;
 }
 
 .page-head .updated {
@@ -1045,9 +1169,24 @@ img {
   margin-bottom: 8px;
 }
 
+/*
+ * `pretty` rather than `balance` on running prose.
+ *
+ * Balance evens every line, which is what a two line description wants and
+ * what a ten line paragraph does not: implementations cap it at a handful of
+ * lines anyway, so on Terms and Privacy it silently does nothing. `pretty`
+ * leaves the body of the paragraph alone and works on the end of it, which is
+ * exactly the widow rule.
+ *
+ * This is also the robust half of the fix. A hand placed non-breaking space
+ * binds one pair at the width it was chosen for; these paragraphs picked up
+ * new widows the first time they met a newer Chromium, because the break
+ * points moved. A property that states the intent survives that.
+ */
 .prose p,
 .prose li {
   color: var(--charcoal);
+  text-wrap: pretty;
 }
 
 .prose p + p {
@@ -1241,8 +1380,15 @@ img {
     margin: 0 auto;
   }
 
-  .phone-kit {
-    width: 88%;
+  /*
+   * Restated in millimeters rather than left as a percentage. `--mm` is what
+   * the five tags are sized from, so a percentage here would change the phone
+   * without changing them and the pair would stop being to scale. 88 percent
+   * of the 46 percent column is 40.5 of the box, which is 77.1mm against the
+   * 190.6mm box, so the art box is narrower in product terms down here.
+   */
+  .kit-art > * {
+    --mm: calc(100cqw / 177.6);
   }
 }
 

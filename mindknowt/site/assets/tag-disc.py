@@ -32,13 +32,19 @@ import sys
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 # --- the product ---------------------------------------------------------
-DISC_MM = 25.0                     # the sticker, across
-DISC_IN = 0.984                    # the same, in inches
+#: The sticker, across. Three quarters of an inch.
+#:
+#: This is the one number that moves if the product changes size. The icon's
+#: printed height does not move with it, so a smaller disc means the mark
+#: covers more of it, and RECT_RATIO is what carries that through to the
+#: drawing and to the test.
+DISC_MM = 19.05
+DISC_IN = 0.75                     # the same, in inches
 ICON_RECT_IN = 0.35                # the mark's rectangle, printed height
-#: The rectangle's height as a fraction of the disc. 0.35 over 0.984.
+#: The rectangle's height as a fraction of the disc. 0.35 over 0.75.
 RECT_RATIO = ICON_RECT_IN / DISC_IN
 #: What the test holds it to, and how far it may drift.
-RECT_RATIO_NOMINAL = 0.356
+RECT_RATIO_NOMINAL = 0.467
 RECT_RATIO_TOLERANCE = 0.005
 #: The rectangle's center may sit this far from the disc's, in file pixels.
 CENTER_TOLERANCE_PX = 1.0
@@ -52,13 +58,25 @@ CX = CY = BOX / 2
 
 #: The largest the page ever draws this, so "a pixel at the displayed size"
 #: can be turned into file pixels. The hero disc is about 230 points across.
-DISPLAY_PX = 230.0
-PER_DISPLAY_PX = D / DISPLAY_PX    # about 6.4 file pixels to one displayed
+#: The largest the page draws this. At real-world scale the hero disc is
+#: 26.5 percent of the phone frame, which is about 110 points at the widest
+#: the phone gets, not the 230 it was when the disc was drawn oversized.
+#:
+#: The shadow and the rim are set as multiples of PER_DISPLAY_PX, which makes
+#: them fixed fractions of the diameter, so they scale with the disc rather
+#: than staying put as it shrinks. That is what keeps a shadow tuned at one
+#: size from looking heavy at another.
+DISPLAY_PX = 110.0
+PER_DISPLAY_PX = D / DISPLAY_PX
 
 FACE = (253, 253, 252)             # matte, barely off white
 RIM = (231, 229, 225)              # the edge, a touch darker than the face
 SHADOW = (92, 86, 79)              # slightly warm gray
 SHADOW_ALPHA = 54                  # low: it is a sticker lying flat
+#: Measured at DISPLAY_PX, so each is a fixed fraction of the diameter.
+SHADOW_OFFSET_PX = 1.0
+SHADOW_BLUR_PX = 1.5
+RIM_PX = 0.55
 GRAIN = 2                          # tonal variation, in levels of 255
 INK_LEVEL = 17                     # the printed mark, measured off the artwork
 #: Halfway between ink and face, where an antialiased edge pixel is half
@@ -143,8 +161,8 @@ def build():
     # --- contact shadow ---------------------------------------------------
     # Two pixels down and three of blur at the displayed size. Anything wider
     # reads as the disc hovering rather than resting.
-    dy = round(2 * PER_DISPLAY_PX)
-    blur = 3 * PER_DISPLAY_PX
+    dy = round(SHADOW_OFFSET_PX * PER_DISPLAY_PX)
+    blur = SHADOW_BLUR_PX * PER_DISPLAY_PX
     sh = Image.new('L', (BOX, BOX), 0)
     ImageDraw.Draw(sh).ellipse(
         [CX - R, CY - R + dy, CX + R, CY + R + dy], fill=SHADOW_ALPHA,
@@ -171,7 +189,7 @@ def build():
     # shows the cut edge catching along the lower side and nothing at all
     # opposite it, so this is a full thin ring faded out by a gradient rather
     # than an arc, which would stop somewhere visible.
-    w = max(1, round(1.1 * PER_DISPLAY_PX))
+    w = max(1, round(RIM_PX * PER_DISPLAY_PX))
     ss = 4
     rim = Image.new('L', (BOX * ss, BOX * ss), 0)
     ImageDraw.Draw(rim).ellipse(
