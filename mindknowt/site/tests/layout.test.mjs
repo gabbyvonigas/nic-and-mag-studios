@@ -140,7 +140,6 @@ async function main() {
 
   await checkWidowSweep(page);
   await checkWidowsEverywhere(page);
-  await checkNoOverlap(page);
   await checkPhoneCap(page);
   await checkTagScale(page);
   await checkTagClearsTabBar(page);
@@ -209,36 +208,13 @@ async function checkWidowsEverywhere(page) {
 }
 
 /*
- * Rule 2: no tag may touch the phone, at any width.
+ * Rule 2 is gone with the thing it guarded.
  *
- * This has regressed once already, from percentages that looked right at the
- * width they were tuned at and crossed somewhere else.
+ * It checked that none of the five tags in the kit cluster touched the phone
+ * beside them. The cluster has been removed from that section, so there is
+ * nothing left to overlap and the check passed vacuously. Deleting it rather
+ * than leaving it green: a test that cannot fail is not reporting anything.
  */
-async function checkNoOverlap(page) {
-  await page.goto(ORIGIN + '/', { waitUntil: 'networkidle' });
-  await page.evaluate(() => document.fonts.ready);
-  for (const w of sweepWidths()) {
-    await page.setViewportSize({ width: w, height: 1000 });
-    await page.waitForTimeout(8);
-    const hit = await page.evaluate((inset) => {
-      const phone = document.querySelector('.phone-kit');
-      if (!phone) return null;
-      const p = phone.getBoundingClientRect();
-      const out = [];
-      document.querySelectorAll('.tag-cluster .tag-disc').forEach((d, i) => {
-        const b = d.getBoundingClientRect();
-        const dx = b.width * inset, dy = b.height * inset;
-        const c = { left: b.left + dx, right: b.right - dx, top: b.top + dy, bottom: b.bottom - dy };
-        if (c.left < p.right && c.right > p.left && c.top < p.bottom && c.bottom > p.top) {
-          out.push({ i: i + 1, overlapX: Math.round(Math.min(c.right, p.right) - Math.max(c.left, p.left)) });
-        }
-      });
-      return out;
-    }, DISC_INSET);
-    checks += 1;
-    if (hit) for (const x of hit) fail(`tag ${x.i} overlaps the phone by ${x.overlapX}px at ${w}px wide`);
-  }
-}
 
 /*
  * Rule 4: every tag drawn beside a phone is life size against it.
@@ -255,7 +231,6 @@ async function checkNoOverlap(page) {
 async function checkTagScale(page) {
   const places = [
     ['hero', '.phone-hero', '.tag-hero', 1],
-    ['kit', '.phone-kit', '.tag-cluster .tag-disc', 1],
     /*
      * The Tap badge is deliberately not in this list. It is an icon in a row
      * of tiles, not a tag beside a phone, and at life size against the drawn

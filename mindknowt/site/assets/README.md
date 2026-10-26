@@ -11,9 +11,9 @@ below.
 | `knowt-tag.png` | The Knowt Tag disc, used eight times from this one file | **2000 x 2000** | PNG, transparent | The disc fills the middle **74 percent**, centered. Matte face, one sided edge and the contact shadow baked in. Generated: see below. |
 | `phone-hero.png` | The large hero phone, Daily screen | **852 x 1796** | PNG, transparent outside the body | The body touches all four edges. **No shadow baked in**, the page adds it. |
 | `phone-kit.png` | The large kit panel phone, Knowts screen | **852 x 1796** | PNG, transparent outside the body | Same as above. |
-| `step-stick.png` | Step 01, a plant in a pot on a pale lime wash | **800 x 800** | PNG, transparent | Square. The wash is part of the image, the tag is not. Keep the lower right clear. |
-| `step-set.png` | Step 02, an upright phone with four category rows | **800 x 800** | PNG, transparent | Square. |
-| `step-tap.png` | Step 03, an upright phone with one Knowt row done, and the signal arcs | **800 x 800** | PNG, transparent | Square. Keep the lower right clear, the tag sits there. |
+| `step-stick.png` | **No longer used by the page.** Step 01 was this file; the tile is inline SVG now. Kept, with `illustrations.py`, until someone decides the drawings are not wanted back. | 800 x 800 | PNG | |
+| `step-set.png` | **No longer used by the page.** As above. | 800 x 800 | PNG | |
+| `step-tap.png` | **No longer used by the page.** As above. | 800 x 800 | PNG | |
 | `screens/daily.png` | The Daily capture, for the small system row phone | 804 x 1748 | PNG | A plain capture. That frame is CSS. |
 | `screens/knowts.png` | The Knowts capture | 804 x 1748 | PNG | Same. |
 | `screens/log.png` | The Log capture | 804 x 1748 | PNG | Same. |

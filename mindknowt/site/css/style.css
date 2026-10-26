@@ -541,18 +541,18 @@ img {
 }
 
 /*
- * The two large phones, and the three step illustrations.
+ * The two large phones.
  *
- * Every one of them is a file: `/assets/phone-hero.png`,
- * `/assets/phone-kit.png`, `/assets/step-stick.png`, `/assets/step-set.png`
- * and `/assets/step-tap.png`. Nothing here draws a device, a plant or a
- * stroke of lime, so swapping any of them for a real render is a file swap
- * and no CSS.
+ * Both are files, `/assets/phone-hero.png` and `/assets/phone-kit.png`, so
+ * swapping either for a real render is a file swap and no CSS.
+ *
+ * The three step illustrations used to be files here too. They are inline SVG
+ * now, drawn under "The three scenes" below, because a flat image has no
+ * pieces to move and the tiles animate.
  *
  * The phones carry no baked shadow, because `drop-shadow` follows the alpha
  * of a rounded body and a replacement render that brought its own would end
- * up wearing two. The step illustrations carry their own wash and their own
- * lime strokes and need no shadow at all.
+ * up wearing two.
  */
 .phone {
   width: 100%;
@@ -560,10 +560,6 @@ img {
   filter: drop-shadow(0 16px 36px rgba(17, 24, 32, 0.16));
 }
 
-.step-img {
-  width: 100%;
-  height: auto;
-}
 
 /* ---------- Hero, with the three steps beside it ---------- */
 
@@ -757,63 +753,336 @@ img {
   text-wrap: balance;
 }
 
-/* The illustration, and on two of the three a Knowt Tag over it. The wash
-   behind the drawing is part of the image, not a tile drawn here. */
+/*
+ * The three scenes.
+ *
+ * Inline SVG rather than a flat PNG, so the rows, rings, check and tag are
+ * each a node that can be moved. The drawing keeps what the images had: one
+ * ink weight, round caps and joins, a lime wash behind the subject.
+ *
+ * `--step-tag` is the one tag size for all three tiles. It is a plain length,
+ * deliberately not the `--mm` scale the hero uses: these are illustrations,
+ * and a tag drawn life size against a stylized phone says nothing a reader
+ * can use. 64px at 1440, easing down to 42 on a phone.
+ */
 .step-art {
   grid-area: art;
   position: relative;
   aspect-ratio: 1 / 1;
-  display: grid;
-  place-items: center;
-  container-type: inline-size;
+  --step-tag: clamp(42px, 4.45vw, 64px);
+  --ease-step: cubic-bezier(0.23, 1, 0.32, 1);
+  /* 0, 60, 120ms. Set per tile below. */
+  --step-delay: 0ms;
 }
 
-/*
- * The phone drawn inside step-set.png and step-tap.png measures 279 of the
- * 800 square, so it is 34.9 percent of this box. That is the reference the
- * Tap badge is scaled against, the same way the hero tag is scaled against
- * the photographed frame.
- */
-.step-art > * {
-  --mm: calc(34.9cqw / var(--phone-mm));
+.step-scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /*
+   * Clipped on purpose. The ripple and the rings expand past the scene, and
+   * the viewBox is exactly the art box, so letting the SVG clip them is what
+   * keeps a decorative ring from washing across the tile's copy.
+   */
+  overflow: hidden;
 }
 
+.scene-wash {
+  fill: #ddf495;
+}
+
+/* One weight for every line in every scene, as the drawings had. */
+.scene-ink {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 16;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stem,
+.row-line,
+.card-line,
+.check-mark,
+.phone-notch {
+  fill: none;
+}
+
+/* --- the tag, the one shared element ------------------------------------ */
 /*
- * The badge over a step illustration. One size and one position for both of
- * the tiles that carry one.
- *
- * It used to be 62 percent hung off the lower right on Stick and 66 percent
- * hung off the lower left on Tap, so the two tiles disagreed about how big a
- * tag is and about where one goes, and both overhung the card. Inside the box
- * on both, in the lower right, which on Stick lands it on the bottle's face
- * and on Tap in the gap the arcs run through.
+ * A slot at the resting position, sized to the final state, so the layout is
+ * reserved before anything moves and the drop cannot shift the tile. The slot
+ * is positioned and centered with the `translate` property; the image inside
+ * carries the `transform`, so the two never fight over one value.
  */
-/*
- * The badge on Stick. That tile draws a plant pot, not a phone, so there is
- * nothing in it to be life size against and it keeps the size it had.
- */
-.tag-step {
+.step-tag-slot {
   position: absolute;
-  right: 1%;
-  bottom: 1%;
-  width: 54%;
+  left: var(--tag-x);
+  top: var(--tag-y);
+  translate: -50% -50%;
+  width: calc(var(--step-tag) / var(--disc-in-box));
+  aspect-ratio: 1 / 1;
+  pointer-events: none;
+}
+
+.step-tag {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* --- Stick -------------------------------------------------------------- */
+
+.step-stick .step-art {
+  --tag-x: 72%;
+  --tag-y: 66%;
+}
+
+/* --- Tap ---------------------------------------------------------------- */
+/*
+ * Up at the phone's top edge and clear of it. The phone is drawn from x 330
+ * to 620 of 800 and the tag sits to its left, so the disc never crosses the
+ * screen or anything on it.
+ */
+.step-tap .step-art {
+  --tag-x: 25%;
+  --tag-y: 27%;
+}
+
+.tap-phone {
+  transform: rotate(-12deg) skewY(2deg);
+  transform-origin: 586px 415px;
+}
+
+.card-plate {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 12;
+}
+
+.card-lit {
+  fill: var(--lime);
+  opacity: 0;
+}
+
+.card-line {
+  stroke: var(--ink);
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.check-ring {
+  fill: var(--lime);
+  stroke: var(--ink);
+  stroke-width: 12;
+}
+
+.check-mark {
+  stroke: var(--ink);
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* --- Set ---------------------------------------------------------------- */
+
+.row-plate {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 12;
+}
+
+.row-dot {
+  fill: var(--lime);
+  stroke: var(--ink);
+  stroke-width: 10;
+}
+
+.row-line {
+  stroke: var(--ink);
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.pill-track {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 10;
+}
+
+.pill-fill {
+  fill: var(--lime);
 }
 
 /*
- * The badge on Tap is NOT at life size, deliberately.
+ * The motion.
  *
- * It was, briefly. Scaled against the phone drawn inside step-tap.png it came
- * out a ninth of the tile, about 12px, which is a speck. This is an icon in a
- * row of three tiles saying what the step is, not a size comparison, so it
- * keeps the size it reads at. The hero tag and the kit cluster are the places
- * where a tag sits beside a photographed phone and the scale means something.
+ * Rules this follows, and why each one is here:
+ *
+ * - transform and opacity only. Nothing animates width, height, margin or an
+ *   offset, so none of it touches layout and none of it can shift the page.
+ * - one easing, `--ease-step`, everywhere. Nothing eases in.
+ * - transitions rather than keyframes for the state changes, so an interrupted
+ *   run settles from where it actually is rather than snapping. The rings are
+ *   the exception the brief allows: they are decorative and one shot.
+ * - the resting state is the state in the markup. Everything below describes
+ *   how a tile looks BEFORE it has played, under `.step:not(.is-in)`, so the
+ *   final layout is already reserved and there is nothing to shift.
  */
-.tag-step-phone {
-  width: 54%;
-  right: 1%;
-  bottom: 1%;
-  left: auto;
-  top: auto;
+
+.step-art :where(.step-tag, .set-row, .tap-card, .tap-check) {
+  transition-timing-function: var(--ease-step);
+  transition-delay: var(--step-delay);
+}
+
+.step-set .step-art { --step-delay: 60ms; }
+.step-tap .step-art { --step-delay: 120ms; }
+
+/* --- Stick: the tag drops onto the pot and presses --------------------- */
+
+.step-stick .step-tag {
+  transition-property: transform, opacity;
+  transition-duration: 320ms;
+}
+
+.step-stick:not(.is-in) .step-tag {
+  transform: translateY(-20px) rotate(-8deg);
+  opacity: 0;
+}
+
+/* The press is its own state, so it is a transition like everything else
+   rather than a keyframe that cannot be interrupted. */
+.step-stick .step-tag-slot {
+  transition: transform 160ms var(--ease-step);
+}
+
+.step-stick.is-pressed .step-tag-slot {
+  transform: scale(0.96);
+}
+
+/* The ripple leaves from the contact point. Decorative, so a keyframe. */
+.step-ripple {
+  fill: none;
+  stroke: rgba(17, 17, 17, 0.3);
+  stroke-width: 10;
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+
+.step-stick.is-in .step-ripple {
+  animation: step-ripple 600ms var(--ease-step) calc(var(--step-delay) + 300ms) 1 both;
+}
+
+@keyframes step-ripple {
+  from { transform: scale(0.8); opacity: 0.5; }
+  to   { transform: scale(1.9); opacity: 0; }
+}
+
+/* --- Set: the rows arrive, then the pill switches on ------------------- */
+
+.set-row {
+  transition-property: transform, opacity;
+  transition-duration: 280ms;
+  transition-delay: calc(var(--step-delay) + var(--i) * 50ms);
+}
+
+.step-set:not(.is-in) .set-row {
+  transform: translateY(8px);
+  opacity: 0;
+}
+
+/*
+ * The pill fills by sliding its lime under a clip, which is a transform on a
+ * clipped group rather than a width. It starts just off its own left edge,
+ * never at scale 0.
+ */
+.pill-fill {
+  transform-box: fill-box;
+  transform-origin: left center;
+  transition: transform 280ms var(--ease-step)
+    calc(var(--step-delay) + 3 * 50ms + 180ms);
+}
+
+.step-set:not(.is-in) .pill-fill {
+  transform: translateX(-100%);
+}
+
+/* --- Tap: the tag arrives, rings go out, the check lands --------------- */
+
+.step-tap .step-tag {
+  transition-property: transform, opacity;
+  transition-duration: 320ms;
+}
+
+.step-tap:not(.is-in) .step-tag {
+  transform: translateX(-26px);
+  opacity: 0;
+}
+
+.step-rings .ring {
+  fill: none;
+  stroke: rgba(17, 17, 17, 0.28);
+  stroke-width: 9;
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+
+.step-tap.is-in .step-rings .ring {
+  animation: step-ring 600ms var(--ease-step)
+    calc(var(--step-delay) + 300ms + var(--i) * 120ms) 1 both;
+}
+
+@keyframes step-ring {
+  from { transform: scale(0.85); opacity: 0.55; }
+  to   { transform: scale(2.3); opacity: 0; }
+}
+
+.tap-check {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition-property: transform, opacity;
+  transition-duration: 220ms;
+  transition-delay: calc(var(--step-delay) + 820ms);
+}
+
+.step-tap:not(.is-in) .tap-check {
+  transform: scale(0.8);
+  opacity: 0;
+}
+
+.card-lit {
+  transition: opacity 220ms var(--ease-step) calc(var(--step-delay) + 820ms);
+}
+
+.step-tap.is-in .card-lit {
+  opacity: 1;
+}
+
+/*
+ * Reduced motion: the finished picture, and nothing travels to get there.
+ * Every transform is dropped rather than retimed, the rings do not run at
+ * all, and what is left is a 150ms fade.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .step-art :where(.step-tag, .set-row, .tap-card, .tap-check, .pill-fill, .step-tag-slot) {
+    transform: none !important;
+    transition: opacity 150ms linear !important;
+  }
+
+  .step-ripple,
+  .step-rings {
+    display: none;
+  }
+
+  .tap-phone {
+    transition: none !important;
+  }
+
+  .step:not(.is-in) :where(.step-tag, .set-row, .tap-check) {
+    opacity: 0;
+  }
 }
 
 /* ---------- A simple system, a better you ---------- */
@@ -865,20 +1134,44 @@ img {
   padding: clamp(18px, 3vw, 36px) 0;
 }
 
+/*
+ * Three columns: the words, the callouts, the phone.
+ *
+ * The phone is the last column, so it sits against the right edge of the
+ * lime. The callouts moved out of the copy block and into a column of their
+ * own, which is what shortens the panel: the left column used to carry them
+ * on one line under the subhead and was the tallest thing here.
+ */
 .kit-panel {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
-  gap: clamp(24px, 3vw, 40px);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: "copy feats art";
+  gap: clamp(26px, 3.4vw, 54px);
   align-items: center;
-  /* Vertical padding is held under 64px so the lime hugs its contents. The
-     panel's height is set by the copy column, which is the taller of the two:
-     462 of copy against 451 of art at 1440 and above, so there is no empty
-     lime to trim. */
-  padding: clamp(24px, 2.8vw, 38px);
+  padding: clamp(24px, 2.6vw, 34px);
   border-radius: 34px;
   background: var(--pale-lime);
 }
+
+/*
+ * One row, not two.
+ *
+ * The words and the price were two rows with the phone spanning both, and a
+ * row that something tall spans gets stretched: the price pill was pushed to
+ * the bottom of a 410px column and left a hole under the subhead. They share
+ * a column now and the three columns each center in the panel, so the slack
+ * is split evenly above and below and reads as padding.
+ */
+.kit-copy {
+  grid-area: copy;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(22px, 2.6vw, 34px);
+}
+
+.kit-features { grid-area: feats; }
+.kit-art { grid-area: art; }
 
 .kit-copy h2 {
   margin-top: 10px;
@@ -892,29 +1185,35 @@ img {
   color: var(--charcoal);
 }
 
-/* Four features on one line, separated by hairlines rather than by boxes. */
+/*
+ * One column, left aligned, with a hairline between rows rather than beside
+ * them. The dividers turned from vertical to horizontal with the stack.
+ */
 .kit-features {
   list-style: none;
-  margin: clamp(20px, 2.2vw, 26px) 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
 }
 
 .kit-features li {
   display: grid;
-  justify-items: center;
-  gap: 10px;
-  padding: 4px clamp(6px, 1vw, 14px);
-  text-align: center;
-  font-size: 13px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  justify-items: start;
+  gap: 12px;
+  padding: clamp(9px, 1vw, 13px) 0;
+  text-align: left;
+  font-size: 13.5px;
   line-height: 1.35;
   color: var(--charcoal);
   text-wrap: balance;
 }
 
 .kit-features li + li {
-  border-left: 1px solid rgba(17, 17, 17, 0.14);
+  border-top: 1px solid rgba(17, 17, 17, 0.14);
 }
 
 .feature-icon {
@@ -923,7 +1222,6 @@ img {
 }
 
 .kit-buy {
-  margin-top: clamp(20px, 2.2vw, 26px);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -957,67 +1255,23 @@ img {
   color: var(--charcoal);
 }
 
-/* The phone, with five discs loose around it. */
 /*
- * The phone and the tags are two columns, not a picture with things laid over
- * it.
+ * The phone on its own.
  *
- * The cluster used to be `position: absolute; inset: 0` over the whole art
- * box, with each tag placed by a percentage of it. That works until the
- * column changes shape, and then it does not: the tags crossed onto the
- * Knowts list, which is the one thing a product shot must not do. Columns
- * cannot overlap, so no width, no zoom and no future tweak to the offsets can
- * put a tag on the screenshot again.
- */
-/*
- * Real-world scale here too. The art box is 190.6mm across in product terms,
- * which is the number that keeps the phone exactly the size it already was:
- * 71.9 of 190.6 is 37.7 percent of the box, and 37.7 percent is what 82
- * percent of a 46 percent column came to. Stating it this way means the phone
- * and the five tags are both expressed in millimeters, so the ratio between
- * them cannot drift when the column split or the gap is touched.
+ * The five tag cluster that used to share this column is gone, and with it
+ * the millimeter scale that sized the two against each other. Nothing in this
+ * section is a tag any more, so there is nothing here to be life size
+ * against: the hero is where that comparison lives.
  */
 .kit-art {
   position: relative;
-  padding: 2% 0 6%;
-  display: grid;
-  /*
-   * The tag column is sized to the tags, not given a share of the box. At
-   * life size the cluster is 58.5mm against a 190.6mm box, so a 1fr column
-   * left it floating in the middle of a wide empty strip. `auto` lets the
-   * column be the width of what is in it and `justify-content: center` sits
-   * the pair together in the middle of the panel.
-   */
-  grid-template-columns: 46% auto;
-  justify-content: center;
-  gap: clamp(10px, 1.6vw, 28px);
-  align-items: center;
-  container-type: inline-size;
-  /* see `.hero-art`: inline size containment stops it sizing from contents */
-  width: 100%;
-}
-
-/* 82 percent of a 46 percent column is 38 of the box, which is where this
-   sat before and is the mockup's proportion: about 205 points of phone
-   against 1188 of panel. */
-.kit-art > * {
-  --mm: calc(100cqw / 190.6);
+  width: clamp(138px, 12.2vw, 176px);
 }
 
 .phone-kit {
-  width: calc(var(--phone-mm) * var(--mm));
-  /*
-   * The cap is the point. Everything above is a percentage, so without a
-   * ceiling the phone would grow with the window forever, and the panel with
-   * it. `--measure` already holds the wrap at 1240, which is why this never
-   * actually bites today: the phone measures 194 by 410 at every width from
-   * 1440 to 2560. The ceiling is here so that stays true if the wrap, the
-   * column split or the panel padding is ever widened.
-   */
-  max-width: 300px;
-  max-height: 640px;
-  object-fit: contain;
-  margin: 0 auto;
+  /* The phone governs the panel's height now, so this is what shortens it. */
+  width: 100%;
+  height: auto;
 }
 
 /*
@@ -1025,41 +1279,6 @@ img {
  * the column, and `relative` so the five are placed inside it rather than
  * over the panel.
  */
-/*
- * The box is sized from the disc rather than from the column. A disc is 44
- * percent of it, and a disc has to come out at 19.05mm, so the box is
- * 19.05 / 0.74 / 0.44 = 58.5mm. Keeping the 44 percent is what preserves the
- * arrangement: every position below is a percentage of this box, so the five
- * hold their shape while the whole group shrinks to life size.
- */
-.tag-cluster {
-  position: relative;
-  width: calc(58.5 * var(--mm));
-  max-width: 100%;
-  justify-self: center;
-  aspect-ratio: 1 / 1;
-  pointer-events: none;
-}
-
-.tag-cluster .tag-disc {
-  position: absolute;
-  width: 44%;
-}
-
-/*
- * One object, not five. Percentages of the cluster's own square box, so the
- * arrangement holds its shape at every width.
- *
- * Packed at about 0.62 of a disc width apart, so each overlaps its neighbors
- * and the group reads as a handful of tags set down together rather than five
- * circles that happen to be near each other. The rotation stays small, or the
- * light baked into the file starts coming from a different direction on each.
- */
-.tag-cluster .tag-disc:nth-child(1) { left: 6%; top: 8%; transform: rotate(-8deg); }
-.tag-cluster .tag-disc:nth-child(2) { left: 40%; top: 2%; transform: rotate(5deg); }
-.tag-cluster .tag-disc:nth-child(3) { left: 25%; top: 29%; transform: rotate(-3deg); z-index: 1; }
-.tag-cluster .tag-disc:nth-child(4) { left: 2%; top: 50%; transform: rotate(9deg); }
-.tag-cluster .tag-disc:nth-child(5) { left: 36%; top: 52%; transform: rotate(-6deg); }
 
 /* ---------- More space for what matters ---------- */
 
@@ -1371,27 +1590,72 @@ img {
 }
 
 @media (max-width: 860px) {
+  /*
+   * Two columns before the full stack: the words and the callouts beside each
+   * other, the phone under them. Dropping straight from three columns to one
+   * left the callouts in a narrow strip while the panel still had room.
+   */
   .kit-panel {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "copy feats"
+      "art  art";
+    align-items: start;
+    row-gap: clamp(22px, 4vw, 34px);
   }
 
-  /* The phone and its tags stop being a side panel and become a picture
-     under the copy. Still two columns, so the tags still cannot reach the
-     screenshot. */
   .kit-art {
-    max-width: 460px;
-    margin: 0 auto;
+    justify-self: center;
+    width: clamp(150px, 32vw, 200px);
+  }
+}
+
+@media (max-width: 768px) {
+  /*
+   * The order to read it in: what it is, what you get, what it costs, then
+   * the picture. `display: contents` dissolves the wrapper so the words and
+   * the price can be placed on either side of the callouts without a second
+   * copy of the markup.
+   */
+  .kit-copy {
+    display: contents;
+  }
+
+  .kit-panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "intro"
+      "feats"
+      "buy"
+      "art";
+    row-gap: clamp(20px, 4.5vw, 30px);
+  }
+
+  .kit-intro { grid-area: intro; }
+  .kit-buy { grid-area: buy; }
+
+  /* Four short rows become a 2 by 2 so the price is not pushed off screen. */
+  .kit-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: clamp(14px, 4vw, 26px);
   }
 
   /*
-   * Restated in millimeters rather than left as a percentage. `--mm` is what
-   * the five tags are sized from, so a percentage here would change the phone
-   * without changing them and the pair would stop being to scale. 88 percent
-   * of the 46 percent column is 40.5 of the box, which is 77.1mm against the
-   * 190.6mm box, so the art box is narrower in product terms down here.
+   * In a 2 by 2 the only hairline is the one between the top pair and the
+   * bottom pair, so it belongs to the third and fourth items rather than to
+   * every item but the first.
    */
-  .kit-art > * {
-    --mm: calc(100cqw / 177.6);
+  .kit-features li + li {
+    border-top: 0;
+  }
+
+  .kit-features li:nth-child(n + 3) {
+    border-top: 1px solid rgba(17, 17, 17, 0.14);
+  }
+
+  .kit-art {
+    justify-self: center;
+    width: clamp(150px, 46vw, 220px);
   }
 }
 
@@ -1406,7 +1670,23 @@ img {
   }
 
   .hero-art {
-    max-width: 340px;
+    /*
+     * Room for the tag's overhang, which is the thing that was running off
+     * the page down here.
+     *
+     * The tag is placed by its center a millimeter and a half past the
+     * phone's right edge, so its far edge sits at 120 percent of the phone's
+     * width. The phone is 100 percent of this element's content box, so the
+     * right padding has to be at least 20 percent of that content box to hold
+     * the rest. Percentage padding resolves against the containing block, and
+     * p >= 0.2(1 - p) gives p >= 16.7, so 18 percent clears it with a margin
+     * at every width rather than at the one that was measured.
+     *
+     * Wide layouts keep 10 percent, where the overhang lands in the grid gap
+     * and costs the phone nothing.
+     */
+    padding-right: 18%;
+    max-width: 392px;
     margin: 4px auto 0;
   }
 
