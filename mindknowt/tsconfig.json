@@ -1,0 +1,8 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true
+  },
+  "// exclude": "tests/ runs under node, not the app's runtime: it uses node: builtins the Expo config has no types for, and typechecking it here would only ever report that. `npm test` runs the files, which is the check that matters for them.",
+  "exclude": ["tests"]
+}

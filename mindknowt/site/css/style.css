@@ -1,0 +1,1752 @@
+/*
+ * MindKnowt marketing site.
+ *
+ * Tokens are lifted from the app, not re-picked: the category colors and the
+ * lime are the exact values in src/theme/categoryColors.ts and
+ * src/theme/palette.ts. If the app's palette moves, this moves with it.
+ *
+ * One deliberate difference. The app's page is #F4F5F6, a cool light gray,
+ * because white cards have to read as cards on it. The site is white, with
+ * that gray kept for section bands, so the two look like the same family
+ * without the site looking like an app screen.
+ *
+ * The app's type is SF Pro Rounded, reached through a private iOS family that
+ * does not exist on the web. Quicksand is the self hosted stand in for
+ * headings: open licensed, rounded, geometric. Body text is Helvetica Neue,
+ * which is a system font and needs no license.
+ */
+
+/*
+ * One file, every weight.
+ *
+ * There used to be three, named 400, 500 and 700, and they were not three
+ * weights. The 700 file was the whole variable font; the other two were
+ * `&text=` subsets whose only letter from the alphabet was a capital A. So
+ * anything set at 400 or 500 drew its A from Quicksand and every other
+ * letter from the next font in the stack, which is why one letter in
+ * CLEANING, ADMIN and PLANT looked like a different typeface. It was: every
+ * letter except the A was.
+ *
+ * This is Quicksand's variable file, one `wght` axis from 300 to 700, so a
+ * weight cannot be missing and the files cannot disagree with their names.
+ */
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/assets/fonts/Quicksand-variable.woff2') format('woff2-variations');
+  src: url('/assets/fonts/Quicksand-variable.woff2') format('woff2') tech('variations');
+}
+
+:root {
+  --lime: #d9fa3c;
+  --ink: #111111;
+  --charcoal: #3a3a3a;
+  --gray: #6e7479;
+  --line: #dcdfe3;
+  --page: #f4f5f6;
+  --white: #ffffff;
+  /* Off white. A card that is pure white disappears into the page beside a
+     watercolor wash; this keeps the card reading as a card. */
+  --card: #fbfbf9;
+
+  /* The seven category colors, exactly as the app defines them. */
+  --home: #ff4d3d;
+  --daily: #d9fa3c;
+  --wellness: #24c2b5;
+  --routine: #a435f0;
+  --activity: #ff2d8a;
+  --admin: #1f5fd8;
+  --seasonal: #8a1f3d;
+
+  /* Tile tints, each its accent mixed toward white. Ink on all three clears
+     16 to 1, so the copy inside them is never the weak point. */
+  --home-tint: #ffeae8;
+  --daily-tint: #f7fed8;
+  --wellness-tint: #e0f6f5;
+  /* The app's neonPale, the panel tint the mockup uses for the hero copy
+     and the kit. Lifted, not re-picked, same as the lime above it. */
+  --pale-lime: #f1ffbe;
+  /* The warm neutral under the category strip. The only color on the site
+     that is not in the app, because the app has no warm neutral. */
+  --beige: #f6f3ea;
+
+  --display: 'Quicksand', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
+  --body: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  /* Measured off the mockup: its panels sit 46 points from the edge of a
+     1280 page, which is this width with this gutter. */
+  --measure: 1240px;
+  --gutter: 24px;
+
+  /*
+   * The footer's legal line, and the one place it is written.
+   *
+   * Every page renders this string through `.footer-legal::after`, so the
+   * company changes in one edit here rather than in four identical lines of
+   * markup that can drift apart. The quotes are part of the value, because
+   * `content` needs them.
+   *
+   * It is deliberately only the name and the city: no street address, no
+   * claim about where the company is formed, and nothing like an EIN or a
+   * D-U-N-S number, which are identifiers for forms and not for a footer.
+   */
+  --legal-line: 'MindKnowt LLC, Tulsa, Oklahoma';
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--white);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--ink);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+  /*
+   * The `width` and `height` attributes on an `img` are presentational
+   * hints, so a file with `height="1000"` and a percentage width in CSS
+   * keeps the 1000 and comes out stretched. The attributes stay, because
+   * they are what reserves the right box before the file loads, and this is
+   * what keeps them to the aspect ratio they describe.
+   */
+  height: auto;
+}
+
+.wrap {
+  width: 100%;
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* Visible only to screen readers, and to anyone tabbing to the skip link. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -64px;
+  z-index: 100;
+  background: var(--ink);
+  color: var(--white);
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-family: var(--display);
+  font-weight: 500;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+/* ---------- Header and menu ---------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--white);
+  border-bottom: 1px solid transparent;
+}
+
+.site-header.is-stuck {
+  border-bottom-color: var(--line);
+}
+
+.header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 26px;
+  padding-bottom: 26px;
+}
+
+.brand {
+  display: inline-block;
+  line-height: 0;
+}
+
+.brand img {
+  width: 208px;
+  height: auto;
+}
+
+/* The menu overlay keeps the smaller lockup. At 208 it crowds the close
+   control on a narrow screen, and the overlay is not the page header. */
+.site-menu .brand img {
+  width: 132px;
+}
+
+/*
+ * One control at every width, as asked. A menu that changes shape at a
+ * breakpoint is two menus to keep working; this is one.
+ */
+/*
+ * Icon only. The button stays 44 by 44 because that is the smallest thing a
+ * thumb reliably hits, but the mark inside it is small and light so it reads
+ * as a quiet control rather than a feature. The label moved to aria-label,
+ * so it is still announced.
+ */
+.nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -11px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--charcoal);
+}
+
+.nav-toggle-bars {
+  display: block;
+  position: relative;
+  width: 19px;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+.nav-toggle-bars::before,
+.nav-toggle-bars::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 19px;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+.nav-toggle-bars::before {
+  top: -6px;
+}
+
+.nav-toggle-bars::after {
+  top: 6px;
+}
+
+.site-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--white);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  /*
+   * Hidden from assistive tech and from the tab order when shut, not just
+   * moved off screen. A menu that is invisible but still focusable sends a
+   * keyboard user into links they cannot see.
+   */
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.18s ease, visibility 0.18s ease;
+}
+
+.site-menu[data-open='true'] {
+  visibility: visible;
+  opacity: 1;
+}
+
+.menu-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.menu-close {
+  background: none;
+  border: 0;
+  padding: 8px;
+  margin: -8px;
+  cursor: pointer;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.menu-links {
+  list-style: none;
+  margin: 0;
+  padding: 8vh 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu-links a {
+  display: inline-block;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(34px, 9vw, 56px);
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  padding: 10px 0;
+}
+
+.menu-links a[aria-current='page'] {
+  /* The lime earns its keep marking where you are, same as the app's tab bar. */
+  box-shadow: inset 0 -0.18em 0 var(--lime);
+}
+
+.menu-links a:hover {
+  box-shadow: inset 0 -0.18em 0 var(--lime);
+}
+
+/* ---------- Pieces the landing page reuses ---------- */
+
+/*
+ * One stroke style for every drawn mark on the page: the step
+ * illustrations, the kit features, the category row and the social links are
+ * all `.line-art`, all outline, all painted by `currentColor`. The app has
+ * the same rule for the same reason, which is that a filled glyph beside an
+ * outlined one reads as two sets.
+ */
+.line-art {
+  display: block;
+  color: var(--ink);
+}
+
+/* The lime bar under the headline, and the shorter dash over a caption. */
+.rule {
+  display: block;
+  width: 131px;
+  height: 4px;
+  margin: 40px 0 0;
+  border-radius: 999px;
+  background: var(--lime);
+}
+
+.dash {
+  display: block;
+  width: 26px;
+  height: 4px;
+  margin-bottom: 12px;
+  border-radius: 999px;
+  background: var(--lime);
+}
+
+/* Small, spaced, uppercase. Written in sentence case in the markup so it is
+   read out as words rather than as letters. */
+.eyebrow {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(12px, 1.3vw, 14px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--charcoal);
+  margin: 0;
+}
+
+/*
+ * The call to action, in both of its slots.
+ *
+ * It is a line of text today because there is nothing to link to yet: no App
+ * Store page and no checkout on this site. When there is, this is the one
+ * selector to turn into a button, and the markup already has it in both of
+ * the places a button belongs.
+ */
+/*
+ * A pill rather than a line of text with a dot in front of it, and the same
+ * pill the price wears, so the two sit together in the kit panel as one
+ * family rather than as a control beside a sentence.
+ *
+ * No Apple logo. Apple's identity guidelines do not allow the mark to be
+ * redrawn or set into a line of text, and the only sanctioned artwork is the
+ * "Download on the App Store" badge, which needs a store link this does not
+ * have yet. When there is one, that badge replaces this pill.
+ */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: var(--white);
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  box-shadow: 0 6px 18px rgba(17, 17, 17, 0.06);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.cta::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--lime);
+}
+
+.cta-hero {
+  margin-top: 26px;
+}
+
+/*
+ * The small phones in the system row: a frame drawn around a plain capture,
+ * so a replacement screenshot needs no device chrome of its own.
+ *
+ * The two large phones are not these. They are `/assets/phone-hero.png` and
+ * `/assets/phone-kit.png`, whole images, so a real device render can replace
+ * either without anyone matching a CSS frame to it. See `.phone` below.
+ */
+.device {
+  position: relative;
+  border-radius: 13%/6.2%;
+  /* A percentage, so the bezel is the same thickness on all four sides: a
+     percentage padding resolves against the width whichever side it is on. */
+  padding: 1.5%;
+  /* Cool gray, the color of the metal, not the warm titanium the first pass
+     drew. */
+  background: linear-gradient(150deg, #f3f4f6 0%, #c6cbd1 36%, #e8eaed 62%, #b9bfc6 100%);
+  box-shadow: 0 16px 40px rgba(17, 24, 32, 0.15);
+}
+
+.device-screen {
+  position: relative;
+  overflow: hidden;
+  border-radius: 11.4%/5.5%;
+  background: var(--page);
+}
+
+.device-screen img {
+  width: 100%;
+  height: auto;
+}
+
+/* The island, over the status bar the screenshot already has. Sized from the
+   screen's width so it holds its proportions at every size on the page. */
+.device-screen::after {
+  content: '';
+  position: absolute;
+  top: 1.3%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 31%;
+  aspect-ratio: 5.6 / 1;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+/*
+ * The Knowt Tag disc.
+ *
+ * One file, `/assets/knowt-tag.png`, used in the hero, in two of the step
+ * cards and five times in the kit cluster. Swap that file and all eight
+ * change together.
+ *
+ * The lighting and both shadows are painted into the file rather than added
+ * here, because what replaces it is a photograph of the real sticker and a
+ * photograph brings its own. That is also why the file is bigger than the
+ * disc: the shadow needs room around it, every width below sizes the whole
+ * box, and `--disc-in-box` is how much of that box is actually the disc.
+ */
+:root {
+  --disc-in-box: 0.74;
+
+  /*
+   * Real-world scale, in millimeters.
+   *
+   * Every tag drawn beside a phone is sized from these and from the phone
+   * frame's own rendered width, never from a percentage picked to look right
+   * at one window size. `--mm` is defined per context, because it is the
+   * rendered phone that sets it, and it is the only thing any of these get
+   * multiplied by.
+   *
+   * To change the product's size, change `--tag-mm` and nothing else: the
+   * disc, the overhang and the test all read it. The icon's printed height
+   * does not move with it, which is why the two are separate numbers, and
+   * why the ratio between them lives in `assets/tag-disc.py` rather than
+   * here. The mark is painted into the file, so the stylesheet scales the
+   * disc and the file carries the icon at the right fraction of it.
+   */
+  --phone-mm: 71.9;    /* iPhone 17 Pro, across. The frame is the reference. */
+  --tag-mm: 19.05;     /* the Knowt Tag, three quarters of an inch across */
+  --icon-rect-mm: 8.89; /* the mark's rectangle, 0.35 inch, baked into the file */
+}
+
+/*
+ * The two large phones.
+ *
+ * Both are files, `/assets/phone-hero.png` and `/assets/phone-kit.png`, so
+ * swapping either for a real render is a file swap and no CSS.
+ *
+ * The three step illustrations used to be files here too. They are inline SVG
+ * now, drawn under "The three scenes" below, because a flat image has no
+ * pieces to move and the tiles animate.
+ *
+ * The phones carry no baked shadow, because `drop-shadow` follows the alpha
+ * of a rounded body and a replacement render that brought its own would end
+ * up wearing two.
+ */
+.phone {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 16px 36px rgba(17, 24, 32, 0.16));
+}
+
+
+/* ---------- Hero, with the three steps beside it ---------- */
+
+.hero {
+  padding: clamp(10px, 2vw, 26px) 0 clamp(34px, 5vw, 64px);
+}
+
+/*
+ * Three columns on a wide screen: the copy, the phone, the steps. The DOM
+ * order is the stacked order, so the narrow layout is the same markup with
+ * the columns removed and nothing relies on grid reordering.
+ */
+.hero-grid {
+  display: grid;
+  /* The mockup's three columns, measured: 513, 257 and 370 of its 1188
+     points of content. */
+  grid-template-columns: minmax(0, 513fr) minmax(0, 257fr) minmax(0, 370fr);
+  gap: clamp(18px, 2vw, 24px);
+  align-items: start;
+}
+
+/* Two lines, which is what the `br` in the markup asks for. The ceiling is
+   set by the narrowest the first line can be and still hold "One less
+   thing" without a third line appearing. */
+.hero-copy h1 {
+  font-size: clamp(34px, 4.4vw, 56px);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+}
+
+.hero-panel {
+  margin-top: clamp(22px, 2.4vw, 30px);
+  padding: clamp(22px, 2.6vw, 32px);
+  border-radius: 26px;
+  background: var(--pale-lime);
+}
+
+/*
+ * One weight across the whole sentence.
+ *
+ * It was 500 for "A simpler way to" and 700 for the rest, which is the
+ * mockup's emphasis, and Quicksand's two weights are far enough apart that
+ * the opening read as a different typeface rather than as lighter text. The
+ * `strong` stays in the markup for what it means and carries no weight of
+ * its own.
+ */
+.hero-lead {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(21px, 2.4vw, 28px);
+  line-height: 1.28;
+  letter-spacing: -0.02em;
+}
+
+.hero-lead strong {
+  font-weight: inherit;
+}
+
+.hero-sub {
+  margin-top: 14px;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--charcoal);
+}
+
+/*
+ * The phone, with one disc overlapping its bottom right corner.
+ *
+ * The overhang is padding on this box rather than a negative offset on the
+ * disc. A negative offset reaches outside the grid column, which is free
+ * space on a wide screen and the edge of the page on a narrow one, and it
+ * put a scrollbar under the whole site at 1024 and at 390.
+ */
+/*
+ * The phone frame is exactly the content box of this element, because
+ * `.phone-hero` is `width: 100%` of it and the image's body touches all four
+ * of its edges. Making it an inline-size query container therefore gives its
+ * children a unit that IS the phone's rendered width: 100cqw. That is what
+ * `--mm` is built from, so the tag is scaled by the phone rather than by the
+ * window, at every width, with no pixel value anywhere.
+ *
+ * `--mm` is set on the children rather than here, because an element cannot
+ * query its own size: `cqw` written on `.hero-art` would resolve against
+ * whatever container is above it.
+ */
+.hero-art {
+  position: relative;
+  padding: 0 10% 10% 0;
+  container-type: inline-size;
+  /*
+   * Required, not tidying. `container-type: inline-size` applies inline size
+   * containment, so the element stops taking its width from its contents. The
+   * narrow layouts center it with `justify-self`, which asks it for exactly
+   * that contribution, and without a width of its own it collapsed to 38px
+   * and took the phone and the tag down to nothing with it.
+   */
+  width: 100%;
+}
+
+.hero-art > * {
+  --mm: calc(100cqw / var(--phone-mm));
+}
+
+.phone-hero {
+  width: 100%;
+}
+
+/*
+ * 19.05mm across, which is 26.5 percent of the phone frame. The file is wider
+ * than the disc by `--disc-in-box`, so the image is divided back up by it and
+ * the visible circle lands on the real measurement.
+ *
+ * Placed by its center, one and a half millimeters past the phone's right
+ * edge and a little over a millimeter below its bottom, so it rests on the
+ * corner with most of itself off the phone. That position is not free: the
+ * tab bar row, the Daily / Knowts / Log pill and the plus button, occupies
+ * x 0.093 to 0.931 and y 0.837 to 0.903 of the frame, measured off
+ * phone-hero.png. It sat lower before the screenshots were replaced; the new
+ * captures carry more of the app's own background under the bar, which moves
+ * it up and leaves the tag more room, not less. `layout.test.mjs` asserts the
+ * clearance rather than trusting it.
+ */
+.tag-hero {
+  position: absolute;
+  width: calc(var(--tag-mm) * var(--mm) / var(--disc-in-box));
+  /* center at 73.4mm across, 152.8mm down, less half the file's width */
+  left: calc(60.53 * var(--mm));
+  top: calc(139.93 * var(--mm));
+  right: auto;
+  bottom: auto;
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: clamp(11px, 1.1vw, 14px);
+  /* Equal rows, so the three cards are one height whatever their copy does.
+     Stick wraps to two lines and the other two do not, which left the first
+     card taller than the pair under it. */
+  grid-auto-rows: 1fr;
+}
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(104px, 9.6vw, 130px);
+  grid-template-areas:
+    'num art'
+    'body art';
+  gap: 8px clamp(10px, 1.2vw, 16px);
+  align-items: center;
+  padding: clamp(16px, 1.5vw, 20px);
+  border-radius: 24px;
+  /* Off white rather than white, so the wash behind each illustration is
+     the only thing on the card that reads as a panel of its own. */
+  background: var(--card);
+  box-shadow: 0 10px 30px rgba(17, 17, 17, 0.07);
+}
+
+.step-num {
+  grid-area: num;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: var(--lime);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.step-body {
+  grid-area: body;
+}
+
+.step-body h2 {
+  font-size: clamp(21px, 2vw, 25px);
+}
+
+.step-body p {
+  margin-top: 6px;
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: var(--charcoal);
+  text-wrap: balance;
+}
+
+/*
+ * The three scenes.
+ *
+ * Inline SVG rather than a flat PNG, so the rows, rings, check and tag are
+ * each a node that can be moved. The drawing keeps what the images had: one
+ * ink weight, round caps and joins, a lime wash behind the subject.
+ *
+ * `--step-tag` is the one tag size for all three tiles. It is a plain length,
+ * deliberately not the `--mm` scale the hero uses: these are illustrations,
+ * and a tag drawn life size against a stylized phone says nothing a reader
+ * can use. 64px at 1440, easing down to 42 on a phone.
+ */
+.step-art {
+  grid-area: art;
+  position: relative;
+  aspect-ratio: 1 / 1;
+  --step-tag: clamp(42px, 4.45vw, 64px);
+  --ease-step: cubic-bezier(0.23, 1, 0.32, 1);
+  /* 0, 60, 120ms. Set per tile below. */
+  --step-delay: 0ms;
+}
+
+.step-scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /*
+   * Clipped on purpose. The ripple and the rings expand past the scene, and
+   * the viewBox is exactly the art box, so letting the SVG clip them is what
+   * keeps a decorative ring from washing across the tile's copy.
+   */
+  overflow: hidden;
+}
+
+.scene-wash {
+  fill: #ddf495;
+}
+
+/* One weight for every line in every scene, as the drawings had. */
+.scene-ink {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 16;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stem,
+.row-line,
+.card-line,
+.check-mark,
+.phone-notch {
+  fill: none;
+}
+
+/* --- the tag, the one shared element ------------------------------------ */
+/*
+ * A slot at the resting position, sized to the final state, so the layout is
+ * reserved before anything moves and the drop cannot shift the tile. The slot
+ * is positioned and centered with the `translate` property; the image inside
+ * carries the `transform`, so the two never fight over one value.
+ */
+.step-tag-slot {
+  position: absolute;
+  left: var(--tag-x);
+  top: var(--tag-y);
+  translate: -50% -50%;
+  width: calc(var(--step-tag) / var(--disc-in-box));
+  aspect-ratio: 1 / 1;
+  pointer-events: none;
+}
+
+.step-tag {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* --- Stick -------------------------------------------------------------- */
+
+.step-stick .step-art {
+  --tag-x: 72%;
+  --tag-y: 66%;
+}
+
+/* --- Tap ---------------------------------------------------------------- */
+/*
+ * Up at the phone's top edge and clear of it. The phone is drawn from x 330
+ * to 620 of 800 and the tag sits to its left, so the disc never crosses the
+ * screen or anything on it.
+ */
+.step-tap .step-art {
+  --tag-x: 25%;
+  --tag-y: 27%;
+}
+
+.tap-phone {
+  transform: rotate(-12deg) skewY(2deg);
+  transform-origin: 586px 415px;
+}
+
+.card-plate {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 12;
+}
+
+.card-lit {
+  fill: var(--lime);
+  opacity: 0;
+}
+
+.card-line {
+  stroke: var(--ink);
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.check-ring {
+  fill: var(--lime);
+  stroke: var(--ink);
+  stroke-width: 12;
+}
+
+.check-mark {
+  stroke: var(--ink);
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* --- Set ---------------------------------------------------------------- */
+
+.row-plate {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 12;
+}
+
+.row-dot {
+  fill: var(--lime);
+  stroke: var(--ink);
+  stroke-width: 10;
+}
+
+.row-line {
+  stroke: var(--ink);
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.pill-track {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 10;
+}
+
+.pill-fill {
+  fill: var(--lime);
+}
+
+/*
+ * The motion.
+ *
+ * Rules this follows, and why each one is here:
+ *
+ * - transform and opacity only. Nothing animates width, height, margin or an
+ *   offset, so none of it touches layout and none of it can shift the page.
+ * - one easing, `--ease-step`, everywhere. Nothing eases in.
+ * - transitions rather than keyframes for the state changes, so an interrupted
+ *   run settles from where it actually is rather than snapping. The rings are
+ *   the exception the brief allows: they are decorative and one shot.
+ * - the resting state is the state in the markup. Everything below describes
+ *   how a tile looks BEFORE it has played, under `.step:not(.is-in)`, so the
+ *   final layout is already reserved and there is nothing to shift.
+ */
+
+.step-art :where(.step-tag, .set-row, .tap-card, .tap-check) {
+  transition-timing-function: var(--ease-step);
+  transition-delay: var(--step-delay);
+}
+
+.step-set .step-art { --step-delay: 60ms; }
+.step-tap .step-art { --step-delay: 120ms; }
+
+/* --- Stick: the tag drops onto the pot and presses --------------------- */
+
+.step-stick .step-tag {
+  transition-property: transform, opacity;
+  transition-duration: 320ms;
+}
+
+.step-stick:not(.is-in) .step-tag {
+  transform: translateY(-20px) rotate(-8deg);
+  opacity: 0;
+}
+
+/* The press is its own state, so it is a transition like everything else
+   rather than a keyframe that cannot be interrupted. */
+.step-stick .step-tag-slot {
+  transition: transform 160ms var(--ease-step);
+}
+
+.step-stick.is-pressed .step-tag-slot {
+  transform: scale(0.96);
+}
+
+/* The ripple leaves from the contact point. Decorative, so a keyframe. */
+.step-ripple {
+  fill: none;
+  stroke: rgba(17, 17, 17, 0.3);
+  stroke-width: 10;
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+
+.step-stick.is-in .step-ripple {
+  animation: step-ripple 600ms var(--ease-step) calc(var(--step-delay) + 300ms) 1 both;
+}
+
+@keyframes step-ripple {
+  from { transform: scale(0.8); opacity: 0.5; }
+  to   { transform: scale(1.9); opacity: 0; }
+}
+
+/* --- Set: the rows arrive, then the pill switches on ------------------- */
+
+.set-row {
+  transition-property: transform, opacity;
+  transition-duration: 280ms;
+  transition-delay: calc(var(--step-delay) + var(--i) * 50ms);
+}
+
+.step-set:not(.is-in) .set-row {
+  transform: translateY(8px);
+  opacity: 0;
+}
+
+/*
+ * The pill fills by sliding its lime under a clip, which is a transform on a
+ * clipped group rather than a width. It starts just off its own left edge,
+ * never at scale 0.
+ */
+.pill-fill {
+  transform-box: fill-box;
+  transform-origin: left center;
+  transition: transform 280ms var(--ease-step)
+    calc(var(--step-delay) + 3 * 50ms + 180ms);
+}
+
+.step-set:not(.is-in) .pill-fill {
+  transform: translateX(-100%);
+}
+
+/* --- Tap: the tag arrives, rings go out, the check lands --------------- */
+
+.step-tap .step-tag {
+  transition-property: transform, opacity;
+  transition-duration: 320ms;
+}
+
+.step-tap:not(.is-in) .step-tag {
+  transform: translateX(-26px);
+  opacity: 0;
+}
+
+.step-rings .ring {
+  fill: none;
+  stroke: rgba(17, 17, 17, 0.28);
+  stroke-width: 9;
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+
+.step-tap.is-in .step-rings .ring {
+  animation: step-ring 600ms var(--ease-step)
+    calc(var(--step-delay) + 300ms + var(--i) * 120ms) 1 both;
+}
+
+@keyframes step-ring {
+  from { transform: scale(0.85); opacity: 0.55; }
+  to   { transform: scale(2.3); opacity: 0; }
+}
+
+.tap-check {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition-property: transform, opacity;
+  transition-duration: 220ms;
+  transition-delay: calc(var(--step-delay) + 820ms);
+}
+
+.step-tap:not(.is-in) .tap-check {
+  transform: scale(0.8);
+  opacity: 0;
+}
+
+.card-lit {
+  transition: opacity 220ms var(--ease-step) calc(var(--step-delay) + 820ms);
+}
+
+.step-tap.is-in .card-lit {
+  opacity: 1;
+}
+
+/*
+ * Reduced motion: the finished picture, and nothing travels to get there.
+ * Every transform is dropped rather than retimed, the rings do not run at
+ * all, and what is left is a 150ms fade.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .step-art :where(.step-tag, .set-row, .tap-card, .tap-check, .pill-fill, .step-tag-slot) {
+    transform: none !important;
+    transition: opacity 150ms linear !important;
+  }
+
+  .step-ripple,
+  .step-rings {
+    display: none;
+  }
+
+  .tap-phone {
+    transition: none !important;
+  }
+
+  .step:not(.is-in) :where(.step-tag, .set-row, .tap-check) {
+    opacity: 0;
+  }
+}
+
+/* ---------- A simple system, a better you ---------- */
+
+.system {
+  padding: clamp(28px, 4vw, 54px) 0;
+}
+
+.system-grid {
+  margin-top: clamp(22px, 3vw, 38px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(18px, 3vw, 44px);
+}
+
+.system-item {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: clamp(14px, 1.8vw, 24px);
+  align-items: center;
+}
+
+.system-copy h3 {
+  font-size: clamp(21px, 2.2vw, 27px);
+}
+
+/*
+ * No widows.
+ *
+ * `text-wrap: balance` evens the lines out so a short block does not leave one
+ * word alone at the end, and every one of these also carries a non-breaking
+ * space between its last two words in the markup. The two are not redundant:
+ * balance is advisory and browsers that do not implement it ignore it outright,
+ * while the bound pair cannot be broken by any of them. Balance is also capped
+ * at a handful of lines by implementations, so on the longer prose paragraphs
+ * the bound pair is the whole of the fix and the property is left off.
+ */
+.system-copy p {
+  margin-top: 8px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--charcoal);
+  text-wrap: balance;
+}
+
+/* ---------- The MindKnowt Kit ---------- */
+
+.kit {
+  padding: clamp(18px, 3vw, 36px) 0;
+}
+
+/*
+ * Three columns: the words, the callouts, the phone.
+ *
+ * The phone is the last column, so it sits against the right edge of the
+ * lime. The callouts moved out of the copy block and into a column of their
+ * own, which is what shortens the panel: the left column used to carry them
+ * on one line under the subhead and was the tallest thing here.
+ */
+.kit-panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: "copy feats art";
+  gap: clamp(26px, 3.4vw, 54px);
+  align-items: center;
+  padding: clamp(24px, 2.6vw, 34px);
+  border-radius: 34px;
+  background: var(--pale-lime);
+}
+
+/*
+ * One row, not two.
+ *
+ * The words and the price were two rows with the phone spanning both, and a
+ * row that something tall spans gets stretched: the price pill was pushed to
+ * the bottom of a 410px column and left a hole under the subhead. They share
+ * a column now and the three columns each center in the panel, so the slack
+ * is split evenly above and below and reads as padding.
+ */
+.kit-copy {
+  grid-area: copy;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(22px, 2.6vw, 34px);
+}
+
+.kit-features { grid-area: feats; }
+.kit-art { grid-area: art; }
+
+.kit-copy h2 {
+  margin-top: 10px;
+  font-size: clamp(32px, 4.2vw, 52px);
+  letter-spacing: -0.035em;
+}
+
+.kit-sub {
+  margin-top: 12px;
+  font-size: 17px;
+  color: var(--charcoal);
+}
+
+/*
+ * One column, left aligned, with a hairline between rows rather than beside
+ * them. The dividers turned from vertical to horizontal with the stack.
+ */
+.kit-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+}
+
+.kit-features li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  justify-items: start;
+  gap: 12px;
+  padding: clamp(9px, 1vw, 13px) 0;
+  text-align: left;
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--charcoal);
+  text-wrap: balance;
+}
+
+.kit-features li + li {
+  border-top: 1px solid rgba(17, 17, 17, 0.14);
+}
+
+.feature-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.kit-buy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px clamp(16px, 2vw, 26px);
+}
+
+.price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 24px;
+  border-radius: 999px;
+  background: var(--white);
+  box-shadow: 0 8px 22px rgba(17, 17, 17, 0.08);
+}
+
+.price-amount {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(28px, 3.2vw, 38px);
+  letter-spacing: -0.03em;
+}
+
+.price-note {
+  font-size: 15px;
+  color: var(--charcoal);
+}
+
+.kit-platform {
+  font-size: 16px;
+  color: var(--charcoal);
+}
+
+/*
+ * The phone on its own.
+ *
+ * The five tag cluster that used to share this column is gone, and with it
+ * the millimeter scale that sized the two against each other. Nothing in this
+ * section is a tag any more, so there is nothing here to be life size
+ * against: the hero is where that comparison lives.
+ */
+.kit-art {
+  position: relative;
+  width: clamp(138px, 12.2vw, 176px);
+}
+
+.phone-kit {
+  /* The phone governs the panel's height now, so this is what shortens it. */
+  width: 100%;
+  height: auto;
+}
+
+/*
+ * The cluster's own box. Square, so the group's shape does not stretch with
+ * the column, and `relative` so the five are placed inside it rather than
+ * over the panel.
+ */
+
+/* ---------- More space for what matters ---------- */
+
+.space {
+  padding: clamp(18px, 3vw, 34px) 0 clamp(30px, 4vw, 56px);
+}
+
+.space-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 2fr);
+  gap: clamp(22px, 3vw, 48px);
+  align-items: center;
+  padding: clamp(20px, 2.2vw, 28px) clamp(24px, 3vw, 36px);
+  border-radius: 28px;
+  background: var(--beige);
+}
+
+.space-copy h2 {
+  font-size: clamp(20px, 1.9vw, 24px);
+  margin-bottom: 12px;
+}
+
+.space-copy p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--charcoal);
+  text-wrap: balance;
+}
+
+/* Every label breaks onto exactly two lines in the markup, and the row
+   aligns to the top, so no icon and no label sits lower than the others
+   whatever the words are. */
+.space-cats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: start;
+  gap: clamp(8px, 1.2vw, 18px);
+}
+
+.space-cats li {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 10px;
+  text-align: center;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--charcoal);
+  /*
+   * Opt these back out of the grayscale smoothing `body` turns on.
+   *
+   * `-webkit-font-smoothing: antialiased` is a macOS-only switch that renders
+   * text lighter than it was drawn. It costs least on large type and most on
+   * small type with thin features, which is this: 11px capitals whose
+   * thinnest stroke is the A's crossbar, and the A is the letter that was
+   * reported as looking wrong. `auto` leaves the system to render them at the
+   * weight Quicksand actually carries.
+   *
+   * Scoped here rather than removed from `body`, so body copy is untouched
+   * until there is a reason to move it. It cannot be judged on Linux, where
+   * the property does nothing at all.
+   */
+  -webkit-font-smoothing: auto;
+}
+
+.cat-icon {
+  width: 28px;
+  height: 28px;
+}
+
+/* ---------- Prose pages ---------- */
+
+.page-head {
+  padding: clamp(28px, 4vw, 56px) 0 clamp(16px, 2vw, 28px);
+}
+
+.page-head h1 {
+  font-size: clamp(32px, 5.6vw, 52px);
+  text-wrap: balance;
+}
+
+.page-head .updated {
+  margin-top: 16px;
+  color: var(--gray);
+  font-size: 15px;
+}
+
+.prose {
+  padding-bottom: clamp(36px, 5vw, 64px);
+  max-width: 72ch;
+}
+
+.prose h2 {
+  font-size: clamp(21px, 3vw, 26px);
+  margin-top: 44px;
+  margin-bottom: 12px;
+  text-wrap: balance;
+}
+
+.prose h3 {
+  font-size: 18px;
+  margin-top: 28px;
+  margin-bottom: 8px;
+}
+
+/*
+ * `pretty` rather than `balance` on running prose.
+ *
+ * Balance evens every line, which is what a two line description wants and
+ * what a ten line paragraph does not: implementations cap it at a handful of
+ * lines anyway, so on Terms and Privacy it silently does nothing. `pretty`
+ * leaves the body of the paragraph alone and works on the end of it, which is
+ * exactly the widow rule.
+ *
+ * This is also the robust half of the fix. A hand placed non-breaking space
+ * binds one pair at the width it was chosen for; these paragraphs picked up
+ * new widows the first time they met a newer Chromium, because the break
+ * points moved. A property that states the intent survives that.
+ */
+.prose p,
+.prose li {
+  color: var(--charcoal);
+  text-wrap: pretty;
+}
+
+.prose p + p {
+  margin-top: 16px;
+}
+
+.prose ul {
+  margin: 14px 0 0;
+  padding-left: 22px;
+}
+
+.prose li + li {
+  margin-top: 8px;
+}
+
+.prose strong {
+  color: var(--ink);
+}
+
+.faq {
+  margin-top: 8px;
+}
+
+.faq h2 {
+  font-size: 20px;
+  margin-top: 36px;
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: clamp(20px, 2.2vw, 28px) 0 clamp(22px, 2.6vw, 32px);
+}
+
+.footer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px clamp(20px, 3vw, 44px);
+}
+
+.footer-brand img {
+  width: 108px;
+}
+
+.footer-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 26px;
+}
+
+.footer-nav a {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 16px;
+  text-decoration: none;
+}
+
+.footer-nav a:hover {
+  box-shadow: inset 0 -0.14em 0 var(--lime);
+}
+
+/* The address pushes to the right edge, with the icons after it. */
+.footer-mail {
+  margin-left: auto;
+  font-size: 15px;
+  color: var(--charcoal);
+}
+
+.footer-mail a {
+  color: var(--charcoal);
+  text-decoration: none;
+}
+
+.footer-mail a:hover {
+  box-shadow: inset 0 -0.14em 0 var(--lime);
+}
+
+.footer-social {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.footer-social a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 44 square, because that is the smallest thing a thumb reliably hits,
+     with the mark inside it kept small so the row stays quiet. */
+  width: 44px;
+  height: 44px;
+  margin: -10px;
+  color: var(--charcoal);
+}
+
+.footer-social a:hover {
+  color: var(--ink);
+}
+
+.social-icon {
+  width: 21px;
+  height: 21px;
+  color: inherit;
+}
+
+/* The text comes from `--legal-line` above. See the note there. */
+.footer-legal::after {
+  content: var(--legal-line);
+}
+
+.footer-legal {
+  margin-top: 16px;
+  /* One step down from the links above it, and italic, so the legal line
+     reads as a note rather than as more navigation. */
+  font-size: 14px;
+  font-style: italic;
+  color: var(--gray);
+  line-height: 1.7;
+}
+
+.footer-legal a {
+  color: var(--gray);
+}
+
+/* ---------- Narrow screens ---------- */
+
+/*
+ * The page is built as one column with columns added, not the other way
+ * around, so these blocks mostly take columns away. Every section stacks in
+ * the order the markup already has: hero copy, hero phone, the three steps,
+ * the system row, the kit panel, the category strip.
+ */
+
+@media (max-width: 940px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.78fr);
+  }
+
+  /* Alone in its column the phone balloons, so it keeps the width it had
+     when there were three columns and centers in the space. */
+  .hero-art {
+    max-width: 330px;
+    justify-self: center;
+    align-self: center;
+  }
+
+  /* The steps drop under the pair above them and run three across. */
+  .steps {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .system-item {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    text-align: center;
+  }
+
+  .system-copy .dash {
+    margin-inline: auto;
+  }
+
+  .space-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .space-cats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 22px 12px;
+  }
+}
+
+@media (max-width: 860px) {
+  /*
+   * Two columns before the full stack: the words and the callouts beside each
+   * other, the phone under them. Dropping straight from three columns to one
+   * left the callouts in a narrow strip while the panel still had room.
+   */
+  .kit-panel {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "copy feats"
+      "art  art";
+    align-items: start;
+    row-gap: clamp(22px, 4vw, 34px);
+  }
+
+  .kit-art {
+    justify-self: center;
+    width: clamp(150px, 32vw, 200px);
+  }
+}
+
+@media (max-width: 768px) {
+  /*
+   * The order to read it in: what it is, what you get, what it costs, then
+   * the picture. `display: contents` dissolves the wrapper so the words and
+   * the price can be placed on either side of the callouts without a second
+   * copy of the markup.
+   */
+  .kit-copy {
+    display: contents;
+  }
+
+  .kit-panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "intro"
+      "feats"
+      "buy"
+      "art";
+    row-gap: clamp(20px, 4.5vw, 30px);
+  }
+
+  .kit-intro { grid-area: intro; }
+  .kit-buy { grid-area: buy; }
+
+  /* Four short rows become a 2 by 2 so the price is not pushed off screen. */
+  .kit-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: clamp(14px, 4vw, 26px);
+  }
+
+  /*
+   * In a 2 by 2 the only hairline is the one between the top pair and the
+   * bottom pair, so it belongs to the third and fourth items rather than to
+   * every item but the first.
+   */
+  .kit-features li + li {
+    border-top: 0;
+  }
+
+  .kit-features li:nth-child(n + 3) {
+    border-top: 1px solid rgba(17, 17, 17, 0.14);
+  }
+
+  .kit-art {
+    justify-self: center;
+    width: clamp(150px, 46vw, 220px);
+  }
+}
+
+@media (max-width: 768px) {
+  .brand img {
+    /* Still twice what it was, sized to the narrower page. */
+    width: 168px;
+  }
+
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-art {
+    /*
+     * Room for the tag's overhang, which is the thing that was running off
+     * the page down here.
+     *
+     * The tag is placed by its center a millimeter and a half past the
+     * phone's right edge, so its far edge sits at 120 percent of the phone's
+     * width. The phone is 100 percent of this element's content box, so the
+     * right padding has to be at least 20 percent of that content box to hold
+     * the rest. Percentage padding resolves against the containing block, and
+     * p >= 0.2(1 - p) gives p >= 16.7, so 18 percent clears it with a margin
+     * at every width rather than at the one that was measured.
+     *
+     * Wide layouts keep 10 percent, where the overhang lands in the grid gap
+     * and costs the phone nothing.
+     */
+    padding-right: 18%;
+    max-width: 392px;
+    margin: 4px auto 0;
+  }
+
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .system-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  /* Back to the phone beside its words, which is the shape that fits a
+     narrow screen without three tall columns of one-word lines. */
+  .system-item {
+    grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+    justify-items: start;
+    text-align: left;
+  }
+
+  .system-copy .dash {
+    margin-inline: 0;
+  }
+
+  .kit-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 0;
+  }
+
+  .kit-features li:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .space-cats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .footer-bar {
+    gap: 16px;
+  }
+
+  .footer-mail {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand img {
+    width: 150px;
+  }
+
+  .hero-copy h1 {
+    font-size: 34px;
+  }
+
+  .system-item {
+    grid-template-columns: minmax(0, 112px) minmax(0, 1fr);
+  }
+
+  .space-cats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
