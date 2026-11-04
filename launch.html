@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nic &amp; Mag Studios | Digital Art, Printables &amp; Creative Products</title>
+<meta name="description" content="Nic & Mag Studios is an independent creative studio in Oklahoma making digital art, printables, and creative products." />
+<meta property="og:title" content="Nic & Mag Studios" />
+<meta property="og:description" content="Digital art, printables, and creative products from Nic & Mag Studios." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://nicandmagstudios.com/" />
+<meta property="og:image" content="https://nicandmagstudios.com/logo-stacked.png" />
+<meta name="theme-color" content="#FAF9F6" />
+<link rel="icon" href="logo-stacked.png" />
+<style>
+  /* Glacial Indifference (SIL Open Font License, Alfredo Marco Pradil) */
+  @font-face {
+    font-family: 'Glacial Indifference';
+    src: url('fonts/GlacialIndifference-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Glacial Indifference';
+    src: url('fonts/GlacialIndifference-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  /* Brand tokens (Nic & Mag Studios style sheet, Nov 2026) */
+  :root {
+    --porcelain: #FAF9F6;
+    --pink: #FAD9E7;
+    --tomato: #D92D0B;
+    --ink: #302326;
+
+    --font-display: 'Glacial Indifference', Helvetica, Arial, sans-serif;
+    --font-body: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+    --radius: 16px;
+    --hairline: 1px solid rgba(48, 35, 38, 0.10);
+    --max: 1040px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--porcelain);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  img { display: block; max-width: 100%; height: auto; }
+  a { color: var(--tomato); }
+  a:hover { color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--tomato); outline-offset: 4px; }
+
+  .skip {
+    position: absolute; left: -9999px; top: 8px;
+    background: var(--ink); color: var(--porcelain); padding: 10px 16px; z-index: 100;
+  }
+  .skip:focus { left: 8px; }
+
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  .site-header { padding: 28px 0 20px; }
+  .site-header .wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+  .brand-logo { width: 72px; height: auto; }
+  .site-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 36px; }
+  .site-nav a {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--ink);
+    padding: 4px 0;
+  }
+  .site-nav a:hover { color: var(--tomato); }
+
+  /* Hero */
+  .hero { padding: 48px 0 72px; }
+  .hero .wrap {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    align-items: center;
+    text-align: center;
+  }
+  .hero-art {
+    background: var(--pink);
+    border-radius: 999px 999px var(--radius) var(--radius);
+    padding: 56px 40px 48px;
+    display: flex;
+    justify-content: center;
+  }
+  .hero-logo { width: min(340px, 72%); height: auto; }
+  .eyebrow {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--tomato);
+    margin: 0 0 14px;
+  }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: clamp(30px, 4.6vw, 50px);
+    line-height: 1.08;
+    letter-spacing: 0.05em;
+    color: var(--tomato);
+    margin: 0;
+    text-wrap: balance;
+  }
+  .lead { font-size: 18px; max-width: 30em; margin: 18px auto 0; }
+  .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 28px; }
+
+  .btn {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 15px 26px;
+    border-radius: 999px;
+    border: 1.5px solid var(--tomato);
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+  .btn-primary { background: var(--tomato); color: var(--porcelain); }
+  .btn-primary:hover { background: var(--ink); border-color: var(--ink); color: var(--porcelain); }
+  .btn-ghost { background: transparent; color: var(--tomato); }
+  .btn-ghost:hover { background: var(--tomato); color: var(--porcelain); }
+
+  /* Sections */
+  .section { padding: 72px 0; }
+  .section-pink { background: var(--pink); }
+  .section-head { text-align: center; margin-bottom: 40px; }
+  .section h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: clamp(24px, 3.4vw, 34px);
+    letter-spacing: 0.07em;
+    line-height: 1.1;
+    color: var(--tomato);
+    margin: 0;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 20px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .card {
+    background: var(--porcelain);
+    border-radius: var(--radius);
+    padding: 32px 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 17px;
+    letter-spacing: 0.08em;
+    margin: 0;
+  }
+  .card p { margin: 0; font-size: 15px; }
+  .tag {
+    margin-top: auto;
+    padding-top: 16px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--tomato);
+  }
+
+  .about { max-width: 620px; margin: 0 auto; text-align: center; }
+  .about p { font-size: 17px; margin: 0 0 16px; }
+  .about p:last-child { margin-bottom: 0; }
+
+  /* Contact (light, not a heavy band) */
+  .contact { padding: 72px 0; text-align: center; border-top: var(--hairline); }
+  .contact h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: clamp(24px, 3.4vw, 34px);
+    letter-spacing: 0.07em;
+    color: var(--tomato);
+    margin: 0 0 12px;
+  }
+  .contact p { margin: 0 auto 28px; max-width: 28em; }
+
+  /* Footer */
+  .site-footer { padding: 32px 0 40px; border-top: var(--hairline); }
+  .site-footer .wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 14px;
+  }
+  .site-footer img { width: 44px; height: auto; }
+  .site-footer p { margin: 0; }
+
+  @media (min-width: 820px) {
+    .site-header .wrap { flex-direction: row; justify-content: space-between; }
+    .brand-logo { width: 60px; }
+    .hero .wrap { grid-template-columns: 1fr 1fr; text-align: left; gap: 56px; }
+    .hero .lead { margin-left: 0; }
+    .actions { justify-content: flex-start; }
+    .hero-art { order: 2; }
+  }
+
+  @media (max-width: 480px) {
+    .section, .contact { padding: 52px 0; }
+    .hero { padding: 28px 0 52px; }
+    .hero-art { padding: 40px 24px 36px; border-radius: 999px 999px var(--radius) var(--radius); }
+    .btn { width: 100%; text-align: center; }
+    .contact .btn { font-size: 12px; letter-spacing: 0.08em; padding: 15px 12px; overflow-wrap: anywhere; }
+    .actions { flex-direction: column; align-items: stretch; }
+    .site-nav { gap: 10px 26px; }
+  }
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a href="#top" aria-label="Nic and Mag Studios home">
+      <img class="brand-logo" src="logo-stacked.png" alt="Nic &amp; Mag Studios" width="984" height="752" />
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="#collections">Collections</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="hero" id="top">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow">Oklahoma studio</p>
+        <h1>Digital art &amp; printables</h1>
+        <p class="lead">Creative products from Nic &amp; Mag Studios, made to brighten the everyday.</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="mailto:hello@nicandmagstudios.com">Get in touch</a>
+          <a class="btn btn-ghost" href="#collections">See collections</a>
+        </div>
+      </div>
+      <div class="hero-art">
+        <img class="hero-logo" src="logo-stacked.png" alt="Nic &amp; Mag Studios logo" width="984" height="752" />
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-pink" id="collections" aria-labelledby="collections-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="collections-title">Collections</h2>
+      </div>
+      <ul class="cards">
+        <li class="card">
+          <h3>Digital art</h3>
+          <p>Original illustrations and art, ready to download and enjoy.</p>
+          <span class="tag">Coming soon</span>
+        </li>
+        <li class="card">
+          <h3>Printables</h3>
+          <p>Ready-to-print designs for your home and everyday life.</p>
+          <span class="tag">Coming soon</span>
+        </li>
+        <li class="card">
+          <h3>Color season guides</h3>
+          <p>Personal color guides to help you find the palette that suits you.</p>
+          <span class="tag">Coming soon</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section" id="about" aria-labelledby="about-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="about-title">About</h2>
+      </div>
+      <div class="about">
+        <p>Nic &amp; Mag Studios is an online shop run by two sisters who love making little luxuries for your shelves, tables &amp; walls.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact" id="contact" aria-labelledby="contact-title">
+    <div class="wrap">
+      <h2 id="contact-title">Say hello</h2>
+      <p>Questions, collaborations, or just a hello? We would love to hear from you.</p>
+      <a class="btn btn-primary" href="mailto:hello@nicandmagstudios.com">hello@nicandmagstudios.com</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <img src="logo-stacked.png" alt="" width="984" height="752" />
+    <div>
+      <p>&copy; 2026 Nic &amp; Mag Studios LLC &middot; Oklahoma</p>
+      <p><a href="mailto:hello@nicandmagstudios.com">hello@nicandmagstudios.com</a></p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
