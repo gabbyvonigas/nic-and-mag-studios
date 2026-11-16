@@ -1,0 +1,211 @@
+import { getDatabase } from './database';
+import { newId } from './ids';
+import type { PendingAlarmKind, PendingAlarmRow } from './types';
+
+/**
+ * The app's record of alarms handed to AlarmKit that have not fired yet.
+ *
+ * AlarmKit cannot be asked "what is armed for this knowt", so without this
+ * table the app is blind: nothing can show that a knowt is snoozed, and nothing
+ * can cancel an alarm that is no longer wanted. That blindness is what let
+ * repeated test rings stack up and fire on top of each other.
+ *
+ * Rows are removed when the alarm is canceled, and pruned once its time has
+ * passed, since a fired alarm is no longer pending. The record is deliberately
+ * best-effort: it can drift if AlarmKit drops an alarm on its own, so nothing
+ * here is treated as proof that an alarm will ring.
+ */
+export async function recordPendingAlarm(args: {
+  knowtId: string;
+  scheduleId?: string | null;
+  alarmkitId: string;
+  firesAt: number;
+  kind: PendingAlarmKind;
+  signature?: string | null;
+}): Promise<string> {
+  const db = await getDatabase();
+  const id = newId();
+  await db.runAsync(
+    `INSERT INTO pending_alarms
+       (id, knowt_id, schedule_id, alarmkit_id, fires_at, kind, signature, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    args.knowtId,
+    args.scheduleId ?? null,
+    args.alarmkitId,
+    args.firesAt,
+    args.kind,
+    args.signature ?? null,
+    Date.now(),
+  );
+  return id;
+}
+
+/**
+ * How long a fired one-shot is kept before being pruned.
+ *
+ * Launch housekeeping used to delete a one-shot the instant its time passed,
+ * which threw away the record of the alarm the app was being opened by. The
+ * ringing gate asks whether a test ring or a re-fire just went off, so that
+ * record has to outlive the firing by longer than it takes to answer.
+ */
+const FIRED_GRACE_MS = 5 * 60_000;
+
+/**
+ * Drops one-shot rows whose time has passed. They rang, so they are no longer
+ * pending.
+ *
+ * Scheduled alarms are deliberately excluded. A weekly repeat keeps ringing
+ * long after its recorded next time is in the past, so deleting it here would
+ * throw away a live alarm's only record. Sync owns those rows instead, and
+ * moves their `fires_at` forward.
+ */
+export async function prunePastAlarms(now = Date.now()): Promise<number> {
+  const db = await getDatabase();
+  const result = await db.runAsync(
+    `DELETE FROM pending_alarms
+      WHERE fires_at <= ? AND kind IN ('refire', 'snooze', 'test')`,
+    now - FIRED_GRACE_MS,
+  );
+  return result.changes;
+}
+
+/** Every scheduled alarm on record, past time or not. Sync reconciles these. */
+export async function listScheduledAlarmRecords(): Promise<PendingAlarmRow[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<PendingAlarmRow>(
+    "SELECT * FROM pending_alarms WHERE kind = 'scheduled'",
+  );
+}
+
+/** Removes a single record. Canceling with the platform is the caller's job. */
+export async function deletePendingAlarm(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM pending_alarms WHERE id = ?', id);
+}
+
+/** Every alarm still in the future, soonest first. */
+export async function listPendingAlarms(
+  now = Date.now(),
+): Promise<PendingAlarmRow[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<PendingAlarmRow>(
+    'SELECT * FROM pending_alarms WHERE fires_at > ? ORDER BY fires_at',
+    now,
+  );
+}
+
+export async function listPendingForKnowt(
+  knowtId: string,
+  now = Date.now(),
+): Promise<PendingAlarmRow[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<PendingAlarmRow>(
+    'SELECT * FROM pending_alarms WHERE knowt_id = ? AND fires_at > ? ORDER BY fires_at',
+    knowtId,
+    now,
+  );
+}
+
+/**
+ * Removes the rows for a knowt and hands them back so the caller can cancel
+ * each one with AlarmKit. Deleting and returning in one step keeps the table
+ * from listing an alarm the caller is about to tear down.
+ *
+ * `scheduleId` is matched exactly, omitted meaning every schedule. Passing
+ * `null` matches only the alarms that belong to no schedule, which is what a
+ * test ring, a re-fire and a snooze all are. `kinds` narrows further, so a
+ * completion can clear the one-shots without touching a recurring alarm.
+ */
+export async function takePendingForKnowt(
+  knowtId: string,
+  filter: { scheduleId?: string | null; kinds?: PendingAlarmKind[] } = {},
+): Promise<PendingAlarmRow[]> {
+  const db = await getDatabase();
+
+  const clauses = ['knowt_id = ?'];
+  const args: (string | number)[] = [knowtId];
+
+  if (filter.scheduleId === null) {
+    clauses.push('schedule_id IS NULL');
+  } else if (filter.scheduleId !== undefined) {
+    clauses.push('schedule_id = ?');
+    args.push(filter.scheduleId);
+  }
+
+  if (filter.kinds && filter.kinds.length > 0) {
+    clauses.push(`kind IN (${filter.kinds.map(() => '?').join(', ')})`);
+    args.push(...filter.kinds);
+  }
+
+  const where = clauses.join(' AND ');
+  const rows = await db.getAllAsync<PendingAlarmRow>(
+    `SELECT * FROM pending_alarms WHERE ${where}`,
+    ...args,
+  );
+  if (rows.length > 0) {
+    await db.runAsync(`DELETE FROM pending_alarms WHERE ${where}`, ...args);
+  }
+  return rows;
+}
+
+/**
+ * The one-shot records for a knowt, whether or not their time has passed.
+ *
+ * `listPendingForKnowt` only answers what is still ahead, which cannot tell the
+ * app why it was just opened. A test ring or a re-fire that went off thirty
+ * seconds ago is exactly the thing being asked about.
+ */
+export async function listOneShotsForKnowt(
+  knowtId: string,
+): Promise<PendingAlarmRow[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<PendingAlarmRow>(
+    `SELECT * FROM pending_alarms
+      WHERE knowt_id = ? AND kind IN ('refire', 'snooze', 'test')
+      ORDER BY fires_at`,
+    knowtId,
+  );
+}
+
+/**
+ * Moves a record's expected firing without touching the alarm itself.
+ *
+ * A recurring weekly alarm's signature does not include its next time, because
+ * that time moves every week without the alarm changing. The record was
+ * therefore stamped once and never again, so `fires_at` sat in the past
+ * forever and every query that asks what is still ahead stopped seeing it.
+ */
+export async function touchPendingAlarm(
+  id: string,
+  firesAt: number,
+): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE pending_alarms SET fires_at = ? WHERE id = ?',
+    firesAt,
+    id,
+  );
+}
+
+/**
+ * One record by its AlarmKit id, or null.
+ *
+ * Used when taking in a snooze the app did not perform: the import is keyed on
+ * this so running it twice cannot record one press as two snoozes.
+ */
+export async function findPendingByAlarmkitId(
+  alarmkitId: string,
+): Promise<PendingAlarmRow | null> {
+  const db = await getDatabase();
+  return db.getFirstAsync<PendingAlarmRow>(
+    'SELECT * FROM pending_alarms WHERE alarmkit_id = ?',
+    alarmkitId,
+  );
+}
+
+/** Forgets every pending record. Pairs with a cancel-everything recovery. */
+export async function clearAllPendingAlarms(): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM pending_alarms');
+}

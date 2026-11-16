@@ -1,0 +1,33 @@
+name: Spelling
+
+# Pull requests are the case this is meant to block, but not the only way
+# something lands: the Terms and Privacy file was committed straight to main
+# through the GitHub web UI, which is not a pull request at all. So pushes to
+# main are checked too.
+on:
+  pull_request:
+    paths:
+      - 'mindknowt/**'
+      - '.github/workflows/spelling.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mindknowt/**'
+      - '.github/workflows/spelling.yml'
+
+jobs:
+  american-english:
+    name: American English
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # No install step. The checker uses only Node builtins, so there is
+      # nothing to fetch and nothing that can break independently of it.
+      - name: Check spelling
+        working-directory: mindknowt
+        run: npm run check:spelling
